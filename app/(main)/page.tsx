@@ -32,6 +32,7 @@ interface HomeEvent {
   id: string
   title: string
   date: string
+  end_date?: string
   type: EventType
 }
 
@@ -169,17 +170,18 @@ export default function HomePage() {
       // 今日以降のイベント（最大5件）
       const { data: eventsData } = await db
         .from('events')
-        .select('id, title, event_date, event_type')
+        .select('id, title, event_date, end_date, event_type')
         .eq('couple_id', coupleId)
         .gte('event_date', today)
         .order('event_date', { ascending: true })
         .limit(5)
 
       if (eventsData) {
-        setEvents(eventsData.map((e: { id: string; title: string; event_date: string; event_type: EventType }) => ({
+        setEvents(eventsData.map((e: { id: string; title: string; event_date: string; end_date?: string; event_type: EventType }) => ({
           id: e.id,
           title: e.title,
           date: e.event_date,
+          end_date: e.end_date ?? undefined,
           type: e.event_type,
         })))
       }
@@ -374,16 +376,20 @@ export default function HomePage() {
         ) : (
           <div className="space-y-3">
             {upcomingEvents.slice(0, 5).map(event => {
-              const config = eventTypeConfig[event.type]
-              const eventDate = new Date(event.date.replace(/-/g, '/'))
+              const config    = eventTypeConfig[event.type]
+              const startDate = new Date(event.date.replace(/-/g, '/'))
+              const endDate   = event.end_date && event.end_date !== event.date
+                ? new Date(event.end_date.replace(/-/g, '/'))
+                : null
+              const dateLabel = endDate
+                ? `${format(startDate, 'M月d日(E)', { locale: ja })} 〜 ${format(endDate, 'M月d日(E)', { locale: ja })}`
+                : format(startDate, 'M月d日(E)', { locale: ja })
               return (
                 <Link key={event.id} href={`/calendar?date=${event.date}`} className="flex items-center gap-3">
                   <div className="w-1 h-8 rounded-full flex-shrink-0" style={{ backgroundColor: config.text }} />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate" style={{ color: '#1A1A1A' }}>{event.title}</p>
-                    <p className="text-xs" style={{ color: '#A3A3A3' }}>
-                      {format(eventDate, 'M月d日(E)', { locale: ja })}
-                    </p>
+                    <p className="text-xs" style={{ color: '#A3A3A3' }}>{dateLabel}</p>
                   </div>
                   <span className="text-xs px-2 py-0.5 flex-shrink-0" style={{ backgroundColor: config.bg, color: config.text, borderRadius: '6px' }}>
                     {config.label}

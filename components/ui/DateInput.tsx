@@ -12,13 +12,15 @@ interface DateInputProps {
   value: string          // 'yyyy-MM-dd' or ''
   onChange: (value: string) => void
   placeholder?: string
+  minDate?: string       // 'yyyy-MM-dd' — これより前の日付は選択不可
 }
 
 const DAY_LABELS = ['日', '月', '火', '水', '木', '金', '土']
 
-export default function DateInput({ value, onChange, placeholder = '日付を選択' }: DateInputProps) {
+export default function DateInput({ value, onChange, placeholder = '日付を選択', minDate }: DateInputProps) {
   const selected = value ? new Date(value.replace(/-/g, '/')) : null  // ローカル解釈
-  const [viewMonth, setViewMonth] = useState(selected ?? new Date())
+  const minDay   = minDate ? new Date(minDate.replace(/-/g, '/')) : null
+  const [viewMonth, setViewMonth] = useState(selected ?? (minDay ?? new Date()))
 
   const monthStart = startOfMonth(viewMonth)
   const monthEnd   = endOfMonth(viewMonth)
@@ -27,7 +29,16 @@ export default function DateInput({ value, onChange, placeholder = '日付を選
     end:   endOfWeek(monthEnd,   { weekStartsOn: 0 }),
   })
 
+  function isDisabled(day: Date): boolean {
+    if (!minDay) return false
+    // minDayより前の日は選択不可（時刻を0に揃えて比較）
+    const d = new Date(day.getFullYear(), day.getMonth(), day.getDate())
+    const m = new Date(minDay.getFullYear(), minDay.getMonth(), minDay.getDate())
+    return d < m
+  }
+
   function select(day: Date) {
+    if (isDisabled(day)) return
     onChange(format(day, 'yyyy-MM-dd'))
   }
 
@@ -87,16 +98,18 @@ export default function DateInput({ value, onChange, placeholder = '日付を選
           const isSelected  = selected ? isSameDay(day, selected) : false
           const isToday     = isSameDay(day, new Date())
           const isThisMonth = isSameMonth(day, viewMonth)
-          const isSun = day.getDay() === 0
-          const isSat = day.getDay() === 6
+          const isSun       = day.getDay() === 0
+          const isSat       = day.getDay() === 6
+          const disabled    = isDisabled(day)
 
           return (
             <button
               key={day.toISOString()}
               type="button"
               onClick={() => select(day)}
+              disabled={disabled}
               className="flex items-center justify-center"
-              style={{ height: '36px' }}
+              style={{ height: '36px', cursor: disabled ? 'default' : 'pointer' }}
             >
               <span
                 className="w-8 h-8 flex items-center justify-center text-sm rounded-full"
@@ -104,7 +117,7 @@ export default function DateInput({ value, onChange, placeholder = '日付を選
                   backgroundColor: isSelected ? '#1A1A1A' : isToday ? '#F5F5F3' : 'transparent',
                   color: isSelected
                     ? '#FFFFFF'
-                    : !isThisMonth
+                    : disabled || !isThisMonth
                     ? '#D4D4D4'
                     : isSun
                     ? '#B5465A'

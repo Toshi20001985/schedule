@@ -29,10 +29,11 @@ interface CalEvent {
   id: string
   title: string
   date: string
+  end_date?: string
   type: EventType
   memo?: string
-  traveler?: Traveler       // visit のみ
-  flight_payer?: FlightPayer // visit / trip
+  traveler?: Traveler
+  flight_payer?: FlightPayer
 }
 
 const DAY_LABELS = ['日', '月', '火', '水', '木', '金', '土']
@@ -46,6 +47,19 @@ const inputStyle: React.CSSProperties = {
   borderRadius: '10px',
   backgroundColor: '#FAFAF7',
   color: '#1A1A1A',
+}
+
+function parseDateStr(dateStr: string): Date {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  return new Date(y, m - 1, d)
+}
+
+// 複数日イベントのその日の位置を返す
+function getRangePos(event: CalEvent, dayStr: string): 'start' | 'mid' | 'end' | 'single' {
+  if (!event.end_date || event.end_date === event.date) return 'single'
+  if (dayStr === event.date)     return 'start'
+  if (dayStr === event.end_date) return 'end'
+  return 'mid'
 }
 
 // ---- 飛行機代の表示テキスト ----
@@ -223,6 +237,7 @@ function CalendarPageInner() {
   const [newMemo,       setNewMemo]       = useState('')
   const [newTraveler,   setNewTraveler]   = useState<Traveler>('me')
   const [newFlightPayer, setNewFlightPayer] = useState<FlightPayer>('me')
+  const [newEndDate,    setNewEndDate]    = useState<Date | null>(null)
 
   // Supabase からイベント取得
   useEffect(() => {
@@ -260,18 +275,19 @@ function CalendarPageInner() {
 
       const { data } = await db
         .from('events')
-        .select('id, title, event_date, event_type, memo, traveler, flight_payer')
+        .select('id, title, event_date, end_date, event_type, memo, traveler, flight_payer')
         .eq('couple_id', userData.couple_id)
         .order('event_date', { ascending: true })
 
       if (data) {
         setEvents(data.map((e: {
-          id: string; title: string; event_date: string;
+          id: string; title: string; event_date: string; end_date?: string;
           event_type: EventType; memo?: string; traveler?: Traveler; flight_payer?: FlightPayer
         }) => ({
           id: e.id,
           title: e.title,
           date: e.event_date,
+          end_date: e.end_date ?? undefined,
           type: e.event_type,
           memo: e.memo,
           traveler: e.traveler,
@@ -288,13 +304,28 @@ function CalendarPageInner() {
   const calEnd     = endOfWeek(monthEnd,     { weekStartsOn: 0 })
   const calDays    = eachDayOfInterval({ start: calStart, end: calEnd })
 
-  const eventsOnDay = (date: Date) =>
-    events.filter(e => e.date === format(date, 'yyyy-MM-dd'))
-  const selectedDayEvents = selectedDate ? eventsOnDay(selectedDate) : []
+  // 日付と重なるイベントを返す（範囲イベント含む）
+  const eventsOnDay = (date: Date) => {
+    const dayStr = format(date, 'yyyy-MM-dd')
+    return events.filter(e => {
+      const endStr = e.end_date ?? e.date
+      return dayStr >= e.date && dayStr <= endStr
+    })
+  }
+
+  // 選択日のイベント（範囲イベント含む）
+  const selectedDayEvents = selectedDate ? (() => {
+    const dayStr = format(selectedDate, 'yyyy-MM-dd')
+    return events.filter(e => {
+      const endStr = e.end_date ?? e.date
+      return dayStr >= e.date && dayStr <= endStr
+    })
+  })() : []
 
   function resetForm() {
     setNewTitle(''); setNewType('visit'); setNewMemo('')
     setNewTraveler('me'); setNewFlightPayer('me')
+    setNewEndDate(null)
     setEditingEvent(null)
   }
 
@@ -307,13 +338,22 @@ function CalendarPageInner() {
     setNewFlightPayer(event.flight_payer ?? (event.type === 'trip' ? 'split' : 'me'))
     const [y, m, d] = event.date.split('-').map(Number)
     setSelectedDate(new Date(y, m - 1, d))
+    if (event.end_date) {
+      const [ey, em, ed] = event.end_date.split('-').map(Number)
+      setNewEndDate(new Date(ey, em - 1, ed))
+    } else {
+      setNewEndDate(null)
+    }
     setShowEventSheet(false)
     setShowAddSheet(true)
   }
 
   async function handleAddEvent() {
     if (!selectedDate || !newTitle) return
-    const dateStr = format(selectedDate, 'yyyy-MM-dd')
+    const dateStr    = format(selectedDate, 'yyyy-MM-dd')
+    const endDateStr = newEndDate && newEndDate >= selectedDate
+      ? format(newEndDate, 'yyyy-MM-dd')
+      : null
 
     if (process.env.NEXT_PUBLIC_SUPABASE_URL && userId && coupleId) {
       const { createClient } = await import('@/lib/supabase/client')
@@ -324,6 +364,7 @@ function CalendarPageInner() {
         created_by: userId,
         title:      newTitle,
         event_date: dateStr,
+        end_date:   endDateStr,
         event_type: newType,
         memo:       newMemo || null,
       }
@@ -337,15 +378,16 @@ function CalendarPageInner() {
       if (!error && data) {
         setEvents(prev => [...prev, {
           id: data.id, title: data.title, date: data.event_date,
+          end_date: data.end_date ?? undefined,
           type: data.event_type, memo: data.memo ?? undefined,
           traveler: data.traveler ?? undefined, flight_payer: data.flight_payer ?? undefined,
         }])
       }
     } else {
-      // Supabase未設定時はローカルstate
       const event: CalEvent = {
-        id: Date.now().toString(), title: newTitle, date: dateStr, type: newType,
-        memo: newMemo || undefined,
+        id: Date.now().toString(), title: newTitle, date: dateStr,
+        end_date: endDateStr ?? undefined,
+        type: newType, memo: newMemo || undefined,
       }
       if (newType === 'visit') { event.traveler = newTraveler; event.flight_payer = newFlightPayer }
       else if (newType === 'trip') { event.flight_payer = newFlightPayer }
@@ -359,12 +401,16 @@ function CalendarPageInner() {
 
   async function handleUpdateEvent() {
     if (!editingEvent || !selectedDate || !newTitle) return
-    const dateStr = format(selectedDate, 'yyyy-MM-dd')
+    const dateStr    = format(selectedDate, 'yyyy-MM-dd')
+    const endDateStr = newEndDate && newEndDate >= selectedDate
+      ? format(newEndDate, 'yyyy-MM-dd')
+      : null
     const updates: Record<string, unknown> = {
-      title:      newTitle,
-      event_date: dateStr,
-      event_type: newType,
-      memo:       newMemo || null,
+      title:       newTitle,
+      event_date:  dateStr,
+      end_date:    endDateStr,
+      event_type:  newType,
+      memo:        newMemo || null,
       traveler:    newType === 'visit' ? newTraveler : null,
       flight_payer: (newType === 'visit' || newType === 'trip') ? newFlightPayer : null,
     }
@@ -378,7 +424,7 @@ function CalendarPageInner() {
 
     setEvents(prev => prev.map(e => e.id === editingEvent.id ? {
       ...e,
-      title: newTitle, date: dateStr, type: newType,
+      title: newTitle, date: dateStr, end_date: endDateStr ?? undefined, type: newType,
       memo: newMemo || undefined,
       traveler: newType === 'visit' ? newTraveler : undefined,
       flight_payer: (newType === 'visit' || newType === 'trip') ? newFlightPayer : undefined,
@@ -434,7 +480,10 @@ function CalendarPageInner() {
         </div>
         <div className="grid grid-cols-7 gap-y-0.5">
           {calDays.map(day => {
+            const dayStr         = format(day, 'yyyy-MM-dd')
             const dayEvents      = eventsOnDay(day)
+            const rangeEvents    = dayEvents.filter(e => e.end_date && e.end_date !== e.date)
+            const singleEvents   = dayEvents.filter(e => !e.end_date || e.end_date === e.date)
             const isCurrentMonth = isSameMonth(day, currentMonth)
             const isToday        = isSameDay(day, new Date())
             const isSelected     = selectedDate ? isSameDay(day, selectedDate) : false
@@ -442,19 +491,61 @@ function CalendarPageInner() {
               <button
                 key={day.toISOString()}
                 onClick={() => { setSelectedDate(day); setShowEventSheet(true) }}
-                className="flex flex-col items-center py-1.5 rounded-lg"
-                style={{ backgroundColor: isSelected ? '#F5F5F3' : 'transparent', opacity: isCurrentMonth ? 1 : 0.25 }}
+                className="flex flex-col items-center py-1.5 rounded-lg relative"
+                style={{
+                  backgroundColor: isSelected ? '#F5F5F3' : 'transparent',
+                  opacity: isCurrentMonth ? 1 : 0.25,
+                  overflow: 'visible',
+                }}
               >
                 <span
                   className="w-7 h-7 rounded-full flex items-center justify-center text-sm mb-0.5"
-                  style={{ backgroundColor: isToday ? '#1A1A1A' : 'transparent', color: isToday ? '#FFFFFF' : '#1A1A1A', fontWeight: isToday ? 600 : 400 }}
+                  style={{
+                    backgroundColor: isToday ? '#1A1A1A' : 'transparent',
+                    color: isToday ? '#FFFFFF' : '#1A1A1A',
+                    fontWeight: isToday ? 600 : 400,
+                  }}
                 >
                   {format(day, 'd')}
                 </span>
-                <div className="flex gap-0.5 h-2 items-center">
-                  {dayEvents.slice(0, 3).map((e, j) => (
-                    <span key={j} className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: eventTypeConfig[e.type].dot }} />
-                  ))}
+                {/* Event indicators */}
+                <div className="relative w-full" style={{ height: '8px' }}>
+                  {/* Range event bars */}
+                  {rangeEvents.slice(0, 2).map((e, i) => {
+                    const pos = getRangePos(e, dayStr)
+                    return (
+                      <div
+                        key={e.id}
+                        style={{
+                          position: 'absolute',
+                          top: i * 4,
+                          height: 3,
+                          left:  pos === 'start' ? '50%' : 0,
+                          right: pos === 'end'   ? '50%' : 0,
+                          backgroundColor: eventTypeConfig[e.type].dot,
+                          opacity: 0.75,
+                          borderRadius:
+                            pos === 'start' ? '3px 0 0 3px' :
+                            pos === 'end'   ? '0 3px 3px 0' : 0,
+                        }}
+                      />
+                    )
+                  })}
+                  {/* Dots for single-day events */}
+                  {rangeEvents.length === 0 && (
+                    <div className="absolute inset-0 flex gap-0.5 items-center justify-center">
+                      {singleEvents.slice(0, 3).map((e, j) => (
+                        <span
+                          key={j}
+                          style={{
+                            width: 6, height: 6, borderRadius: '50%',
+                            backgroundColor: eventTypeConfig[e.type].dot,
+                            flexShrink: 0,
+                          }}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
               </button>
             )
@@ -488,7 +579,8 @@ function CalendarPageInner() {
         ) : (
           <div className="space-y-2.5">
             {selectedDayEvents.map(event => {
-              const config = eventTypeConfig[event.type]
+              const config  = eventTypeConfig[event.type]
+              const isRange = event.end_date && event.end_date !== event.date
               return (
                 <div key={event.id} className="p-4" style={{ backgroundColor: config.bg, borderRadius: '10px' }}>
                   <div className="flex items-start justify-between gap-2">
@@ -497,6 +589,11 @@ function CalendarPageInner() {
                         {config.label}
                       </span>
                       <p className="font-medium text-sm mt-1.5" style={{ color: '#1A1A1A' }}>{event.title}</p>
+                      {isRange && (
+                        <p className="text-xs mt-0.5" style={{ color: config.text }}>
+                          {format(parseDateStr(event.date), 'M月d日')} 〜 {format(parseDateStr(event.end_date!), 'M月d日')}
+                        </p>
+                      )}
                       {event.memo && <p className="text-xs mt-1" style={{ color: '#737373' }}>{event.memo}</p>}
                       <FlightInfo event={event} myName={myName} partnerName={partnerName} />
                     </div>
@@ -553,7 +650,6 @@ function CalendarPageInner() {
                   key={type}
                   onClick={() => {
                     setNewType(type as EventType)
-                    // trip に切り替えたらデフォルトをsplitに
                     if (type === 'trip') setNewFlightPayer('split')
                     else setNewFlightPayer('me')
                   }}
@@ -588,13 +684,50 @@ function CalendarPageInner() {
             />
           )}
 
-          {/* 日付 */}
+          {/* 開始日 */}
           <div>
-            <label className="block text-xs font-medium uppercase tracking-widest mb-2" style={{ color: '#A3A3A3' }}>日付</label>
+            <label className="block text-xs font-medium uppercase tracking-widest mb-2" style={{ color: '#A3A3A3' }}>開始日</label>
             <DateInput
               value={selectedDate ? format(selectedDate, 'yyyy-MM-dd') : ''}
-              onChange={v => { if (v) { const [y, m, d] = v.split('-').map(Number); setSelectedDate(new Date(y, m - 1, d)) } }}
+              onChange={v => {
+                if (v) {
+                  const [y, m, d] = v.split('-').map(Number)
+                  const newStart = new Date(y, m - 1, d)
+                  setSelectedDate(newStart)
+                  // 終了日が開始日より前なら終了日をリセット
+                  if (newEndDate && newEndDate < newStart) setNewEndDate(null)
+                }
+              }}
             />
+          </div>
+
+          {/* 終了日 */}
+          <div>
+            <label className="block text-xs font-medium uppercase tracking-widest mb-2" style={{ color: '#A3A3A3' }}>
+              終了日
+              <span className="ml-1 normal-case font-normal" style={{ color: '#A3A3A3' }}>（任意・複数日の場合）</span>
+            </label>
+            <DateInput
+              value={newEndDate ? format(newEndDate, 'yyyy-MM-dd') : ''}
+              onChange={v => {
+                if (!v) { setNewEndDate(null); return }
+                const [y, m, d] = v.split('-').map(Number)
+                const parsed = new Date(y, m - 1, d)
+                // 開始日以降のみ受け付ける
+                if (selectedDate && parsed >= selectedDate) setNewEndDate(parsed)
+              }}
+              minDate={selectedDate ? format(selectedDate, 'yyyy-MM-dd') : undefined}
+            />
+            {newEndDate && (
+              <button
+                type="button"
+                onClick={() => setNewEndDate(null)}
+                className="mt-1.5 text-xs"
+                style={{ color: '#A3A3A3' }}
+              >
+                終了日をクリア
+              </button>
+            )}
           </div>
 
           {/* メモ */}
