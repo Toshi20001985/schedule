@@ -154,12 +154,12 @@ export default function HomePage() {
 
       const today = format(new Date(), 'yyyy-MM-dd')
 
-      // 次の「会う日」（visitタイプの直近1件）
+      // 次の「会う日」または「旅行」の直近1件
       const { data: nextVisit } = await db
         .from('events')
         .select('event_date')
         .eq('couple_id', coupleId)
-        .eq('event_type', 'visit')
+        .in('event_type', ['visit', 'trip'])
         .gte('event_date', today)
         .order('event_date', { ascending: true })
         .limit(1)
