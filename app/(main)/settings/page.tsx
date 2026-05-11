@@ -132,14 +132,6 @@ export default function SettingsPage() {
 
       if (meError) throw new Error('プロフィールの更新に失敗しました')
 
-      // パートナー名・カラー更新
-      if (partnerId) {
-        await db
-          .from('users')
-          .update({ display_name: partnerName, avatar_color: partnerColor })
-          .eq('id', partnerId)
-      }
-
       // カップル情報更新（記念日）
       if (coupleId) {
         const { error: coupleError } = await db
@@ -223,21 +215,18 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          <div style={{ borderTop: '0.5px solid #E5E5E5', paddingTop: '16px' }}>
-            <label className="block text-sm mb-1.5" style={{ color: '#737373' }}>パートナーの名前</label>
-            <input type="text" value={partnerName} onChange={e => setPartnerName(e.target.value)} style={inputStyle} />
-          </div>
-          <div>
-            <label className="block text-sm mb-2" style={{ color: '#737373' }}>パートナーのアイコンカラー</label>
-            <div className="flex flex-wrap gap-2">
-              {AVATAR_COLORS.map(color => (
-                <button key={color} onClick={() => setPartnerColor(color)}
-                  className="w-7 h-7 rounded-full transition-transform active:scale-90"
-                  style={{ backgroundColor: color, outline: partnerColor === color ? `2px solid ${color}` : 'none', outlineOffset: '2px' }}
-                />
-              ))}
+          {partnerId && (
+            <div style={{ borderTop: '0.5px solid #E5E5E5', paddingTop: '16px' }}>
+              <label className="block text-sm mb-1.5" style={{ color: '#737373' }}>パートナーの名前</label>
+              <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl" style={{ backgroundColor: '#F5F5F3' }}>
+                <div className="w-5 h-5 rounded-full flex-shrink-0" style={{ backgroundColor: partnerColor }} />
+                <span className="text-sm" style={{ color: '#1A1A1A' }}>
+                  {partnerName || '（未設定）'}
+                </span>
+                <span className="text-xs ml-auto" style={{ color: '#A3A3A3' }}>パートナーが変更できます</span>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </Card>
 
