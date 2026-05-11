@@ -39,7 +39,7 @@ interface HomePlace {
   name: string
   location: string
   added_by: string       // UUID
-  owner: 'me' | 'him'
+  owner: 'me' | 'partner'
 }
 
 function MiniWeekCalendar({ nextMeeting, eventDates }: { nextMeeting: Date | null; eventDates: string[] }) {
@@ -103,7 +103,7 @@ export default function HomePage() {
           { id: '3', title: '記念日',           date: format(addDays(new Date(), 30), 'yyyy-MM-dd'), type: 'anniversary' },
         ])
         setPlaces([
-          { id: '1', name: '新宿御苑',   location: '東京',   added_by: '1', owner: 'him' },
+          { id: '1', name: '新宿御苑',   location: '東京',   added_by: '1', owner: 'partner' },
           { id: '2', name: '横浜中華街', location: '神奈川', added_by: '1', owner: 'me'  },
         ])
         setPlacesCount(12)
@@ -201,7 +201,7 @@ export default function HomePage() {
           name: p.name,
           location: p.location,
           added_by: p.added_by,
-          owner: p.added_by === user.id ? 'me' : 'him',
+          owner: p.added_by === user.id ? 'me' : 'partner',
         })))
       }
 
@@ -425,7 +425,7 @@ export default function HomePage() {
                   <p className="text-sm font-medium truncate" style={{ color: '#1A1A1A' }}>{place.name}</p>
                   <p className="text-xs" style={{ color: '#A3A3A3' }}>{place.location}</p>
                 </div>
-                <Tag label={place.owner} owner={place.owner} />
+                <Tag label={place.owner === 'me' ? 'わたし' : 'パートナー'} owner={place.owner} />
               </div>
             ))}
           </div>

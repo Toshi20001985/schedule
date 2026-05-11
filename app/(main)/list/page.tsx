@@ -7,6 +7,8 @@ import Button from '@/components/ui/Button'
 import Tag from '@/components/ui/Tag'
 import BottomSheet from '@/components/BottomSheet'
 
+type Owner = 'me' | 'partner' | 'both'
+
 interface Place {
   id: string
   name: string
@@ -14,7 +16,7 @@ interface Place {
   location: string
   memo?: string
   is_visited: boolean
-  owner: 'me' | 'him' | 'both'
+  owner: Owner
 }
 
 interface MediaItem {
@@ -23,7 +25,7 @@ interface MediaItem {
   media_type: 'movie' | 'tv' | 'anime' | 'music' | 'book' | 'other'
   memo?: string
   is_done: boolean
-  owner: 'me' | 'him' | 'both'
+  owner: Owner
 }
 
 const mediaTypeConfig = {
@@ -46,25 +48,15 @@ const inputStyle: React.CSSProperties = {
   color: '#1A1A1A',
 }
 
-const ownerOptions = [
-  { value: 'me'   as const, label: 'わたし', bg: '#EEECF9', color: '#6D5BD0' },
-  { value: 'him'  as const, label: 'かれ',   bg: '#E8EFF6', color: '#2D6B9E' },
-  { value: 'both' as const, label: 'ふたり', bg: '#F5F5F3', color: '#737373' },
-]
-
-// added_by UUID → owner ラベルへの変換
-function resolveOwner(addedBy: string, myId: string): 'me' | 'him' | 'both' {
-  if (addedBy === myId) return 'me'
-  if (addedBy === 'both') return 'both'
-  return 'him'
-}
-
 export default function ListPage() {
   const [tab, setTab] = useState<'places' | 'media'>('places')
   const [places, setPlaces] = useState<Place[]>([])
   const [media, setMedia] = useState<MediaItem[]>([])
   const [myId, setMyId] = useState<string | null>(null)
   const [coupleId, setCoupleId] = useState<string | null>(null)
+  const [myName, setMyName] = useState('わたし')
+  const [partnerName, setPartnerName] = useState('パートナー')
+
   const [showSheet, setShowSheet] = useState(false)
   const [editingPlace, setEditingPlace] = useState<Place | null>(null)
   const [editingMedia, setEditingMedia] = useState<MediaItem | null>(null)
@@ -74,25 +66,35 @@ export default function ListPage() {
   const [newMediaTitle, setNewMediaTitle] = useState('')
   const [newMediaType, setNewMediaType] = useState<MediaItem['media_type']>('movie')
   const [newMemo, setNewMemo] = useState('')
-  const [newOwner, setNewOwner] = useState<'me' | 'him' | 'both'>('both')
+  const [newOwner, setNewOwner] = useState<Owner>('both')
 
-  // Supabase からデータ取得
+  // owner ラベルを名前から生成
+  const ownerOptions: { value: Owner; label: string; bg: string; color: string }[] = [
+    { value: 'me',      label: myName,      bg: '#EEECF9', color: '#6D5BD0' },
+    { value: 'partner', label: partnerName, bg: '#E8EFF6', color: '#2D6B9E' },
+    { value: 'both',    label: 'ふたり',    bg: '#F5F5F3', color: '#737373' },
+  ]
+
+  function ownerLabel(owner: Owner) {
+    if (owner === 'me')      return myName
+    if (owner === 'partner') return partnerName
+    return 'ふたり'
+  }
+
   useEffect(() => {
     async function load() {
       if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-        // モックデータ
         setPlaces([
           { id: '1', name: '新宿御苑',      category: '公園',   location: '東京',   memo: '春に桜を見よう！', is_visited: false, owner: 'both' },
           { id: '2', name: '横浜中華街',    category: 'グルメ', location: '神奈川', is_visited: false, owner: 'me' },
           { id: '3', name: '嵐山',          category: '観光',   location: '京都',   memo: '旅行で', is_visited: true, owner: 'both' },
-          { id: '4', name: 'teamLab Planets', category: 'アート', location: '東京', is_visited: false, owner: 'him' },
+          { id: '4', name: 'teamLab Planets', category: 'アート', location: '東京', is_visited: false, owner: 'partner' },
         ])
         setMedia([
           { id: '1', title: '君の名は。',              media_type: 'movie', memo: 'また一緒に観たい', is_done: true,  owner: 'both' },
-          { id: '2', title: 'スラムダンク',            media_type: 'anime', is_done: false, owner: 'him' },
+          { id: '2', title: 'スラムダンク',            media_type: 'anime', is_done: false, owner: 'partner' },
           { id: '3', title: 'Taylor Swift - Eras Tour', media_type: 'music', is_done: false, owner: 'me' },
           { id: '4', title: '呪術廻戦',                media_type: 'tv',    is_done: false, owner: 'both' },
-          { id: '5', title: '星の王子さま',            media_type: 'book',  memo: 'おすすめ！', is_done: false, owner: 'me' },
         ])
         return
       }
@@ -104,43 +106,69 @@ export default function ListPage() {
       if (!user) return
       setMyId(user.id)
 
+      // 自分とパートナーの名前を取得
       const { data: userData } = await db
         .from('users')
-        .select('couple_id')
+        .select('display_name, couple_id')
         .eq('id', user.id)
         .single()
-      if (!userData?.couple_id) return
+      if (!userData) return
+      if (userData.display_name) setMyName(userData.display_name)
+      if (!userData.couple_id) return
       setCoupleId(userData.couple_id)
       const cId = userData.couple_id
 
+      const { data: coupleData } = await db
+        .from('couples')
+        .select('user1_id, user2_id')
+        .eq('id', cId)
+        .single()
+      if (coupleData) {
+        const partnerId = coupleData.user1_id === user.id ? coupleData.user2_id : coupleData.user1_id
+        if (partnerId) {
+          const { data: partnerData } = await db
+            .from('users')
+            .select('display_name')
+            .eq('id', partnerId)
+            .single()
+          if (partnerData?.display_name) setPartnerName(partnerData.display_name)
+        }
+      }
+
       const [{ data: placesData }, { data: mediaData }] = await Promise.all([
         db.from('places')
-          .select('id, name, category, location, memo, is_visited, added_by')
+          .select('id, name, category, location, memo, is_visited, owner')
           .eq('couple_id', cId)
           .order('created_at', { ascending: false }),
         db.from('media')
-          .select('id, title, media_type, memo, is_done, added_by')
+          .select('id, title, media_type, memo, is_done, owner')
           .eq('couple_id', cId)
           .order('created_at', { ascending: false }),
       ])
 
       if (placesData) {
-        setPlaces(placesData.map((p: { id: string; name: string; category: string; location: string; memo?: string; is_visited: boolean; added_by: string }) => ({
+        setPlaces(placesData.map((p: {
+          id: string; name: string; category: string; location: string
+          memo?: string; is_visited: boolean; owner?: Owner
+        }) => ({
           id: p.id, name: p.name,
           category: p.category ?? 'その他',
           location: p.location ?? '',
           memo: p.memo ?? undefined,
           is_visited: p.is_visited,
-          owner: resolveOwner(p.added_by, user.id),
+          owner: (p.owner as Owner) ?? 'me',
         })))
       }
       if (mediaData) {
-        setMedia(mediaData.map((m: { id: string; title: string; media_type: MediaItem['media_type']; memo?: string; is_done: boolean; added_by: string }) => ({
+        setMedia(mediaData.map((m: {
+          id: string; title: string; media_type: MediaItem['media_type']
+          memo?: string; is_done: boolean; owner?: Owner
+        }) => ({
           id: m.id, title: m.title,
           media_type: m.media_type,
           memo: m.memo ?? undefined,
           is_done: m.is_done,
-          owner: resolveOwner(m.added_by, user.id),
+          owner: (m.owner as Owner) ?? 'me',
         })))
       }
     }
@@ -209,7 +237,7 @@ export default function ListPage() {
     setNewCategory(place.category)
     setNewLocation(place.location)
     setNewMemo(place.memo ?? '')
-    setNewOwner(place.owner === 'him' ? 'him' : place.owner === 'both' ? 'both' : 'me')
+    setNewOwner(place.owner)
     setTab('places')
     setShowSheet(true)
   }
@@ -219,7 +247,7 @@ export default function ListPage() {
     setNewMediaTitle(item.title)
     setNewMediaType(item.media_type)
     setNewMemo(item.memo ?? '')
-    setNewOwner(item.owner === 'him' ? 'him' : item.owner === 'both' ? 'both' : 'me')
+    setNewOwner(item.owner)
     setTab('media')
     setShowSheet(true)
   }
@@ -230,23 +258,14 @@ export default function ListPage() {
       const { createClient } = await import('@/lib/supabase/client')
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const db = createClient() as any
-      // added_by: 'both' の場合は自分のIDを使いつつ owner フラグとして扱う
       const { data, error } = await db.from('places').insert({
-        couple_id:  coupleId,
-        added_by:   myId,
-        name:       newName,
-        category:   newCategory || 'その他',
-        location:   newLocation,
-        memo:       newMemo || null,
-        is_visited: false,
+        couple_id: coupleId, added_by: myId,
+        name: newName, category: newCategory || 'その他',
+        location: newLocation, memo: newMemo || null,
+        is_visited: false, owner: newOwner,
       }).select().single()
       if (!error && data) {
-        setPlaces(prev => [{
-          id: data.id, name: data.name,
-          category: data.category, location: data.location,
-          memo: data.memo ?? undefined, is_visited: false,
-          owner: 'me',
-        }, ...prev])
+        setPlaces(prev => [{ id: data.id, name: data.name, category: data.category, location: data.location, memo: data.memo ?? undefined, is_visited: false, owner: newOwner }, ...prev])
       }
     } else {
       setPlaces(prev => [{ id: Date.now().toString(), name: newName, category: newCategory || 'その他', location: newLocation, memo: newMemo || undefined, is_visited: false, owner: newOwner }, ...prev])
@@ -261,20 +280,12 @@ export default function ListPage() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const db = createClient() as any
       const { data, error } = await db.from('media').insert({
-        couple_id:  coupleId,
-        added_by:   myId,
-        title:      newMediaTitle,
-        media_type: newMediaType,
-        memo:       newMemo || null,
-        is_done:    false,
+        couple_id: coupleId, added_by: myId,
+        title: newMediaTitle, media_type: newMediaType,
+        memo: newMemo || null, is_done: false, owner: newOwner,
       }).select().single()
       if (!error && data) {
-        setMedia(prev => [{
-          id: data.id, title: data.title,
-          media_type: data.media_type,
-          memo: data.memo ?? undefined, is_done: false,
-          owner: 'me',
-        }, ...prev])
+        setMedia(prev => [{ id: data.id, title: data.title, media_type: data.media_type, memo: data.memo ?? undefined, is_done: false, owner: newOwner }, ...prev])
       }
     } else {
       setMedia(prev => [{ id: Date.now().toString(), title: newMediaTitle, media_type: newMediaType, memo: newMemo || undefined, is_done: false, owner: newOwner }, ...prev])
@@ -284,7 +295,7 @@ export default function ListPage() {
 
   async function handleUpdatePlace() {
     if (!editingPlace || !newName) return
-    const updates = { name: newName, category: newCategory || 'その他', location: newLocation, memo: newMemo || null }
+    const updates = { name: newName, category: newCategory || 'その他', location: newLocation, memo: newMemo || null, owner: newOwner }
     setPlaces(prev => prev.map(p => p.id === editingPlace.id ? { ...p, ...updates, memo: newMemo || undefined } : p))
     if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
       const { createClient } = await import('@/lib/supabase/client')
@@ -297,7 +308,7 @@ export default function ListPage() {
 
   async function handleUpdateMedia() {
     if (!editingMedia || !newMediaTitle) return
-    const updates = { title: newMediaTitle, media_type: newMediaType, memo: newMemo || null }
+    const updates = { title: newMediaTitle, media_type: newMediaType, memo: newMemo || null, owner: newOwner }
     setMedia(prev => prev.map(m => m.id === editingMedia.id ? { ...m, ...updates, memo: newMemo || undefined } : m))
     if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
       const { createClient } = await import('@/lib/supabase/client')
@@ -310,14 +321,10 @@ export default function ListPage() {
 
   return (
     <div className="px-4 pt-6 max-w-lg mx-auto">
-      {/* Header */}
       <h1 className="text-lg font-semibold mb-5" style={{ color: '#1A1A1A' }}>リスト</h1>
 
       {/* Tab Switcher */}
-      <div
-        className="flex p-0.5 mb-5"
-        style={{ backgroundColor: '#F5F5F3', borderRadius: '10px' }}
-      >
+      <div className="flex p-0.5 mb-5" style={{ backgroundColor: '#F5F5F3', borderRadius: '10px' }}>
         {[
           { key: 'places', icon: MapPin, label: '行きたい場所' },
           { key: 'media',  icon: Play,   label: '観たい・聴きたい' },
@@ -342,52 +349,35 @@ export default function ListPage() {
       {/* Places Tab */}
       {tab === 'places' && (
         <div className="space-y-2.5">
-          <p className="text-xs px-1" style={{ color: '#A3A3A3' }}>
-            未訪問 {activePlaces.length}件
-          </p>
+          <p className="text-xs px-1" style={{ color: '#A3A3A3' }}>未訪問 {activePlaces.length}件</p>
           {activePlaces.map(place => (
             <Card key={place.id} padding="md">
               <div className="flex items-start gap-3">
                 <button
                   onClick={() => togglePlaceVisited(place.id)}
-                  className="w-5 h-5 rounded border flex-shrink-0 mt-0.5 flex items-center justify-center transition-all"
+                  className="w-5 h-5 rounded border flex-shrink-0 mt-0.5 flex items-center justify-center"
                   style={{ borderColor: '#E5E5E5', borderWidth: '0.5px' }}
                 />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap mb-1">
                     <span className="text-sm font-medium" style={{ color: '#1A1A1A' }}>{place.name}</span>
-                    <Tag label={place.owner} owner={place.owner} />
+                    <Tag label={ownerLabel(place.owner)} owner={place.owner} />
                   </div>
                   <div className="flex items-center gap-2">
-                    <span
-                      className="text-xs px-2 py-0.5"
-                      style={{ backgroundColor: '#F5F5F3', color: '#737373', borderRadius: '6px' }}
-                    >
-                      {place.category}
-                    </span>
+                    <span className="text-xs px-2 py-0.5" style={{ backgroundColor: '#F5F5F3', color: '#737373', borderRadius: '6px' }}>{place.category}</span>
                     {place.location && (
                       <span className="text-xs flex items-center gap-0.5" style={{ color: '#A3A3A3' }}>
                         <MapPin size={10} /> {place.location}
                       </span>
                     )}
                   </div>
-                  {place.memo && (
-                    <p className="text-xs mt-1.5" style={{ color: '#737373' }}>{place.memo}</p>
-                  )}
+                  {place.memo && <p className="text-xs mt-1.5" style={{ color: '#737373' }}>{place.memo}</p>}
                 </div>
                 <div className="flex gap-1 flex-shrink-0">
-                  <button
-                    onClick={() => openEditPlace(place)}
-                    className="p-1.5 transition-opacity active:opacity-50"
-                    style={{ color: '#A3A3A3' }}
-                  >
+                  <button onClick={() => openEditPlace(place)} className="p-1.5 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}>
                     <Pencil size={14} />
                   </button>
-                  <button
-                    onClick={() => deletePlace(place.id)}
-                    className="p-1.5 transition-opacity active:opacity-50"
-                    style={{ color: '#A3A3A3' }}
-                  >
+                  <button onClick={() => deletePlace(place.id)} className="p-1.5 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}>
                     <Trash2 size={15} />
                   </button>
                 </div>
@@ -397,17 +387,11 @@ export default function ListPage() {
 
           {visitedPlaces.length > 0 && (
             <>
-              <p className="text-xs px-1 mt-4" style={{ color: '#A3A3A3' }}>
-                訪問済み {visitedPlaces.length}件
-              </p>
+              <p className="text-xs px-1 mt-4" style={{ color: '#A3A3A3' }}>訪問済み {visitedPlaces.length}件</p>
               {visitedPlaces.map(place => (
                 <Card key={place.id} padding="md" style={{ opacity: 0.5 }}>
                   <div className="flex items-center gap-3">
-                    <button
-                      onClick={() => togglePlaceVisited(place.id)}
-                      className="w-5 h-5 rounded flex-shrink-0 flex items-center justify-center"
-                      style={{ backgroundColor: '#F0F7F0' }}
-                    >
+                    <button onClick={() => togglePlaceVisited(place.id)} className="w-5 h-5 rounded flex-shrink-0 flex items-center justify-center" style={{ backgroundColor: '#F0F7F0' }}>
                       <Check size={12} style={{ color: '#4A7C59' }} />
                     </button>
                     <span className="flex-1 text-sm line-through" style={{ color: '#737373' }}>{place.name}</span>
@@ -430,42 +414,26 @@ export default function ListPage() {
       {/* Media Tab */}
       {tab === 'media' && (
         <div className="space-y-2.5">
-          <p className="text-xs px-1" style={{ color: '#A3A3A3' }}>
-            未完了 {media.filter(m => !m.is_done).length}件
-          </p>
+          <p className="text-xs px-1" style={{ color: '#A3A3A3' }}>未完了 {media.filter(m => !m.is_done).length}件</p>
           {media.filter(m => !m.is_done).map(item => {
             const config = mediaTypeConfig[item.media_type]
             const Icon = config.icon
             return (
               <Card key={item.id} padding="md">
                 <div className="flex items-start gap-3">
-                  <div
-                    className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                    style={{ backgroundColor: config.bg }}
-                  >
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: config.bg }}>
                     <Icon size={15} style={{ color: config.color }} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap mb-1">
                       <span className="text-sm font-medium" style={{ color: '#1A1A1A' }}>{item.title}</span>
-                      <Tag label={item.owner} owner={item.owner} />
+                      <Tag label={ownerLabel(item.owner)} owner={item.owner} />
                     </div>
-                    <span
-                      className="text-xs px-2 py-0.5"
-                      style={{ backgroundColor: config.bg, color: config.color, borderRadius: '6px' }}
-                    >
-                      {config.label}
-                    </span>
-                    {item.memo && (
-                      <p className="text-xs mt-1" style={{ color: '#737373' }}>{item.memo}</p>
-                    )}
+                    <span className="text-xs px-2 py-0.5" style={{ backgroundColor: config.bg, color: config.color, borderRadius: '6px' }}>{config.label}</span>
+                    {item.memo && <p className="text-xs mt-1" style={{ color: '#737373' }}>{item.memo}</p>}
                   </div>
                   <div className="flex flex-col items-center gap-1 flex-shrink-0">
-                    <button
-                      onClick={() => toggleMediaDone(item.id)}
-                      className="w-5 h-5 rounded border flex items-center justify-center"
-                      style={{ borderColor: '#E5E5E5', borderWidth: '0.5px' }}
-                    />
+                    <button onClick={() => toggleMediaDone(item.id)} className="w-5 h-5 rounded border flex items-center justify-center" style={{ borderColor: '#E5E5E5', borderWidth: '0.5px' }} />
                     <div className="flex gap-0.5">
                       <button onClick={() => openEditMedia(item)} className="p-1 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}>
                         <Pencil size={13} />
@@ -493,15 +461,9 @@ export default function ListPage() {
                         <Icon size={15} style={{ color: '#A3A3A3' }} />
                       </div>
                       <span className="flex-1 text-sm line-through" style={{ color: '#737373' }}>{item.title}</span>
-                      <button onClick={() => toggleMediaDone(item.id)} className="p-1">
-                        <Check size={16} style={{ color: '#4A7C59' }} />
-                      </button>
-                      <button onClick={() => openEditMedia(item)} className="p-1 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}>
-                        <Pencil size={13} />
-                      </button>
-                      <button onClick={() => deleteMedia(item.id)} className="p-1 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}>
-                        <Trash2 size={15} />
-                      </button>
+                      <button onClick={() => toggleMediaDone(item.id)} className="p-1"><Check size={16} style={{ color: '#4A7C59' }} /></button>
+                      <button onClick={() => openEditMedia(item)} className="p-1 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Pencil size={13} /></button>
+                      <button onClick={() => deleteMedia(item.id)} className="p-1 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Trash2 size={15} /></button>
                     </div>
                   </Card>
                 )
@@ -521,15 +483,11 @@ export default function ListPage() {
         <span className="text-sm font-medium">追加</span>
       </button>
 
-      {/* Add Sheet */}
+      {/* Add / Edit Sheet */}
       <BottomSheet
         open={showSheet}
         onClose={() => { setShowSheet(false); resetForm() }}
-        title={
-          tab === 'places'
-            ? (editingPlace ? '場所を編集' : '場所を追加')
-            : (editingMedia ? 'アイテムを編集' : 'アイテムを追加')
-        }
+        title={tab === 'places' ? (editingPlace ? '場所を編集' : '場所を追加') : (editingMedia ? 'アイテムを編集' : 'アイテムを追加')}
       >
         {tab === 'places' ? (
           <div className="space-y-4">

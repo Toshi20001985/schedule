@@ -2,24 +2,18 @@
 
 interface TagProps {
   label: string
-  owner?: 'me' | 'him' | 'both'
+  owner?: 'me' | 'partner' | 'both'
   className?: string
 }
 
-const ownerMap = {
-  me:   { bg: '#EEECF9', text: '#6D5BD0' },
-  him:  { bg: '#E8EFF6', text: '#2D6B9E' },
-  both: { bg: '#F5F5F3', text: '#737373' },
-}
-
-const ownerLabel = {
-  me: 'わたし',
-  him: 'かれ',
-  both: 'ふたり',
+const ownerStyle = {
+  me:      { bg: '#EEECF9', text: '#6D5BD0' },
+  partner: { bg: '#E8EFF6', text: '#2D6B9E' },
+  both:    { bg: '#F5F5F3', text: '#737373' },
 }
 
 export default function Tag({ label, owner, className = '' }: TagProps) {
-  const style = owner ? ownerMap[owner] : null
+  const style = owner ? ownerStyle[owner] : null
 
   return (
     <span
@@ -31,7 +25,7 @@ export default function Tag({ label, owner, className = '' }: TagProps) {
           : { backgroundColor: '#F5F5F3', color: '#737373' }),
       }}
     >
-      {owner ? ownerLabel[owner] : label}
+      {label}
     </span>
   )
 }
