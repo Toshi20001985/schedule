@@ -52,38 +52,21 @@ export default function PairPage() {
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const db = supabase as any
-      const { data: partnerData } = await db
-        .from('users')
-        .select('id, couple_id, invite_code')
-        .eq('invite_code', partnerCode.toUpperCase())
-        .maybeSingle()
 
-      if (!partnerData) {
-        setError('招待コードが見つかりません。')
+      // SECURITY DEFINER 関数経由でペアリング（RLSをバイパス）
+      const { data: result, error: rpcError } = await db.rpc('pair_with_invite_code', {
+        p_invite_code: partnerCode.toUpperCase(),
+      })
+
+      if (rpcError) {
+        setError('ペアリングに失敗しました: ' + rpcError.message)
         return
       }
 
-      const partner = partnerData as { id: string; couple_id: string | null }
-
-      if (partner.id === user.id) {
-        setError('自分のコードは使えません。')
+      if (result?.error) {
+        setError(result.error)
         return
       }
-
-      const { error: updateError } = await db
-        .from('users')
-        .update({ couple_id: partner.couple_id })
-        .eq('id', user.id)
-
-      if (updateError) {
-        setError('ペアリングに失敗しました。')
-        return
-      }
-
-      await db
-        .from('couples')
-        .update({ user2_id: user.id })
-        .eq('id', partner.couple_id)
 
       router.push('/')
       router.refresh()

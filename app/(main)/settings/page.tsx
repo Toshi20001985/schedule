@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { Copy, Check, LogOut, Calendar, User, Link2, ChevronRight } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
@@ -268,7 +269,10 @@ export default function SettingsPage() {
         <h2 className="text-xs font-medium uppercase tracking-widest mb-3 flex items-center gap-2" style={{ color: '#A3A3A3' }}>
           <Link2 size={13} /> 招待コード
         </h2>
-        <div className="flex items-center gap-3">
+        <p className="text-xs mb-2" style={{ color: '#737373' }}>
+          あなたのコードをパートナーに共有してください
+        </p>
+        <div className="flex items-center gap-3 mb-3">
           <div className="flex-1 text-center py-3 text-lg font-semibold tracking-[0.2em]"
             style={{ backgroundColor: '#F5F5F3', color: '#1A1A1A', borderRadius: '10px' }}>
             {inviteCode}
@@ -278,6 +282,20 @@ export default function SettingsPage() {
             {copied ? <Check size={18} /> : <Copy size={18} />}
           </button>
         </div>
+        {/* パートナーのコードを入力するボタン */}
+        {!partnerId && (
+          <Link
+            href="/auth/pair"
+            className="flex items-center justify-center gap-2 w-full py-3 text-sm font-medium transition-opacity active:opacity-70"
+            style={{ backgroundColor: '#1A1A1A', color: '#FFFFFF', borderRadius: '10px' }}
+          >
+            パートナーのコードを入力する
+            <ChevronRight size={15} />
+          </Link>
+        )}
+        {partnerId && (
+          <p className="text-xs text-center" style={{ color: '#4A7C59' }}>✓ パートナーと繋がっています</p>
+        )}
       </Card>
 
       {/* Logout */}

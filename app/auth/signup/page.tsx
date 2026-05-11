@@ -5,11 +5,6 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ArrowRight } from 'lucide-react'
 
-function generateInviteCode(): string {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
-  return Array.from({ length: 8 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
-}
-
 export default function SignupPage() {
   const router = useRouter()
   const [displayName, setDisplayName] = useState('')
@@ -32,52 +27,35 @@ export default function SignupPage() {
       const { createClient } = await import('@/lib/supabase/client')
       const supabase = createClient()
 
-      const { data: authData, error: signupError } = await supabase.auth.signUp({ email, password })
-
-      if (signupError || !authData.user) {
-        setError('[auth] ' + (signupError?.message || '登録に失敗しました'))
-        return
-      }
-
-      const inviteCode = generateInviteCode()
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const db = supabase as any
-
-      const { error: userError } = await db.from('users').insert({
-        id: authData.user.id,
+      // display_name を raw_user_meta_data に含めて送信
+      // DBトリガー (handle_new_user) が自動でユーザープロフィールとカップルを作成する
+      const { data: authData, error: signupError } = await supabase.auth.signUp({
         email,
-        display_name: displayName,
-        invite_code: inviteCode,
+        password,
+        options: {
+          data: { display_name: displayName },
+        },
       })
 
-      if (userError) {
-        setError('プロフィールの作成に失敗しました: ' + userError.message)
+      if (signupError) {
+        setError('[auth] ' + signupError.message)
         return
       }
 
-      const { data: couple, error: coupleError } = await db
-        .from('couples')
-        .insert({ user1_id: authData.user.id })
-        .select()
-        .single()
-
-      if (coupleError || !couple) {
-        setError('カップル情報の作成に失敗しました: ' + coupleError?.message)
+      if (!authData.user) {
+        setError('アカウントの作成に失敗しました。')
         return
       }
 
-      const { error: linkError } = await db
-        .from('users')
-        .update({ couple_id: couple.id })
-        .eq('id', authData.user.id)
-
-      if (linkError) {
-        setError('カップルの紐付けに失敗しました: ' + linkError.message)
+      // セッションがある場合（メール確認不要）→ そのままアプリへ
+      if (authData.session) {
+        router.push('/')
+        router.refresh()
         return
       }
 
-      router.push('/')
-      router.refresh()
+      // セッションがない場合（メール確認が必要）→ 確認メールを送った旨を表示
+      setError('確認メールを送信しました。メールを確認してからログインしてください。')
     } catch {
       setError('エラーが発生しました。もう一度お試しください。')
     } finally {
@@ -163,11 +141,14 @@ export default function SignupPage() {
           </div>
 
           {error && (
-            <p className="text-sm px-4 py-3" style={{
-              color: '#B5465A',
-              backgroundColor: '#FFF0F3',
-              borderRadius: '10px',
-            }}>
+            <p
+              className="text-sm px-4 py-3"
+              style={{
+                color: error.startsWith('確認メール') ? '#4A7C59' : '#B5465A',
+                backgroundColor: error.startsWith('確認メール') ? '#F0F7F0' : '#FFF0F3',
+                borderRadius: '10px',
+              }}
+            >
               {error}
             </p>
           )}
