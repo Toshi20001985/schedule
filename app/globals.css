@@ -1,26 +1,79 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@300;400;500;600&display=swap');
 @import "tailwindcss";
 
+@theme {
+  /* ── Design tokens ── */
+
+  /* Neutrals */
+  --color-bg: #FAFAF7;
+  --color-card: #FFFFFF;
+  --color-border: #E5E5E5;
+  --color-text: #1A1A1A;
+  --color-muted: #737373;
+  --color-subtle: #A3A3A3;
+  --color-surface: #F5F5F3;
+
+  /* Accent (minimal) */
+  --color-accent: #1A1A1A;
+  --color-accent-hover: #333333;
+
+  /* Event colors (muted) */
+  --color-visit-soft: #F3F0FF;
+  --color-visit-accent: #6D5BD0;
+  --color-trip-soft: #F0F7F0;
+  --color-trip-accent: #4A7C59;
+  --color-online-soft: #FFF7F0;
+  --color-online-accent: #C2782D;
+  --color-anniversary-soft: #FFF0F3;
+  --color-anniversary-accent: #B5465A;
+  --color-personal-soft: #F5F5F3;
+  --color-personal-accent: #737373;
+
+  /* Partner colors (subtle) */
+  --color-me: #6D5BD0;
+  --color-him: #2D6B9E;
+
+  /* Fonts */
+  --font-sans: 'Manrope', 'Noto Sans JP', sans-serif;
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+* {
+  box-sizing: border-box;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  font-size: 16px;
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: #FAFAF7;
+  color: #1A1A1A;
+  font-family: 'Manrope', 'Noto Sans JP', sans-serif;
+  min-height: 100dvh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
+
+/* Safe area */
+.safe-top    { padding-top:    env(safe-area-inset-top); }
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+.safe-left   { padding-left:   env(safe-area-inset-left); }
+.safe-right  { padding-right:  env(safe-area-inset-right); }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #E5E5E5; border-radius: 2px; }
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }

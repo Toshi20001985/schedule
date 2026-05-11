@@ -1,0 +1,46 @@
+'use client'
+
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+import { Home, CalendarDays, List, Settings } from 'lucide-react'
+
+const tabs = [
+  { href: '/',          icon: Home,        label: 'ホーム' },
+  { href: '/calendar',  icon: CalendarDays, label: 'カレンダー' },
+  { href: '/list',      icon: List,        label: 'リスト' },
+  { href: '/settings',  icon: Settings,    label: '設定' },
+]
+
+export default function BottomNav() {
+  const pathname = usePathname()
+
+  return (
+    <nav
+      className="fixed bottom-0 left-0 right-0 z-40"
+      style={{
+        backgroundColor: '#FFFFFF',
+        borderTop: '0.5px solid #E5E5E5',
+        paddingBottom: 'env(safe-area-inset-bottom)',
+      }}
+    >
+      <div className="flex items-stretch">
+        {tabs.map(({ href, icon: Icon, label }) => {
+          const isActive = pathname === href || (href !== '/' && pathname.startsWith(href))
+          return (
+            <Link
+              key={href}
+              href={href}
+              className="flex-1 flex flex-col items-center justify-center py-2.5 gap-1 transition-opacity active:opacity-50"
+              style={{ color: isActive ? '#1A1A1A' : '#A3A3A3' }}
+            >
+              <Icon size={22} strokeWidth={isActive ? 2 : 1.5} />
+              <span className="text-xs" style={{ fontWeight: isActive ? 600 : 400 }}>
+                {label}
+              </span>
+            </Link>
+          )
+        })}
+      </div>
+    </nav>
+  )
+}
