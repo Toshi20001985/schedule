@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { MapPin, Play, Check, Plus, Film, Music, Book, Tv, Trash2, Pencil } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
@@ -48,8 +49,11 @@ const inputStyle: React.CSSProperties = {
   color: '#1A1A1A',
 }
 
-export default function ListPage() {
-  const [tab, setTab] = useState<'places' | 'media'>('places')
+function ListPageInner() {
+  const searchParams = useSearchParams()
+  const [tab, setTab] = useState<'places' | 'media'>(
+    searchParams.get('tab') === 'media' ? 'media' : 'places'
+  )
   const [places, setPlaces] = useState<Place[]>([])
   const [media, setMedia] = useState<MediaItem[]>([])
   const [myId, setMyId] = useState<string | null>(null)
@@ -571,5 +575,13 @@ export default function ListPage() {
         )}
       </BottomSheet>
     </div>
+  )
+}
+
+export default function ListPage() {
+  return (
+    <Suspense>
+      <ListPageInner />
+    </Suspense>
   )
 }

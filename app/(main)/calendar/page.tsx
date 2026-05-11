@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval,
   startOfWeek, endOfWeek, isSameMonth, isSameDay, addMonths, subMonths
@@ -48,22 +49,21 @@ const inputStyle: React.CSSProperties = {
 }
 
 // ---- 飛行機代の表示テキスト ----
-function flightPayerLabel(payer: FlightPayer, traveler?: Traveler): string {
+function flightPayerLabel(payer: FlightPayer, myName: string, partnerName: string): string {
   if (payer === 'split') return 'それぞれ負担'
-  if (payer === 'me')      return 'わたしが負担'
-  return 'かれしが負担'
+  if (payer === 'me')    return `${myName}が負担`
+  return `${partnerName}が負担`
 }
 
-function flightPayerNote(traveler: Traveler, payer: FlightPayer): string | null {
+function flightPayerNote(traveler: Traveler, payer: FlightPayer, myName: string, partnerName: string): string | null {
   if (payer === 'split') return null
   const travelerIsMe = traveler === 'me'
   const payerIsMe    = payer === 'me'
-  if (travelerIsMe === payerIsMe) return null   // 移動者＝支払者 → 通常
-  // 移動者 ≠ 支払者
+  if (travelerIsMe === payerIsMe) return null
   if (!travelerIsMe && payerIsMe) {
-    return 'かれしが来てくれるので、あなたが負担します'
+    return `${partnerName}が来てくれるので、${myName}が負担します`
   }
-  return 'あなたが行くので、かれしが負担します'
+  return `${myName}が行くので、${partnerName}が負担します`
 }
 
 // ---- セレクトボタン群 ----
@@ -98,12 +98,13 @@ function SegmentControl<T extends string>({
 
 // ---- 飛行機代フォーム（visit） ----
 function VisitFlightForm({
-  traveler, setTraveler, flightPayer, setFlightPayer,
+  traveler, setTraveler, flightPayer, setFlightPayer, myName, partnerName,
 }: {
   traveler: Traveler; setTraveler: (v: Traveler) => void
   flightPayer: FlightPayer; setFlightPayer: (v: FlightPayer) => void
+  myName: string; partnerName: string
 }) {
-  const note = flightPayerNote(traveler, flightPayer)
+  const note = flightPayerNote(traveler, flightPayer, myName, partnerName)
   return (
     <div className="space-y-3 pt-1 pb-1 px-3 rounded-xl" style={{ backgroundColor: '#F3F0FF' }}>
       <div>
@@ -111,7 +112,7 @@ function VisitFlightForm({
           移動する人
         </label>
         <SegmentControl
-          options={[{ value: 'me', label: 'わたし' }, { value: 'partner', label: 'かれし' }]}
+          options={[{ value: 'me', label: myName }, { value: 'partner', label: partnerName }]}
           value={traveler}
           onChange={setTraveler}
         />
@@ -121,7 +122,7 @@ function VisitFlightForm({
           飛行機代を払う人
         </label>
         <SegmentControl
-          options={[{ value: 'me', label: 'わたし' }, { value: 'partner', label: 'かれし' }]}
+          options={[{ value: 'me', label: myName }, { value: 'partner', label: partnerName }]}
           value={flightPayer === 'split' ? 'me' : flightPayer as 'me' | 'partner'}
           onChange={v => setFlightPayer(v)}
         />
@@ -137,9 +138,10 @@ function VisitFlightForm({
 
 // ---- 飛行機代フォーム（trip） ----
 function TripFlightForm({
-  flightPayer, setFlightPayer,
+  flightPayer, setFlightPayer, myName, partnerName,
 }: {
   flightPayer: FlightPayer; setFlightPayer: (v: FlightPayer) => void
+  myName: string; partnerName: string
 }) {
   return (
     <div className="pt-1 pb-2 px-3 rounded-xl" style={{ backgroundColor: '#F0F7F0' }}>
@@ -149,8 +151,8 @@ function TripFlightForm({
       <div className="flex gap-2">
         {[
           { value: 'split'   as FlightPayer, label: 'それぞれ' },
-          { value: 'me'      as FlightPayer, label: 'わたしが出す' },
-          { value: 'partner' as FlightPayer, label: 'かれしが出す' },
+          { value: 'me'      as FlightPayer, label: `${myName}が出す` },
+          { value: 'partner' as FlightPayer, label: `${partnerName}が出す` },
         ].map(o => (
           <button
             key={o.value}
@@ -173,18 +175,18 @@ function TripFlightForm({
 }
 
 // ---- 飛行機代の詳細表示 ----
-function FlightInfo({ event }: { event: CalEvent }) {
+function FlightInfo({ event, myName, partnerName }: { event: CalEvent; myName: string; partnerName: string }) {
   if (event.type !== 'visit' && event.type !== 'trip') return null
   if (!event.flight_payer) return null
 
   const config = eventTypeConfig[event.type]
   let text = ''
   if (event.type === 'visit') {
-    const moverText = event.traveler === 'me' ? 'わたし' : 'かれし'
-    const payerText = flightPayerLabel(event.flight_payer)
+    const moverText = event.traveler === 'me' ? myName : partnerName
+    const payerText = flightPayerLabel(event.flight_payer, myName, partnerName)
     text = `${moverText}が移動 ・ ${payerText}`
   } else {
-    text = flightPayerLabel(event.flight_payer)
+    text = flightPayerLabel(event.flight_payer, myName, partnerName)
   }
 
   return (
@@ -195,14 +197,24 @@ function FlightInfo({ event }: { event: CalEvent }) {
   )
 }
 
-export default function CalendarPage() {
-  const [currentMonth, setCurrentMonth] = useState(new Date())
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null)
+function CalendarPageInner() {
+  const searchParams = useSearchParams()
+  const initialDate = (() => {
+    const d = searchParams.get('date')
+    if (!d) return null
+    const [y, m, day] = d.split('-').map(Number)
+    return new Date(y, m - 1, day)
+  })()
+
+  const [currentMonth, setCurrentMonth] = useState(initialDate ?? new Date())
+  const [selectedDate, setSelectedDate] = useState<Date | null>(initialDate)
   const [showAddSheet, setShowAddSheet] = useState(false)
-  const [showEventSheet, setShowEventSheet] = useState(false)
+  const [showEventSheet, setShowEventSheet] = useState(!!initialDate)
   const [events, setEvents] = useState<CalEvent[]>([])
   const [userId, setUserId]   = useState<string | null>(null)
   const [coupleId, setCoupleId] = useState<string | null>(null)
+  const [myName, setMyName]       = useState('わたし')
+  const [partnerName, setPartnerName] = useState('パートナー')
   const [editingEvent, setEditingEvent] = useState<CalEvent | null>(null)
 
   // フォーム state
@@ -225,11 +237,26 @@ export default function CalendarPage() {
 
       const { data: userData } = await db
         .from('users')
-        .select('couple_id')
+        .select('display_name, couple_id')
         .eq('id', user.id)
         .single()
       if (!userData?.couple_id) return
+      if (userData.display_name) setMyName(userData.display_name)
       setCoupleId(userData.couple_id)
+
+      // パートナー名取得
+      const { data: coupleData } = await db
+        .from('couples')
+        .select('user1_id, user2_id')
+        .eq('id', userData.couple_id)
+        .single()
+      if (coupleData) {
+        const partnerId = coupleData.user1_id === user.id ? coupleData.user2_id : coupleData.user1_id
+        if (partnerId) {
+          const { data: partnerData } = await db.from('users').select('display_name').eq('id', partnerId).single()
+          if (partnerData?.display_name) setPartnerName(partnerData.display_name)
+        }
+      }
 
       const { data } = await db
         .from('events')
@@ -471,7 +498,7 @@ export default function CalendarPage() {
                       </span>
                       <p className="font-medium text-sm mt-1.5" style={{ color: '#1A1A1A' }}>{event.title}</p>
                       {event.memo && <p className="text-xs mt-1" style={{ color: '#737373' }}>{event.memo}</p>}
-                      <FlightInfo event={event} />
+                      <FlightInfo event={event} myName={myName} partnerName={partnerName} />
                     </div>
                     <div className="flex gap-1.5 flex-shrink-0">
                       <button
@@ -549,6 +576,7 @@ export default function CalendarPage() {
             <VisitFlightForm
               traveler={newTraveler}       setTraveler={setNewTraveler}
               flightPayer={newFlightPayer} setFlightPayer={setNewFlightPayer}
+              myName={myName} partnerName={partnerName}
             />
           )}
 
@@ -556,6 +584,7 @@ export default function CalendarPage() {
           {newType === 'trip' && (
             <TripFlightForm
               flightPayer={newFlightPayer} setFlightPayer={setNewFlightPayer}
+              myName={myName} partnerName={partnerName}
             />
           )}
 
@@ -581,5 +610,13 @@ export default function CalendarPage() {
         </div>
       </BottomSheet>
     </div>
+  )
+}
+
+export default function CalendarPage() {
+  return (
+    <Suspense>
+      <CalendarPageInner />
+    </Suspense>
   )
 }

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { differenceInDays, format, addDays, startOfWeek } from 'date-fns'
 import { ja } from 'date-fns/locale'
 import { MapPin, Play, Calendar, ChevronRight, Plane } from 'lucide-react'
+import Link from 'next/link'
 import Card from '@/components/ui/Card'
 import IconCircle from '@/components/ui/IconCircle'
 import Tag from '@/components/ui/Tag'
@@ -38,8 +39,7 @@ interface HomePlace {
   id: string
   name: string
   location: string
-  added_by: string       // UUID
-  owner: 'me' | 'partner'
+  owner: 'me' | 'partner' | 'both'
 }
 
 function MiniWeekCalendar({ nextMeeting, eventDates }: { nextMeeting: Date | null; eventDates: string[] }) {
@@ -86,7 +86,6 @@ export default function HomePage() {
   const [places, setPlaces] = useState<HomePlace[]>([])
   const [placesCount, setPlacesCount] = useState<number>(0)
   const [mediaCount, setMediaCount] = useState<number>(0)
-  const [myId, setMyId] = useState<string | null>(null)
   const [nextVisitDate, setNextVisitDate] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -103,8 +102,8 @@ export default function HomePage() {
           { id: '3', title: '記念日',           date: format(addDays(new Date(), 30), 'yyyy-MM-dd'), type: 'anniversary' },
         ])
         setPlaces([
-          { id: '1', name: '新宿御苑',   location: '東京',   added_by: '1', owner: 'partner' },
-          { id: '2', name: '横浜中華街', location: '神奈川', added_by: '1', owner: 'me'  },
+          { id: '1', name: '新宿御苑',   location: '東京',   owner: 'partner' },
+          { id: '2', name: '横浜中華街', location: '神奈川', owner: 'me'  },
         ])
         setPlacesCount(12)
         setMediaCount(8)
@@ -118,7 +117,6 @@ export default function HomePage() {
 
       const { data: { user } } = await db.auth.getUser()
       if (!user) { setLoading(false); return }
-      setMyId(user.id)
 
       // 自分のユーザー情報
       const { data: myData } = await db
@@ -189,19 +187,18 @@ export default function HomePage() {
       // 未訪問の場所（最近追加2件）
       const { data: placesData } = await db
         .from('places')
-        .select('id, name, location, added_by')
+        .select('id, name, location, owner')
         .eq('couple_id', coupleId)
         .eq('is_visited', false)
         .order('created_at', { ascending: false })
         .limit(2)
 
       if (placesData) {
-        setPlaces(placesData.map((p: { id: string; name: string; location: string; added_by: string }) => ({
+        setPlaces(placesData.map((p: { id: string; name: string; location: string; owner?: string }) => ({
           id: p.id,
           name: p.name,
           location: p.location,
-          added_by: p.added_by,
-          owner: p.added_by === user.id ? 'me' : 'partner',
+          owner: (p.owner ?? 'me') as 'me' | 'partner' | 'both',
         })))
       }
 
@@ -235,8 +232,16 @@ export default function HomePage() {
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening'
 
   const upcomingEvents: HomeEvent[] = [...events].sort((a, b) => a.date.localeCompare(b.date))
-
   const thisWeekEventDates = events.map(e => e.date)
+
+  const myName      = me?.display_name      || 'わたし'
+  const partnerName = partner?.display_name || 'パートナー'
+
+  function placeOwnerLabel(owner: 'me' | 'partner' | 'both') {
+    if (owner === 'me')      return myName
+    if (owner === 'partner') return partnerName
+    return 'ふたり'
+  }
 
   return (
     <div className="px-4 pt-6 pb-2 max-w-lg mx-auto space-y-4">
@@ -256,17 +261,13 @@ export default function HomePage() {
             <div className="w-8 h-8 rounded-full" style={{ backgroundColor: '#E5E5E5' }} />
           ) : (
             <>
-              <IconCircle
-                initial={me?.display_name || '?'}
-                color={me?.avatar_color || '#6D5BD0'}
-                size="sm"
-              />
+              <Link href="/settings">
+                <IconCircle initial={me?.display_name || '?'} color={me?.avatar_color || '#6D5BD0'} size="sm" />
+              </Link>
               {partner && (
-                <IconCircle
-                  initial={partner.display_name || '?'}
-                  color={partner.avatar_color || '#2D6B9E'}
-                  size="sm"
-                />
+                <Link href="/settings">
+                  <IconCircle initial={partner.display_name || '?'} color={partner.avatar_color || '#2D6B9E'} size="sm" />
+                </Link>
               )}
             </>
           )}
@@ -274,30 +275,28 @@ export default function HomePage() {
       </div>
 
       {/* Countdown Hero */}
-      <Card padding="lg">
-        <div className="flex items-start justify-between mb-4">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-widest mb-1" style={{ color: '#A3A3A3' }}>
-              Next Layover
-            </p>
-            {daysUntilMeeting !== null ? (
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-5xl font-semibold" style={{ color: '#1A1A1A' }}>
-                  {daysUntilMeeting}
-                </span>
-                <span className="text-lg" style={{ color: '#737373' }}>days</span>
-              </div>
-            ) : (
-              <p className="text-base" style={{ color: '#A3A3A3' }}>次の約束を設定しよう</p>
-            )}
+      <Link href="/calendar">
+        <Card padding="lg">
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-widest mb-1" style={{ color: '#A3A3A3' }}>
+                Next Layover
+              </p>
+              {daysUntilMeeting !== null ? (
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-5xl font-semibold" style={{ color: '#1A1A1A' }}>{daysUntilMeeting}</span>
+                  <span className="text-lg" style={{ color: '#737373' }}>days</span>
+                </div>
+              ) : (
+                <p className="text-base" style={{ color: '#A3A3A3' }}>次の約束を設定しよう</p>
+              )}
+            </div>
+            <div className="p-2.5 rounded-xl" style={{ backgroundColor: '#F3F0FF' }}>
+              <Plane size={20} style={{ color: '#6D5BD0' }} />
+            </div>
           </div>
-          <div className="p-2.5 rounded-xl" style={{ backgroundColor: '#F3F0FF' }}>
-            <Plane size={20} style={{ color: '#6D5BD0' }} />
-          </div>
-        </div>
-        {nextMeeting && (
-          <div className="flex items-center justify-between pt-3" style={{ borderTop: '0.5px solid #E5E5E5' }}>
-            <div className="flex items-center gap-2">
+          {nextMeeting && (
+            <div className="flex items-center gap-2 pt-3" style={{ borderTop: '0.5px solid #E5E5E5' }}>
               <span className="px-2 py-0.5 text-xs font-medium" style={{ backgroundColor: '#F3F0FF', color: '#6D5BD0', borderRadius: '6px' }}>
                 会う日
               </span>
@@ -305,47 +304,47 @@ export default function HomePage() {
                 {format(nextMeeting, 'M月d日(E)', { locale: ja })}
               </span>
             </div>
-          </div>
-        )}
-      </Card>
+          )}
+        </Card>
+      </Link>
 
       {/* Stats */}
       <div className="grid grid-cols-2 gap-3">
-        <Card padding="md">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg" style={{ backgroundColor: '#F0F7F0' }}>
-              <MapPin size={16} style={{ color: '#4A7C59' }} />
+        <Link href="/list" className="block">
+          <Card padding="md">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg" style={{ backgroundColor: '#F0F7F0' }}>
+                <MapPin size={16} style={{ color: '#4A7C59' }} />
+              </div>
+              <div>
+                <p className="text-xs" style={{ color: '#A3A3A3' }}>行きたい場所</p>
+                <p className="text-xl font-semibold" style={{ color: '#1A1A1A' }}>{loading ? '—' : placesCount}</p>
+              </div>
             </div>
-            <div>
-              <p className="text-xs" style={{ color: '#A3A3A3' }}>行きたい場所</p>
-              <p className="text-xl font-semibold" style={{ color: '#1A1A1A' }}>
-                {loading ? '—' : placesCount}
-              </p>
+          </Card>
+        </Link>
+        <Link href="/list?tab=media" className="block">
+          <Card padding="md">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg" style={{ backgroundColor: '#FFF7F0' }}>
+                <Play size={16} style={{ color: '#C2782D' }} />
+              </div>
+              <div>
+                <p className="text-xs" style={{ color: '#A3A3A3' }}>観たい・聴きたい</p>
+                <p className="text-xl font-semibold" style={{ color: '#1A1A1A' }}>{loading ? '—' : mediaCount}</p>
+              </div>
             </div>
-          </div>
-        </Card>
-        <Card padding="md">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg" style={{ backgroundColor: '#FFF7F0' }}>
-              <Play size={16} style={{ color: '#C2782D' }} />
-            </div>
-            <div>
-              <p className="text-xs" style={{ color: '#A3A3A3' }}>観たい・聴きたい</p>
-              <p className="text-xl font-semibold" style={{ color: '#1A1A1A' }}>
-                {loading ? '—' : mediaCount}
-              </p>
-            </div>
-          </div>
-        </Card>
+          </Card>
+        </Link>
       </div>
 
       {/* This Week */}
       <Card>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-semibold" style={{ color: '#1A1A1A' }}>今週</h2>
-          <button className="text-xs flex items-center gap-0.5" style={{ color: '#A3A3A3' }}>
+          <Link href="/calendar" className="text-xs flex items-center gap-0.5" style={{ color: '#A3A3A3' }}>
             カレンダー <ChevronRight size={12} />
-          </button>
+          </Link>
         </div>
         <MiniWeekCalendar nextMeeting={nextMeeting} eventDates={thisWeekEventDates} />
       </Card>
@@ -354,7 +353,9 @@ export default function HomePage() {
       <Card>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-semibold" style={{ color: '#1A1A1A' }}>近いイベント</h2>
-          <Calendar size={14} style={{ color: '#A3A3A3' }} />
+          <Link href="/calendar">
+            <Calendar size={14} style={{ color: '#A3A3A3' }} />
+          </Link>
         </div>
         {loading ? (
           <div className="space-y-3">
@@ -376,7 +377,7 @@ export default function HomePage() {
               const config = eventTypeConfig[event.type]
               const eventDate = new Date(event.date.replace(/-/g, '/'))
               return (
-                <div key={event.id} className="flex items-center gap-3">
+                <Link key={event.id} href={`/calendar?date=${event.date}`} className="flex items-center gap-3">
                   <div className="w-1 h-8 rounded-full flex-shrink-0" style={{ backgroundColor: config.text }} />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate" style={{ color: '#1A1A1A' }}>{event.title}</p>
@@ -387,7 +388,7 @@ export default function HomePage() {
                   <span className="text-xs px-2 py-0.5 flex-shrink-0" style={{ backgroundColor: config.bg, color: config.text, borderRadius: '6px' }}>
                     {config.label}
                   </span>
-                </div>
+                </Link>
               )
             })}
           </div>
@@ -398,7 +399,9 @@ export default function HomePage() {
       <Card>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-semibold" style={{ color: '#1A1A1A' }}>最近追加された場所</h2>
-          <MapPin size={14} style={{ color: '#A3A3A3' }} />
+          <Link href="/list">
+            <MapPin size={14} style={{ color: '#A3A3A3' }} />
+          </Link>
         </div>
         {loading ? (
           <div className="space-y-2.5">
@@ -417,7 +420,7 @@ export default function HomePage() {
         ) : (
           <div className="space-y-2.5">
             {places.map(place => (
-              <div key={place.id} className="flex items-center gap-3">
+              <Link key={place.id} href="/list" className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#F5F5F3' }}>
                   <MapPin size={14} style={{ color: '#737373' }} />
                 </div>
@@ -425,8 +428,8 @@ export default function HomePage() {
                   <p className="text-sm font-medium truncate" style={{ color: '#1A1A1A' }}>{place.name}</p>
                   <p className="text-xs" style={{ color: '#A3A3A3' }}>{place.location}</p>
                 </div>
-                <Tag label={place.owner === 'me' ? 'わたし' : 'パートナー'} owner={place.owner} />
-              </div>
+                <Tag label={placeOwnerLabel(place.owner)} owner={place.owner} />
+              </Link>
             ))}
           </div>
         )}
