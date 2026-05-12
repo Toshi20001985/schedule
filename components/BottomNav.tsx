@@ -2,13 +2,14 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, CalendarDays, List, Settings } from 'lucide-react'
+import { Home, CalendarDays, List, Search, Settings } from 'lucide-react'
 import { haptic } from '@/lib/haptics'
 
 const tabs = [
   { href: '/',          icon: Home,        label: 'ホーム' },
   { href: '/calendar',  icon: CalendarDays, label: 'カレンダー' },
   { href: '/list',      icon: List,        label: 'リスト' },
+  { href: '/search',    icon: Search,      label: '検索' },
   { href: '/settings',  icon: Settings,    label: '設定' },
 ]
 
