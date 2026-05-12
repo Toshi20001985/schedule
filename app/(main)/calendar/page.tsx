@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval,
@@ -13,6 +13,7 @@ import Button from '@/components/ui/Button'
 import BottomSheet from '@/components/BottomSheet'
 import DateInput from '@/components/ui/DateInput'
 import { haptic } from '@/lib/haptics'
+import { PullToRefresh } from '@/components/PullToRefresh'
 
 const eventTypeConfig = {
   visit:       { bg: '#F3F0FF', text: '#6D5BD0', dot: '#6D5BD0', label: '会う日' },
@@ -241,63 +242,64 @@ function CalendarPageInner() {
   const [newEndDate,    setNewEndDate]    = useState<Date | null>(null)
 
   // Supabase からイベント取得
-  useEffect(() => {
-    async function load() {
-      if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return
-      const { createClient } = await import('@/lib/supabase/client')
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const db = createClient() as any
-      const { data: { user } } = await db.auth.getUser()
-      if (!user) return
-      setUserId(user.id)
+  const load = useCallback(async () => {
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return
+    const { createClient } = await import('@/lib/supabase/client')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = createClient() as any
+    const { data: { user } } = await db.auth.getUser()
+    if (!user) return
+    setUserId(user.id)
 
-      const { data: userData } = await db
-        .from('users')
-        .select('display_name, couple_id')
-        .eq('id', user.id)
-        .single()
-      if (!userData?.couple_id) return
-      if (userData.display_name) setMyName(userData.display_name)
-      setCoupleId(userData.couple_id)
+    const { data: userData } = await db
+      .from('users')
+      .select('display_name, couple_id')
+      .eq('id', user.id)
+      .single()
+    if (!userData?.couple_id) return
+    if (userData.display_name) setMyName(userData.display_name)
+    setCoupleId(userData.couple_id)
 
-      // パートナー名取得
-      const { data: coupleData } = await db
-        .from('couples')
-        .select('user1_id, user2_id')
-        .eq('id', userData.couple_id)
-        .single()
-      if (coupleData) {
-        const partnerId = coupleData.user1_id === user.id ? coupleData.user2_id : coupleData.user1_id
-        if (partnerId) {
-          const { data: partnerData } = await db.from('users').select('display_name').eq('id', partnerId).single()
-          if (partnerData?.display_name) setPartnerName(partnerData.display_name)
-        }
-      }
-
-      const { data } = await db
-        .from('events')
-        .select('id, title, event_date, end_date, event_type, memo, traveler, flight_payer')
-        .eq('couple_id', userData.couple_id)
-        .order('event_date', { ascending: true })
-
-      if (data) {
-        setEvents(data.map((e: {
-          id: string; title: string; event_date: string; end_date?: string;
-          event_type: EventType; memo?: string; traveler?: Traveler; flight_payer?: FlightPayer
-        }) => ({
-          id: e.id,
-          title: e.title,
-          date: e.event_date,
-          end_date: e.end_date ?? undefined,
-          type: e.event_type,
-          memo: e.memo,
-          traveler: e.traveler,
-          flight_payer: e.flight_payer,
-        })))
+    // パートナー名取得
+    const { data: coupleData } = await db
+      .from('couples')
+      .select('user1_id, user2_id')
+      .eq('id', userData.couple_id)
+      .single()
+    if (coupleData) {
+      const partnerId = coupleData.user1_id === user.id ? coupleData.user2_id : coupleData.user1_id
+      if (partnerId) {
+        const { data: partnerData } = await db.from('users').select('display_name').eq('id', partnerId).single()
+        if (partnerData?.display_name) setPartnerName(partnerData.display_name)
       }
     }
-    load()
+
+    const { data } = await db
+      .from('events')
+      .select('id, title, event_date, end_date, event_type, memo, traveler, flight_payer')
+      .eq('couple_id', userData.couple_id)
+      .order('event_date', { ascending: true })
+
+    if (data) {
+      setEvents(data.map((e: {
+        id: string; title: string; event_date: string; end_date?: string;
+        event_type: EventType; memo?: string; traveler?: Traveler; flight_payer?: FlightPayer
+      }) => ({
+        id: e.id,
+        title: e.title,
+        date: e.event_date,
+        end_date: e.end_date ?? undefined,
+        type: e.event_type,
+        memo: e.memo,
+        traveler: e.traveler,
+        flight_payer: e.flight_payer,
+      })))
+    }
   }, [])
+
+  useEffect(() => {
+    load()
+  }, [load])
 
   const monthStart = startOfMonth(currentMonth)
   const monthEnd   = endOfMonth(currentMonth)
@@ -439,6 +441,7 @@ function CalendarPageInner() {
   }
 
   return (
+    <PullToRefresh onRefresh={load}>
     <div className="px-4 pt-6 max-w-lg mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
@@ -747,6 +750,7 @@ function CalendarPageInner() {
         </div>
       </BottomSheet>
     </div>
+    </PullToRefresh>
   )
 }
 

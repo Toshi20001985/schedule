@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { MapPin, Play, Check, Plus, Film, Music, Book, Tv, Trash2, Pencil } from 'lucide-react'
 import Card from '@/components/ui/Card'
@@ -8,6 +8,7 @@ import Button from '@/components/ui/Button'
 import Tag from '@/components/ui/Tag'
 import BottomSheet from '@/components/BottomSheet'
 import { haptic } from '@/lib/haptics'
+import { PullToRefresh } from '@/components/PullToRefresh'
 
 type Owner = 'me' | 'partner' | 'both'
 
@@ -86,99 +87,100 @@ function ListPageInner() {
     return 'ふたり'
   }
 
-  useEffect(() => {
-    async function load() {
-      if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-        setPlaces([
-          { id: '1', name: '新宿御苑',      category: '公園',   location: '東京',   memo: '春に桜を見よう！', is_visited: false, owner: 'both' },
-          { id: '2', name: '横浜中華街',    category: 'グルメ', location: '神奈川', is_visited: false, owner: 'me' },
-          { id: '3', name: '嵐山',          category: '観光',   location: '京都',   memo: '旅行で', is_visited: true, owner: 'both' },
-          { id: '4', name: 'teamLab Planets', category: 'アート', location: '東京', is_visited: false, owner: 'partner' },
-        ])
-        setMedia([
-          { id: '1', title: '君の名は。',              media_type: 'movie', memo: 'また一緒に観たい', is_done: true,  owner: 'both' },
-          { id: '2', title: 'スラムダンク',            media_type: 'anime', is_done: false, owner: 'partner' },
-          { id: '3', title: 'Taylor Swift - Eras Tour', media_type: 'music', is_done: false, owner: 'me' },
-          { id: '4', title: '呪術廻戦',                media_type: 'tv',    is_done: false, owner: 'both' },
-        ])
-        return
-      }
-
-      const { createClient } = await import('@/lib/supabase/client')
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const db = createClient() as any
-      const { data: { user } } = await db.auth.getUser()
-      if (!user) return
-      setMyId(user.id)
-
-      // 自分とパートナーの名前を取得
-      const { data: userData } = await db
-        .from('users')
-        .select('display_name, couple_id')
-        .eq('id', user.id)
-        .single()
-      if (!userData) return
-      if (userData.display_name) setMyName(userData.display_name)
-      if (!userData.couple_id) return
-      setCoupleId(userData.couple_id)
-      const cId = userData.couple_id
-
-      const { data: coupleData } = await db
-        .from('couples')
-        .select('user1_id, user2_id')
-        .eq('id', cId)
-        .single()
-      if (coupleData) {
-        const partnerId = coupleData.user1_id === user.id ? coupleData.user2_id : coupleData.user1_id
-        if (partnerId) {
-          const { data: partnerData } = await db
-            .from('users')
-            .select('display_name')
-            .eq('id', partnerId)
-            .single()
-          if (partnerData?.display_name) setPartnerName(partnerData.display_name)
-        }
-      }
-
-      const [{ data: placesData }, { data: mediaData }] = await Promise.all([
-        db.from('places')
-          .select('id, name, category, location, memo, is_visited, owner')
-          .eq('couple_id', cId)
-          .order('created_at', { ascending: false }),
-        db.from('media')
-          .select('id, title, media_type, memo, is_done, owner')
-          .eq('couple_id', cId)
-          .order('created_at', { ascending: false }),
+  const load = useCallback(async () => {
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      setPlaces([
+        { id: '1', name: '新宿御苑',      category: '公園',   location: '東京',   memo: '春に桜を見よう！', is_visited: false, owner: 'both' },
+        { id: '2', name: '横浜中華街',    category: 'グルメ', location: '神奈川', is_visited: false, owner: 'me' },
+        { id: '3', name: '嵐山',          category: '観光',   location: '京都',   memo: '旅行で', is_visited: true, owner: 'both' },
+        { id: '4', name: 'teamLab Planets', category: 'アート', location: '東京', is_visited: false, owner: 'partner' },
       ])
+      setMedia([
+        { id: '1', title: '君の名は。',              media_type: 'movie', memo: 'また一緒に観たい', is_done: true,  owner: 'both' },
+        { id: '2', title: 'スラムダンク',            media_type: 'anime', is_done: false, owner: 'partner' },
+        { id: '3', title: 'Taylor Swift - Eras Tour', media_type: 'music', is_done: false, owner: 'me' },
+        { id: '4', title: '呪術廻戦',                media_type: 'tv',    is_done: false, owner: 'both' },
+      ])
+      return
+    }
 
-      if (placesData) {
-        setPlaces(placesData.map((p: {
-          id: string; name: string; category: string; location: string
-          memo?: string; is_visited: boolean; owner?: Owner
-        }) => ({
-          id: p.id, name: p.name,
-          category: p.category ?? 'その他',
-          location: p.location ?? '',
-          memo: p.memo ?? undefined,
-          is_visited: p.is_visited,
-          owner: (p.owner as Owner) ?? 'me',
-        })))
-      }
-      if (mediaData) {
-        setMedia(mediaData.map((m: {
-          id: string; title: string; media_type: MediaItem['media_type']
-          memo?: string; is_done: boolean; owner?: Owner
-        }) => ({
-          id: m.id, title: m.title,
-          media_type: m.media_type,
-          memo: m.memo ?? undefined,
-          is_done: m.is_done,
-          owner: (m.owner as Owner) ?? 'me',
-        })))
+    const { createClient } = await import('@/lib/supabase/client')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = createClient() as any
+    const { data: { user } } = await db.auth.getUser()
+    if (!user) return
+    setMyId(user.id)
+
+    // 自分とパートナーの名前を取得
+    const { data: userData } = await db
+      .from('users')
+      .select('display_name, couple_id')
+      .eq('id', user.id)
+      .single()
+    if (!userData) return
+    if (userData.display_name) setMyName(userData.display_name)
+    if (!userData.couple_id) return
+    setCoupleId(userData.couple_id)
+    const cId = userData.couple_id
+
+    const { data: coupleData } = await db
+      .from('couples')
+      .select('user1_id, user2_id')
+      .eq('id', cId)
+      .single()
+    if (coupleData) {
+      const partnerId = coupleData.user1_id === user.id ? coupleData.user2_id : coupleData.user1_id
+      if (partnerId) {
+        const { data: partnerData } = await db
+          .from('users')
+          .select('display_name')
+          .eq('id', partnerId)
+          .single()
+        if (partnerData?.display_name) setPartnerName(partnerData.display_name)
       }
     }
-    load()
+
+    const [{ data: placesData }, { data: mediaData }] = await Promise.all([
+      db.from('places')
+        .select('id, name, category, location, memo, is_visited, owner')
+        .eq('couple_id', cId)
+        .order('created_at', { ascending: false }),
+      db.from('media')
+        .select('id, title, media_type, memo, is_done, owner')
+        .eq('couple_id', cId)
+        .order('created_at', { ascending: false }),
+    ])
+
+    if (placesData) {
+      setPlaces(placesData.map((p: {
+        id: string; name: string; category: string; location: string
+        memo?: string; is_visited: boolean; owner?: Owner
+      }) => ({
+        id: p.id, name: p.name,
+        category: p.category ?? 'その他',
+        location: p.location ?? '',
+        memo: p.memo ?? undefined,
+        is_visited: p.is_visited,
+        owner: (p.owner as Owner) ?? 'me',
+      })))
+    }
+    if (mediaData) {
+      setMedia(mediaData.map((m: {
+        id: string; title: string; media_type: MediaItem['media_type']
+        memo?: string; is_done: boolean; owner?: Owner
+      }) => ({
+        id: m.id, title: m.title,
+        media_type: m.media_type,
+        memo: m.memo ?? undefined,
+        is_done: m.is_done,
+        owner: (m.owner as Owner) ?? 'me',
+      })))
+    }
   }, [])
+
+  useEffect(() => {
+    load()
+  }, [load])
 
   const activePlaces  = places.filter(p => !p.is_visited)
   const visitedPlaces = places.filter(p => p.is_visited)
@@ -333,6 +335,7 @@ function ListPageInner() {
   }
 
   return (
+    <PullToRefresh onRefresh={load}>
     <div className="px-4 pt-6 max-w-lg mx-auto">
       <h1 className="text-lg font-semibold mb-5" style={{ color: '#1A1A1A' }}>リスト</h1>
 
@@ -584,6 +587,7 @@ function ListPageInner() {
         )}
       </BottomSheet>
     </div>
+    </PullToRefresh>
   )
 }
 

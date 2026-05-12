@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { differenceInDays, format, addDays, startOfWeek } from 'date-fns'
 import { ja } from 'date-fns/locale'
 import { MapPin, Play, Calendar, ChevronRight, Plane } from 'lucide-react'
 import Link from 'next/link'
 import Card from '@/components/ui/Card'
+import { PullToRefresh } from '@/components/PullToRefresh'
 import IconCircle from '@/components/ui/IconCircle'
 import Tag from '@/components/ui/Tag'
 
@@ -90,140 +91,141 @@ export default function HomePage() {
   const [nextVisitDate, setNextVisitDate] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    async function load() {
-      if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-        // モックデータ
-        setMe({ id: '1', display_name: 'さくら', avatar_color: '#6D5BD0' })
-        setPartner({ id: '2', display_name: 'けんた', avatar_color: '#2D6B9E' })
-        setCouple({ anniversary: '2023-04-01' })
-        setNextVisitDate(format(addDays(new Date(), 23), 'yyyy-MM-dd'))
-        setEvents([
-          { id: '2', title: '映画「君の名は」', date: format(addDays(new Date(), 5), 'yyyy-MM-dd'),  type: 'online' },
-          { id: '3', title: '記念日',           date: format(addDays(new Date(), 30), 'yyyy-MM-dd'), type: 'anniversary' },
-        ])
-        setPlaces([
-          { id: '1', name: '新宿御苑',   location: '東京',   owner: 'partner' },
-          { id: '2', name: '横浜中華街', location: '神奈川', owner: 'me'  },
-        ])
-        setPlacesCount(12)
-        setMediaCount(8)
-        setLoading(false)
-        return
-      }
-
-      const { createClient } = await import('@/lib/supabase/client')
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const db = createClient() as any
-
-      const { data: { user } } = await db.auth.getUser()
-      if (!user) { setLoading(false); return }
-
-      // 自分のユーザー情報
-      const { data: myData } = await db
-        .from('users')
-        .select('id, display_name, avatar_color, couple_id')
-        .eq('id', user.id)
-        .single()
-
-      if (!myData) { setLoading(false); return }
-      setMe({ id: myData.id, display_name: myData.display_name, avatar_color: myData.avatar_color })
-
-      if (!myData.couple_id) { setLoading(false); return }
-      const coupleId = myData.couple_id
-
-      // カップル情報
-      const { data: coupleData } = await db
-        .from('couples')
-        .select('anniversary, next_meeting_date, user1_id, user2_id')
-        .eq('id', coupleId)
-        .single()
-
-      if (coupleData) {
-        setCouple({ anniversary: coupleData.anniversary })
-
-        const partnerId = coupleData.user1_id === user.id ? coupleData.user2_id : coupleData.user1_id
-        if (partnerId) {
-          const { data: partnerData } = await db
-            .from('users')
-            .select('id, display_name, avatar_color')
-            .eq('id', partnerId)
-            .single()
-          if (partnerData) setPartner(partnerData)
-        }
-      }
-
-      const today = format(new Date(), 'yyyy-MM-dd')
-
-      // 次の「会う日」または「旅行」の直近1件
-      const { data: nextVisit } = await db
-        .from('events')
-        .select('event_date')
-        .eq('couple_id', coupleId)
-        .in('event_type', ['visit', 'trip'])
-        .gte('event_date', today)
-        .order('event_date', { ascending: true })
-        .limit(1)
-        .single()
-      if (nextVisit) setNextVisitDate(nextVisit.event_date)
-
-      // 今日以降のイベント（最大5件）
-      const { data: eventsData } = await db
-        .from('events')
-        .select('id, title, event_date, end_date, event_type')
-        .eq('couple_id', coupleId)
-        .gte('event_date', today)
-        .order('event_date', { ascending: true })
-        .limit(5)
-
-      if (eventsData) {
-        setEvents(eventsData.map((e: { id: string; title: string; event_date: string; end_date?: string; event_type: EventType }) => ({
-          id: e.id,
-          title: e.title,
-          date: e.event_date,
-          end_date: e.end_date ?? undefined,
-          type: e.event_type,
-        })))
-      }
-
-      // 未訪問の場所（最近追加2件）
-      const { data: placesData } = await db
-        .from('places')
-        .select('id, name, location, owner')
-        .eq('couple_id', coupleId)
-        .eq('is_visited', false)
-        .order('created_at', { ascending: false })
-        .limit(2)
-
-      if (placesData) {
-        setPlaces(placesData.map((p: { id: string; name: string; location: string; owner?: string }) => ({
-          id: p.id,
-          name: p.name,
-          location: p.location,
-          owner: (p.owner ?? 'me') as 'me' | 'partner' | 'both',
-        })))
-      }
-
-      // カウント：未訪問の場所
-      const { count: pCount } = await db
-        .from('places')
-        .select('id', { count: 'exact', head: true })
-        .eq('couple_id', coupleId)
-        .eq('is_visited', false)
-      setPlacesCount(pCount ?? 0)
-
-      // カウント：未完了のメディア
-      const { count: mCount } = await db
-        .from('media')
-        .select('id', { count: 'exact', head: true })
-        .eq('couple_id', coupleId)
-        .eq('is_done', false)
-      setMediaCount(mCount ?? 0)
-
+  const load = useCallback(async () => {
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      // モックデータ
+      setMe({ id: '1', display_name: 'さくら', avatar_color: '#6D5BD0' })
+      setPartner({ id: '2', display_name: 'けんた', avatar_color: '#2D6B9E' })
+      setCouple({ anniversary: '2023-04-01' })
+      setNextVisitDate(format(addDays(new Date(), 23), 'yyyy-MM-dd'))
+      setEvents([
+        { id: '2', title: '映画「君の名は」', date: format(addDays(new Date(), 5), 'yyyy-MM-dd'),  type: 'online' },
+        { id: '3', title: '記念日',           date: format(addDays(new Date(), 30), 'yyyy-MM-dd'), type: 'anniversary' },
+      ])
+      setPlaces([
+        { id: '1', name: '新宿御苑',   location: '東京',   owner: 'partner' },
+        { id: '2', name: '横浜中華街', location: '神奈川', owner: 'me'  },
+      ])
+      setPlacesCount(12)
+      setMediaCount(8)
       setLoading(false)
+      return
     }
-    load()
+
+    const { createClient } = await import('@/lib/supabase/client')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = createClient() as any
+
+    const { data: { user } } = await db.auth.getUser()
+    if (!user) { setLoading(false); return }
+
+    // 自分のユーザー情報
+    const { data: myData } = await db
+      .from('users')
+      .select('id, display_name, avatar_color, couple_id')
+      .eq('id', user.id)
+      .single()
+
+    if (!myData) { setLoading(false); return }
+    setMe({ id: myData.id, display_name: myData.display_name, avatar_color: myData.avatar_color })
+
+    if (!myData.couple_id) { setLoading(false); return }
+    const coupleId = myData.couple_id
+
+    // カップル情報
+    const { data: coupleData } = await db
+      .from('couples')
+      .select('anniversary, next_meeting_date, user1_id, user2_id')
+      .eq('id', coupleId)
+      .single()
+
+    if (coupleData) {
+      setCouple({ anniversary: coupleData.anniversary })
+
+      const partnerId = coupleData.user1_id === user.id ? coupleData.user2_id : coupleData.user1_id
+      if (partnerId) {
+        const { data: partnerData } = await db
+          .from('users')
+          .select('id, display_name, avatar_color')
+          .eq('id', partnerId)
+          .single()
+        if (partnerData) setPartner(partnerData)
+      }
+    }
+
+    const today = format(new Date(), 'yyyy-MM-dd')
+
+    // 次の「会う日」または「旅行」の直近1件
+    const { data: nextVisit } = await db
+      .from('events')
+      .select('event_date')
+      .eq('couple_id', coupleId)
+      .in('event_type', ['visit', 'trip'])
+      .gte('event_date', today)
+      .order('event_date', { ascending: true })
+      .limit(1)
+      .single()
+    if (nextVisit) setNextVisitDate(nextVisit.event_date)
+
+    // 今日以降のイベント（最大5件）
+    const { data: eventsData } = await db
+      .from('events')
+      .select('id, title, event_date, end_date, event_type')
+      .eq('couple_id', coupleId)
+      .gte('event_date', today)
+      .order('event_date', { ascending: true })
+      .limit(5)
+
+    if (eventsData) {
+      setEvents(eventsData.map((e: { id: string; title: string; event_date: string; end_date?: string; event_type: EventType }) => ({
+        id: e.id,
+        title: e.title,
+        date: e.event_date,
+        end_date: e.end_date ?? undefined,
+        type: e.event_type,
+      })))
+    }
+
+    // 未訪問の場所（最近追加2件）
+    const { data: placesData } = await db
+      .from('places')
+      .select('id, name, location, owner')
+      .eq('couple_id', coupleId)
+      .eq('is_visited', false)
+      .order('created_at', { ascending: false })
+      .limit(2)
+
+    if (placesData) {
+      setPlaces(placesData.map((p: { id: string; name: string; location: string; owner?: string }) => ({
+        id: p.id,
+        name: p.name,
+        location: p.location,
+        owner: (p.owner ?? 'me') as 'me' | 'partner' | 'both',
+      })))
+    }
+
+    // カウント：未訪問の場所
+    const { count: pCount } = await db
+      .from('places')
+      .select('id', { count: 'exact', head: true })
+      .eq('couple_id', coupleId)
+      .eq('is_visited', false)
+    setPlacesCount(pCount ?? 0)
+
+    // カウント：未完了のメディア
+    const { count: mCount } = await db
+      .from('media')
+      .select('id', { count: 'exact', head: true })
+      .eq('couple_id', coupleId)
+      .eq('is_done', false)
+    setMediaCount(mCount ?? 0)
+
+    setLoading(false)
   }, [])
+
+  useEffect(() => {
+    load()
+  }, [load])
 
   const nextMeeting = nextVisitDate
     ? new Date(nextVisitDate.replace(/-/g, '/'))
@@ -246,6 +248,7 @@ export default function HomePage() {
   }
 
   return (
+    <PullToRefresh onRefresh={load}>
     <div className="px-4 pt-6 pb-2 max-w-lg mx-auto space-y-4">
 
       {/* Header */}
@@ -441,5 +444,6 @@ export default function HomePage() {
         )}
       </Card>
     </div>
+    </PullToRefresh>
   )
 }
