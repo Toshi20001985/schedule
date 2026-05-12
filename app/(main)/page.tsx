@@ -7,6 +7,9 @@ import { MapPin, Play, Calendar, ChevronRight, Plane } from 'lucide-react'
 import Link from 'next/link'
 import Card from '@/components/ui/Card'
 import { PullToRefresh } from '@/components/PullToRefresh'
+import { useRealtimeSync } from '@/hooks/useRealtimeSync'
+import { Toast } from '@/components/Toast'
+import { haptic } from '@/lib/haptics'
 import IconCircle from '@/components/ui/IconCircle'
 import Tag from '@/components/ui/Tag'
 
@@ -90,6 +93,8 @@ export default function HomePage() {
   const [mediaCount, setMediaCount] = useState<number>(0)
   const [nextVisitDate, setNextVisitDate] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [coupleId, setCoupleId] = useState<string | null>(null)
+  const [toast, setToast] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
@@ -131,6 +136,7 @@ export default function HomePage() {
 
     if (!myData.couple_id) { setLoading(false); return }
     const coupleId = myData.couple_id
+    setCoupleId(coupleId)
 
     // カップル情報
     const { data: coupleData } = await db
@@ -227,6 +233,44 @@ export default function HomePage() {
     load()
   }, [load])
 
+  // Realtime 購読（ホームは集計データが多いため、変更時に load() を再実行）
+  const reloadOnPartnerChange = useCallback(
+    (isPartner: boolean, name?: string, label?: string) => {
+      if (!isPartner) return
+      haptic('light')
+      if (name && label) setToast(`${label}「${name}」が追加されました`)
+      load()
+    },
+    [load]
+  )
+
+  useRealtimeSync({
+    table: 'events',
+    coupleId,
+    myId: me?.id ?? null,
+    onInsert: (rec, isPartner) => reloadOnPartnerChange(isPartner, rec.title as string, '予定'),
+    onUpdate: (_rec, isPartner) => { if (isPartner) load() },
+    onDelete: (_id) => load(),
+  })
+
+  useRealtimeSync({
+    table: 'places',
+    coupleId,
+    myId: me?.id ?? null,
+    onInsert: (rec, isPartner) => reloadOnPartnerChange(isPartner, rec.name as string, '場所'),
+    onUpdate: (_rec, isPartner) => { if (isPartner) load() },
+    onDelete: (_id) => load(),
+  })
+
+  useRealtimeSync({
+    table: 'media',
+    coupleId,
+    myId: me?.id ?? null,
+    onInsert: (rec, isPartner) => reloadOnPartnerChange(isPartner, rec.title as string, 'アイテム'),
+    onUpdate: (_rec, isPartner) => { if (isPartner) load() },
+    onDelete: (_id) => load(),
+  })
+
   const nextMeeting = nextVisitDate
     ? new Date(nextVisitDate.replace(/-/g, '/'))
     : null
@@ -249,6 +293,7 @@ export default function HomePage() {
 
   return (
     <PullToRefresh onRefresh={load}>
+    <Toast message={toast} onDismiss={() => setToast(null)} />
     <div className="px-4 pt-6 pb-2 max-w-lg mx-auto space-y-4">
 
       {/* Header */}

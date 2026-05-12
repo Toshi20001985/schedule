@@ -14,6 +14,8 @@ import BottomSheet from '@/components/BottomSheet'
 import DateInput from '@/components/ui/DateInput'
 import { haptic } from '@/lib/haptics'
 import { PullToRefresh } from '@/components/PullToRefresh'
+import { useRealtimeSync } from '@/hooks/useRealtimeSync'
+import { Toast } from '@/components/Toast'
 
 const eventTypeConfig = {
   visit:       { bg: '#F3F0FF', text: '#6D5BD0', dot: '#6D5BD0', label: '会う日' },
@@ -54,6 +56,20 @@ const inputStyle: React.CSSProperties = {
 function parseDateStr(dateStr: string): Date {
   const [y, m, d] = dateStr.split('-').map(Number)
   return new Date(y, m - 1, d)
+}
+
+/** Realtime payload の events レコードを CalEvent にマップ */
+function toCalEvent(r: Record<string, unknown>): CalEvent {
+  return {
+    id:           r.id           as string,
+    title:        r.title        as string,
+    date:         r.event_date   as string,
+    end_date:    (r.end_date     as string | null) ?? undefined,
+    type:         r.event_type   as EventType,
+    memo:        (r.memo         as string | null) ?? undefined,
+    traveler:    (r.traveler     as Traveler | null) ?? undefined,
+    flight_payer:(r.flight_payer as FlightPayer | null) ?? undefined,
+  }
 }
 
 // 複数日イベントのその日の位置を返す
@@ -232,6 +248,8 @@ function CalendarPageInner() {
   const [myName, setMyName]       = useState('わたし')
   const [partnerName, setPartnerName] = useState('パートナー')
   const [editingEvent, setEditingEvent] = useState<CalEvent | null>(null)
+  const [highlightedId, setHighlightedId] = useState<string | null>(null)
+  const [toast, setToast] = useState<string | null>(null)
 
   // フォーム state
   const [newTitle,      setNewTitle]      = useState('')
@@ -300,6 +318,40 @@ function CalendarPageInner() {
   useEffect(() => {
     load()
   }, [load])
+
+  // ハイライトを一定時間後にクリア
+  useEffect(() => {
+    if (!highlightedId) return
+    const t = setTimeout(() => setHighlightedId(null), 1500)
+    return () => clearTimeout(t)
+  }, [highlightedId])
+
+  // Realtime 購読（パートナーの変更を即時反映）
+  useRealtimeSync({
+    table: 'events',
+    coupleId,
+    myId: userId,
+    onInsert: (rec, isPartner) => {
+      const e = toCalEvent(rec)
+      setEvents(prev => {
+        if (prev.some(x => x.id === e.id)) return prev  // 自己INSERT の二重防止
+        return [...prev, e].sort((a, b) => a.date.localeCompare(b.date))
+      })
+      if (isPartner) {
+        haptic('light')
+        setHighlightedId(e.id)
+        setToast(`「${e.title}」が追加されました`)
+      }
+    },
+    onUpdate: (rec, isPartner) => {
+      const e = toCalEvent(rec)
+      setEvents(prev => prev.map(x => x.id === e.id ? e : x))
+      if (isPartner) haptic('light')
+    },
+    onDelete: (id) => {
+      setEvents(prev => prev.filter(x => x.id !== id))
+    },
+  })
 
   const monthStart = startOfMonth(currentMonth)
   const monthEnd   = endOfMonth(currentMonth)
@@ -442,6 +494,7 @@ function CalendarPageInner() {
 
   return (
     <PullToRefresh onRefresh={load}>
+    <Toast message={toast} onDismiss={() => setToast(null)} />
     <div className="px-4 pt-6 max-w-lg mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
@@ -588,7 +641,7 @@ function CalendarPageInner() {
               const config  = eventTypeConfig[event.type]
               const isRange = event.end_date && event.end_date !== event.date
               return (
-                <div key={event.id} className="p-4" style={{ backgroundColor: config.bg, borderRadius: '10px' }}>
+                <div key={event.id} className="p-4 transition-shadow" style={{ backgroundColor: config.bg, borderRadius: '10px', boxShadow: event.id === highlightedId ? `0 0 0 2px ${config.text}` : 'none' }}>
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1">
                       <span className="text-xs font-medium px-2 py-0.5" style={{ backgroundColor: 'rgba(255,255,255,0.7)', color: config.text, borderRadius: '6px' }}>

@@ -9,6 +9,8 @@ import Tag from '@/components/ui/Tag'
 import BottomSheet from '@/components/BottomSheet'
 import { haptic } from '@/lib/haptics'
 import { PullToRefresh } from '@/components/PullToRefresh'
+import { useRealtimeSync } from '@/hooks/useRealtimeSync'
+import { Toast } from '@/components/Toast'
 
 type Owner = 'me' | 'partner' | 'both'
 
@@ -51,6 +53,31 @@ const inputStyle: React.CSSProperties = {
   color: '#1A1A1A',
 }
 
+/** Realtime payload の places レコードを Place にマップ */
+function toPlace(r: Record<string, unknown>): Place {
+  return {
+    id:         r.id         as string,
+    name:       r.name       as string,
+    category:  (r.category   as string | null) ?? 'その他',
+    location:  (r.location   as string | null) ?? '',
+    memo:      (r.memo       as string | null) ?? undefined,
+    is_visited: r.is_visited as boolean,
+    owner:     (r.owner      as Owner) ?? 'me',
+  }
+}
+
+/** Realtime payload の media レコードを MediaItem にマップ */
+function toMedia(r: Record<string, unknown>): MediaItem {
+  return {
+    id:         r.id         as string,
+    title:      r.title      as string,
+    media_type: r.media_type as MediaItem['media_type'],
+    memo:      (r.memo       as string | null) ?? undefined,
+    is_done:    r.is_done    as boolean,
+    owner:     (r.owner      as Owner) ?? 'me',
+  }
+}
+
 function ListPageInner() {
   const searchParams = useSearchParams()
   const [tab, setTab] = useState<'places' | 'media'>(
@@ -73,6 +100,8 @@ function ListPageInner() {
   const [newMediaType, setNewMediaType] = useState<MediaItem['media_type']>('movie')
   const [newMemo, setNewMemo] = useState('')
   const [newOwner, setNewOwner] = useState<Owner>('both')
+  const [highlightedId, setHighlightedId] = useState<string | null>(null)
+  const [toast, setToast] = useState<string | null>(null)
 
   // owner ラベルを名前から生成
   const ownerOptions: { value: Owner; label: string; bg: string; color: string }[] = [
@@ -181,6 +210,57 @@ function ListPageInner() {
   useEffect(() => {
     load()
   }, [load])
+
+  // ハイライトを一定時間後にクリア
+  useEffect(() => {
+    if (!highlightedId) return
+    const t = setTimeout(() => setHighlightedId(null), 1500)
+    return () => clearTimeout(t)
+  }, [highlightedId])
+
+  // Realtime 購読 — places
+  useRealtimeSync({
+    table: 'places',
+    coupleId,
+    myId,
+    onInsert: (rec, isPartner) => {
+      const p = toPlace(rec)
+      setPlaces(prev => prev.some(x => x.id === p.id) ? prev : [p, ...prev])
+      if (isPartner) {
+        haptic('light')
+        setHighlightedId(p.id)
+        setToast(`「${p.name}」が追加されました`)
+      }
+    },
+    onUpdate: (rec, isPartner) => {
+      const p = toPlace(rec)
+      setPlaces(prev => prev.map(x => x.id === p.id ? p : x))
+      if (isPartner) haptic('light')
+    },
+    onDelete: (id) => setPlaces(prev => prev.filter(x => x.id !== id)),
+  })
+
+  // Realtime 購読 — media
+  useRealtimeSync({
+    table: 'media',
+    coupleId,
+    myId,
+    onInsert: (rec, isPartner) => {
+      const m = toMedia(rec)
+      setMedia(prev => prev.some(x => x.id === m.id) ? prev : [m, ...prev])
+      if (isPartner) {
+        haptic('light')
+        setHighlightedId(m.id)
+        setToast(`「${m.title}」が追加されました`)
+      }
+    },
+    onUpdate: (rec, isPartner) => {
+      const m = toMedia(rec)
+      setMedia(prev => prev.map(x => x.id === m.id ? m : x))
+      if (isPartner) haptic('light')
+    },
+    onDelete: (id) => setMedia(prev => prev.filter(x => x.id !== id)),
+  })
 
   const activePlaces  = places.filter(p => !p.is_visited)
   const visitedPlaces = places.filter(p => p.is_visited)
@@ -336,6 +416,7 @@ function ListPageInner() {
 
   return (
     <PullToRefresh onRefresh={load}>
+    <Toast message={toast} onDismiss={() => setToast(null)} />
     <div className="px-4 pt-6 max-w-lg mx-auto">
       <h1 className="text-lg font-semibold mb-5" style={{ color: '#1A1A1A' }}>リスト</h1>
 
@@ -367,7 +448,7 @@ function ListPageInner() {
         <div className="space-y-2.5">
           <p className="text-xs px-1" style={{ color: '#A3A3A3' }}>未訪問 {activePlaces.length}件</p>
           {activePlaces.map(place => (
-            <Card key={place.id} padding="md">
+            <Card key={place.id} padding="md" style={{ boxShadow: place.id === highlightedId ? '0 0 0 2px #6D5BD0' : undefined }}>
               <div className="flex items-start gap-3">
                 <button
                   onClick={() => togglePlaceVisited(place.id)}
@@ -435,7 +516,7 @@ function ListPageInner() {
             const config = mediaTypeConfig[item.media_type]
             const Icon = config.icon
             return (
-              <Card key={item.id} padding="md">
+              <Card key={item.id} padding="md" style={{ boxShadow: item.id === highlightedId ? '0 0 0 2px #6D5BD0' : undefined }}>
                 <div className="flex items-start gap-3">
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: config.bg }}>
                     <Icon size={15} style={{ color: config.color }} />
