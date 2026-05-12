@@ -7,7 +7,7 @@ import {
   startOfWeek, endOfWeek, isSameMonth, isSameDay, addMonths, subMonths
 } from 'date-fns'
 import { ja } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight, Plus, Trash2, Plane, Pencil } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, Trash2, Plane, Pencil, X } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import BottomSheet from '@/components/BottomSheet'
@@ -229,6 +229,381 @@ function FlightInfo({ event, myName, partnerName }: { event: CalEvent; myName: s
   )
 }
 
+// ============================================================
+// フライト情報 — 型・定数・ヘルパー
+// ============================================================
+
+const COMMON_AIRPORTS = ['HND', 'NRT', 'ITM', 'KIX', 'FUK', 'CTS', 'OKA', 'NGO']
+
+interface StoredFlight {
+  id: string
+  flight_number: string | null
+  airline: string | null
+  departure_airport: string | null
+  arrival_airport: string | null
+  departure_time: string | null   // ISO string from DB
+  arrival_time: string | null
+  direction: 'outbound' | 'return' | null
+  passenger_id: string | null
+  seat: string | null
+  booking_reference: string | null
+}
+
+interface FlightDraft {
+  id?: string                     // 編集時のみ
+  flight_number: string
+  airline: string
+  departure_airport: string
+  arrival_airport: string
+  departure_time: string          // datetime-local "YYYY-MM-DDTHH:mm"
+  arrival_time: string
+  direction: 'outbound' | 'return'
+  passenger: 'me' | 'partner'
+  seat: string
+  booking_reference: string
+}
+
+function emptyDraft(eventDate: string): FlightDraft {
+  return {
+    flight_number: '', airline: '',
+    departure_airport: '', arrival_airport: '',
+    departure_time: `${eventDate}T09:00`,
+    arrival_time:   `${eventDate}T11:00`,
+    direction: 'outbound', passenger: 'me',
+    seat: '', booking_reference: '',
+  }
+}
+
+/** datetime-local 文字列に時間を加算（文字列操作、TZ 変換なし） */
+function addHoursToLocal(dtLocal: string, hours: number): string {
+  if (!dtLocal) return ''
+  const [date, time] = dtLocal.split('T')
+  const [h, m] = time.split(':').map(Number)
+  const totalH = h + hours
+  if (totalH < 24) return `${date}T${String(totalH).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+  const d = new Date(date)
+  d.setDate(d.getDate() + Math.floor(totalH / 24))
+  const nd = d.toISOString().slice(0, 10)
+  return `${nd}T${String(totalH % 24).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+}
+
+/** ISO → datetime-local 入力値 "YYYY-MM-DDTHH:mm"（ローカルタイム） */
+function isoToLocalInput(iso: string): string {
+  const d = new Date(iso)
+  const y  = d.getFullYear()
+  const mo = String(d.getMonth() + 1).padStart(2, '0')
+  const dy = String(d.getDate()).padStart(2, '0')
+  const h  = String(d.getHours()).padStart(2, '0')
+  const mn = String(d.getMinutes()).padStart(2, '0')
+  return `${y}-${mo}-${dy}T${h}:${mn}`
+}
+
+/** ISO → "HH:mm"（ローカルタイム） */
+function isoToTimeStr(iso: string | null): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+
+/** 出発まで24時間以内なら "あと◯時間◯分で出発"、それ以外は null */
+function departureCountdown(iso: string | null): string | null {
+  if (!iso) return null
+  const dep = new Date(iso)
+  const diff = dep.getTime() - Date.now()
+  if (diff <= 0 || diff > 24 * 3600000) return null
+  const h = Math.floor(diff / 3600000)
+  const m = Math.floor((diff % 3600000) / 60000)
+  return h > 0 ? `あと${h}時間${m}分で出発` : `あと${m}分で出発`
+}
+
+// ---- 保存済みフライトの表示カード ----
+function StoredFlightCard({
+  flight, userId, myName, partnerName,
+}: {
+  flight: StoredFlight
+  userId: string | null
+  myName: string
+  partnerName: string
+}) {
+  const depTime  = isoToTimeStr(flight.departure_time)
+  const arrTime  = isoToTimeStr(flight.arrival_time)
+  const countdown = departureCountdown(flight.departure_time)
+  const passenger = flight.passenger_id === userId ? myName : partnerName
+  const dirLabel  = flight.direction === 'outbound' ? '往路' : flight.direction === 'return' ? '復路' : null
+
+  return (
+    <div style={{ backgroundColor: '#F3F0FF', borderRadius: '12px', padding: '14px' }}>
+      {/* ヘッダー */}
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <Plane size={13} style={{ color: '#6D5BD0' }} />
+          {dirLabel && (
+            <span className="text-xs font-medium px-2 py-0.5"
+              style={{ backgroundColor: '#6D5BD0', color: '#FFF', borderRadius: '100px' }}>
+              {dirLabel}
+            </span>
+          )}
+        </div>
+        {countdown && (
+          <span className="text-xs font-medium" style={{ color: '#6D5BD0' }}>{countdown}</span>
+        )}
+      </div>
+
+      {/* 便名・航空会社 */}
+      {(flight.flight_number || flight.airline) && (
+        <p className="text-sm font-semibold mb-2.5" style={{ color: '#1A1A1A' }}>
+          {[flight.flight_number, flight.airline].filter(Boolean).join(' · ')}
+        </p>
+      )}
+
+      {/* 時刻・空港 */}
+      {(depTime || arrTime || flight.departure_airport || flight.arrival_airport) && (
+        <div className="flex items-center gap-2 mb-2.5">
+          <div className="text-center">
+            <p className="text-base font-semibold" style={{ color: '#1A1A1A', lineHeight: 1 }}>{depTime || '—'}</p>
+            <p className="text-xs font-medium mt-0.5" style={{ color: '#6D5BD0' }}>{flight.departure_airport || '—'}</p>
+          </div>
+          <div className="flex-1 flex items-center gap-1">
+            <div style={{ flex: 1, height: '1px', backgroundColor: '#C4B8F0' }} />
+            <Plane size={11} style={{ color: '#C4B8F0', transform: 'rotate(0deg)' }} />
+            <div style={{ flex: 1, height: '1px', backgroundColor: '#C4B8F0' }} />
+          </div>
+          <div className="text-center">
+            <p className="text-base font-semibold" style={{ color: '#1A1A1A', lineHeight: 1 }}>{arrTime || '—'}</p>
+            <p className="text-xs font-medium mt-0.5" style={{ color: '#6D5BD0' }}>{flight.arrival_airport || '—'}</p>
+          </div>
+        </div>
+      )}
+
+      {/* 搭乗者・座席・予約番号 */}
+      <div className="flex flex-wrap gap-x-4 gap-y-0.5">
+        {flight.passenger_id && (
+          <span className="text-xs" style={{ color: '#737373' }}>搭乗者: {passenger}</span>
+        )}
+        {flight.seat && (
+          <span className="text-xs" style={{ color: '#737373' }}>座席: {flight.seat}</span>
+        )}
+        {flight.booking_reference && (
+          <span className="text-xs" style={{ color: '#737373' }}>予約番号: {flight.booking_reference}</span>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ---- フォーム内フライト入力（1便分） ----
+const flightInputStyle: React.CSSProperties = {
+  width: '100%',
+  padding: '8px 10px',
+  fontSize: '13px',
+  outline: 'none',
+  border: '0.5px solid #D4CAFF',
+  borderRadius: '8px',
+  backgroundColor: '#FAFAF7',
+  color: '#1A1A1A',
+}
+const flightLabelStyle: React.CSSProperties = {
+  display: 'block',
+  fontSize: '10px',
+  fontWeight: 500,
+  letterSpacing: '0.1em',
+  textTransform: 'uppercase',
+  color: '#8B7FD4',
+  marginBottom: '4px',
+}
+
+function FlightDraftItem({
+  draft, index, myName, partnerName, onChange, onRemove,
+}: {
+  draft: FlightDraft
+  index: number
+  myName: string
+  partnerName: string
+  onChange: (i: number, u: Partial<FlightDraft>) => void
+  onRemove: (i: number) => void
+}) {
+  return (
+    <div style={{ backgroundColor: '#F3F0FF', borderRadius: '12px', padding: '14px' }} className="space-y-2.5">
+      {/* 往路/復路 + 削除 */}
+      <div className="flex items-center justify-between">
+        <div className="flex gap-1.5">
+          {(['outbound', 'return'] as const).map(dir => (
+            <button key={dir} type="button"
+              onClick={() => onChange(index, { direction: dir })}
+              className="text-xs px-3 py-1 font-medium"
+              style={{
+                backgroundColor: draft.direction === dir ? '#6D5BD0' : '#EEECF9',
+                color: draft.direction === dir ? '#FFF' : '#6D5BD0',
+                borderRadius: '100px',
+              }}
+            >
+              {dir === 'outbound' ? '往路' : '復路'}
+            </button>
+          ))}
+        </div>
+        <button type="button" onClick={() => onRemove(index)}
+          className="p-1 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}>
+          <X size={15} />
+        </button>
+      </div>
+
+      {/* 便名 + 航空会社 */}
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label style={flightLabelStyle}>便名</label>
+          <input style={flightInputStyle} value={draft.flight_number} placeholder="NH123"
+            onChange={e => onChange(index, { flight_number: e.target.value.toUpperCase() })} />
+        </div>
+        <div>
+          <label style={flightLabelStyle}>航空会社</label>
+          <input style={flightInputStyle} value={draft.airline} placeholder="ANA"
+            onChange={e => onChange(index, { airline: e.target.value })} />
+        </div>
+      </div>
+
+      {/* 出発空港 → 到着空港 */}
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label style={flightLabelStyle}>出発空港</label>
+          <input style={flightInputStyle} value={draft.departure_airport}
+            placeholder="HND" maxLength={4}
+            onChange={e => onChange(index, { departure_airport: e.target.value.toUpperCase() })} />
+          <div className="flex gap-1 flex-wrap mt-1.5">
+            {COMMON_AIRPORTS.slice(0, 4).map(c => (
+              <button key={c} type="button"
+                onClick={() => onChange(index, { departure_airport: c })}
+                className="text-xs px-1.5 py-0.5"
+                style={{ backgroundColor: '#EEECF9', color: '#6D5BD0', borderRadius: '5px' }}>
+                {c}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <label style={flightLabelStyle}>到着空港</label>
+          <input style={flightInputStyle} value={draft.arrival_airport}
+            placeholder="ITM" maxLength={4}
+            onChange={e => onChange(index, { arrival_airport: e.target.value.toUpperCase() })} />
+          <div className="flex gap-1 flex-wrap mt-1.5">
+            {COMMON_AIRPORTS.slice(0, 4).map(c => (
+              <button key={c} type="button"
+                onClick={() => onChange(index, { arrival_airport: c })}
+                className="text-xs px-1.5 py-0.5"
+                style={{ backgroundColor: '#EEECF9', color: '#6D5BD0', borderRadius: '5px' }}>
+                {c}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* 出発時刻 + 到着時刻 */}
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label style={flightLabelStyle}>出発時刻</label>
+          <input type="datetime-local" style={flightInputStyle} value={draft.departure_time}
+            onChange={e => {
+              const dep = e.target.value
+              const updates: Partial<FlightDraft> = { departure_time: dep }
+              // 到着時刻が未入力なら出発の2時間後を自動セット
+              if (dep && !draft.arrival_time) {
+                updates.arrival_time = addHoursToLocal(dep, 2)
+              }
+              onChange(index, updates)
+            }} />
+        </div>
+        <div>
+          <label style={flightLabelStyle}>到着時刻</label>
+          <input type="datetime-local" style={flightInputStyle} value={draft.arrival_time}
+            onChange={e => onChange(index, { arrival_time: e.target.value })} />
+        </div>
+      </div>
+
+      {/* 搭乗者 */}
+      <div>
+        <label style={flightLabelStyle}>搭乗者</label>
+        <div className="flex gap-2">
+          {(['me', 'partner'] as const).map(p => (
+            <button key={p} type="button"
+              onClick={() => onChange(index, { passenger: p })}
+              className="flex-1 py-1.5 text-sm font-medium"
+              style={{
+                backgroundColor: draft.passenger === p ? '#6D5BD0' : '#EEECF9',
+                color: draft.passenger === p ? '#FFF' : '#6D5BD0',
+                borderRadius: '8px',
+                border: `0.5px solid ${draft.passenger === p ? '#6D5BD0' : '#D4CAFF'}`,
+              }}>
+              {p === 'me' ? myName : partnerName}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* 座席番号 + 予約番号 */}
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label style={flightLabelStyle}>座席番号</label>
+          <input style={flightInputStyle} value={draft.seat} placeholder="12A"
+            onChange={e => onChange(index, { seat: e.target.value })} />
+        </div>
+        <div>
+          <label style={flightLabelStyle}>予約番号</label>
+          <input style={flightInputStyle} value={draft.booking_reference} placeholder="ABC123"
+            onChange={e => onChange(index, { booking_reference: e.target.value })} />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ---- フォーム内フライトセクション全体 ----
+function FlightDraftFormSection({
+  drafts, eventDate, myName, partnerName,
+  showForm, onToggle, onAdd, onChange, onRemove,
+}: {
+  drafts: FlightDraft[]
+  eventDate: string
+  myName: string
+  partnerName: string
+  showForm: boolean
+  onToggle: () => void
+  onAdd: () => void
+  onChange: (i: number, u: Partial<FlightDraft>) => void
+  onRemove: (i: number) => void
+}) {
+  return (
+    <div>
+      <div className="flex items-center justify-between">
+        <label className="text-xs font-medium uppercase tracking-widest" style={{ color: '#A3A3A3' }}>
+          フライト情報（任意）
+        </label>
+        <button type="button" onClick={onToggle}
+          className="flex items-center gap-1 text-xs font-medium transition-opacity active:opacity-50"
+          style={{ color: '#6D5BD0' }}>
+          <Plane size={12} />
+          {showForm && drafts.length > 0 ? '閉じる' : 'フライトを追加'}
+        </button>
+      </div>
+
+      {showForm && (
+        <div className="space-y-3 mt-3">
+          {drafts.map((draft, i) => (
+            <FlightDraftItem key={i} draft={draft} index={i}
+              myName={myName} partnerName={partnerName}
+              onChange={onChange} onRemove={onRemove} />
+          ))}
+          <button type="button" onClick={onAdd}
+            className="w-full py-2.5 text-sm flex items-center justify-center gap-2"
+            style={{ border: '0.5px dashed #C4B8F0', borderRadius: '10px', color: '#8B7FD4' }}>
+            <Plus size={14} />
+            フライトを追加
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function CalendarPageInner() {
   const searchParams = useSearchParams()
   const initialDate = (() => {
@@ -250,6 +625,12 @@ function CalendarPageInner() {
   const [editingEvent, setEditingEvent] = useState<CalEvent | null>(null)
   const [highlightedId, setHighlightedId] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
+
+  // フライト
+  const [partnerId, setPartnerId] = useState<string | null>(null)
+  const [flightsByEventId, setFlightsByEventId] = useState<Record<string, StoredFlight[]>>({})
+  const [flightDrafts, setFlightDrafts] = useState<FlightDraft[]>([])
+  const [showFlightForm, setShowFlightForm] = useState(false)
 
   // フォーム state
   const [newTitle,      setNewTitle]      = useState('')
@@ -285,9 +666,10 @@ function CalendarPageInner() {
       .eq('id', userData.couple_id)
       .single()
     if (coupleData) {
-      const partnerId = coupleData.user1_id === user.id ? coupleData.user2_id : coupleData.user1_id
-      if (partnerId) {
-        const { data: partnerData } = await db.from('users').select('display_name').eq('id', partnerId).single()
+      const pid = coupleData.user1_id === user.id ? coupleData.user2_id : coupleData.user1_id
+      if (pid) {
+        setPartnerId(pid)
+        const { data: partnerData } = await db.from('users').select('display_name').eq('id', pid).single()
         if (partnerData?.display_name) setPartnerName(partnerData.display_name)
       }
     }
@@ -313,6 +695,20 @@ function CalendarPageInner() {
         flight_payer: e.flight_payer,
       })))
     }
+
+    // フライト一括取得（カップルの全フライトを event_id でグループ化）
+    const { data: flightsRaw } = await db
+      .from('flights')
+      .select('id, event_id, flight_number, airline, departure_airport, arrival_airport, departure_time, arrival_time, direction, passenger_id, seat, booking_reference')
+      .eq('couple_id', userData.couple_id)
+      .order('departure_time', { ascending: true })
+
+    const fMap: Record<string, StoredFlight[]> = {}
+    for (const f of flightsRaw ?? []) {
+      if (!fMap[f.event_id]) fMap[f.event_id] = []
+      fMap[f.event_id].push(f as StoredFlight)
+    }
+    setFlightsByEventId(fMap)
   }, [])
 
   useEffect(() => {
@@ -382,6 +778,8 @@ function CalendarPageInner() {
     setNewTraveler('me'); setNewFlightPayer('me')
     setNewEndDate(null)
     setEditingEvent(null)
+    setFlightDrafts([])
+    setShowFlightForm(false)
   }
 
   function openEditSheet(event: CalEvent) {
@@ -399,6 +797,29 @@ function CalendarPageInner() {
     } else {
       setNewEndDate(null)
     }
+
+    // 既存フライトをドラフトに変換
+    const existingFlights = flightsByEventId[event.id] ?? []
+    if (existingFlights.length > 0) {
+      setFlightDrafts(existingFlights.map(f => ({
+        id: f.id,
+        flight_number:    f.flight_number    ?? '',
+        airline:          f.airline          ?? '',
+        departure_airport: f.departure_airport ?? '',
+        arrival_airport:  f.arrival_airport  ?? '',
+        departure_time:   f.departure_time   ? isoToLocalInput(f.departure_time) : '',
+        arrival_time:     f.arrival_time     ? isoToLocalInput(f.arrival_time)   : '',
+        direction:        f.direction        ?? 'outbound',
+        passenger:        (f.passenger_id && userId && f.passenger_id === userId) ? 'me' : 'partner',
+        seat:             f.seat             ?? '',
+        booking_reference: f.booking_reference ?? '',
+      })))
+      setShowFlightForm(true)
+    } else {
+      setFlightDrafts([])
+      setShowFlightForm(false)
+    }
+
     setShowEventSheet(false)
     setShowAddSheet(true)
   }
@@ -437,6 +858,31 @@ function CalendarPageInner() {
           type: data.event_type, memo: data.memo ?? undefined,
           traveler: data.traveler ?? undefined, flight_payer: data.flight_payer ?? undefined,
         }])
+
+        // フライト保存
+        const validDrafts = flightDrafts.filter(
+          d => d.flight_number || d.departure_airport || d.departure_time
+        )
+        if (validDrafts.length > 0) {
+          const flightRows = validDrafts.map(d => ({
+            event_id:          data.id,
+            couple_id:         coupleId,
+            flight_number:     d.flight_number     || null,
+            airline:           d.airline           || null,
+            departure_airport: d.departure_airport || null,
+            arrival_airport:   d.arrival_airport   || null,
+            departure_time:    d.departure_time    ? new Date(d.departure_time).toISOString() : null,
+            arrival_time:      d.arrival_time      ? new Date(d.arrival_time).toISOString()   : null,
+            direction:         d.direction         || null,
+            passenger_id:      d.passenger === 'me' ? userId : partnerId,
+            seat:              d.seat              || null,
+            booking_reference: d.booking_reference || null,
+          }))
+          const { data: insertedFlights } = await db.from('flights').insert(flightRows).select()
+          if (insertedFlights) {
+            setFlightsByEventId(prev => ({ ...prev, [data.id]: insertedFlights as StoredFlight[] }))
+          }
+        }
       }
     } else {
       const event: CalEvent = {
@@ -476,6 +922,35 @@ function CalendarPageInner() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const db = createClient() as any
       await db.from('events').update(updates).eq('id', editingEvent.id)
+
+      // フライト: 既存を全削除して再挿入
+      await db.from('flights').delete().eq('event_id', editingEvent.id)
+      const validDrafts = flightDrafts.filter(
+        d => d.flight_number || d.departure_airport || d.departure_time
+      )
+      if (validDrafts.length > 0 && coupleId) {
+        const flightRows = validDrafts.map(d => ({
+          event_id:          editingEvent.id,
+          couple_id:         coupleId,
+          flight_number:     d.flight_number     || null,
+          airline:           d.airline           || null,
+          departure_airport: d.departure_airport || null,
+          arrival_airport:   d.arrival_airport   || null,
+          departure_time:    d.departure_time    ? new Date(d.departure_time).toISOString() : null,
+          arrival_time:      d.arrival_time      ? new Date(d.arrival_time).toISOString()   : null,
+          direction:         d.direction         || null,
+          passenger_id:      d.passenger === 'me' ? userId : partnerId,
+          seat:              d.seat              || null,
+          booking_reference: d.booking_reference || null,
+        }))
+        const { data: updatedFlights } = await db.from('flights').insert(flightRows).select()
+        setFlightsByEventId(prev => ({
+          ...prev,
+          [editingEvent.id]: (updatedFlights ?? []) as StoredFlight[],
+        }))
+      } else {
+        setFlightsByEventId(prev => ({ ...prev, [editingEvent.id]: [] }))
+      }
     }
 
     setEvents(prev => prev.map(e => e.id === editingEvent.id ? {
@@ -656,6 +1131,15 @@ function CalendarPageInner() {
                       {event.memo && <p className="text-xs mt-1" style={{ color: '#737373' }}>{event.memo}</p>}
                       <FlightInfo event={event} myName={myName} partnerName={partnerName} />
                     </div>
+                    {/* フライト詳細 */}
+                    {(flightsByEventId[event.id] ?? []).length > 0 && (
+                      <div className="space-y-2 mt-2">
+                        {(flightsByEventId[event.id] ?? []).map(f => (
+                          <StoredFlightCard key={f.id} flight={f}
+                            userId={userId} myName={myName} partnerName={partnerName} />
+                        ))}
+                      </div>
+                    )}
                     <div className="flex gap-1.5 flex-shrink-0">
                       <button
                         onClick={() => openEditSheet(event)}
@@ -789,6 +1273,38 @@ function CalendarPageInner() {
               </button>
             )}
           </div>
+
+          {/* フライト情報（visit / trip のみ） */}
+          {(newType === 'visit' || newType === 'trip') && (
+            <FlightDraftFormSection
+              drafts={flightDrafts}
+              eventDate={selectedDate ? format(selectedDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')}
+              myName={myName}
+              partnerName={partnerName}
+              showForm={showFlightForm}
+              onToggle={() => {
+                if (!showFlightForm && flightDrafts.length === 0) {
+                  const dateStr = selectedDate ? format(selectedDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')
+                  setFlightDrafts([emptyDraft(dateStr)])
+                }
+                setShowFlightForm(v => !v)
+              }}
+              onAdd={() => {
+                const dateStr = selectedDate ? format(selectedDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')
+                setFlightDrafts(prev => [...prev, emptyDraft(dateStr)])
+              }}
+              onChange={(i, updates) => {
+                setFlightDrafts(prev => prev.map((d, idx) => idx === i ? { ...d, ...updates } : d))
+              }}
+              onRemove={(i) => {
+                setFlightDrafts(prev => {
+                  const next = prev.filter((_, idx) => idx !== i)
+                  if (next.length === 0) setShowFlightForm(false)
+                  return next
+                })
+              }}
+            />
+          )}
 
           {/* メモ */}
           <div>

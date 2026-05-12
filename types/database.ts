@@ -65,6 +65,27 @@ export interface Media {
   updated_at: string
 }
 
+export type FlightDirection = 'outbound' | 'return'
+
+export interface Flight {
+  id: string
+  event_id: string
+  couple_id: string
+  flight_number: string | null
+  airline: string | null
+  departure_airport: string | null
+  arrival_airport: string | null
+  departure_time: string | null  // TIMESTAMPTZ → ISO string
+  arrival_time: string | null
+  direction: FlightDirection | null
+  passenger_id: string | null
+  seat: string | null
+  booking_reference: string | null
+  memo: string | null
+  created_at: string
+  updated_at: string
+}
+
 export interface Database {
   public: {
     Tables: {
@@ -92,6 +113,11 @@ export interface Database {
         Row: Media
         Insert: Omit<Media, 'id' | 'created_at' | 'updated_at'>
         Update: Partial<Omit<Media, 'id' | 'created_at' | 'updated_at'>>
+      }
+      flights: {
+        Row: Flight
+        Insert: Omit<Flight, 'id' | 'created_at' | 'updated_at'>
+        Update: Partial<Omit<Flight, 'id' | 'created_at' | 'updated_at'>>
       }
     }
   }

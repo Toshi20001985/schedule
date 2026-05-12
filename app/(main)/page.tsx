@@ -56,6 +56,7 @@ export default function HomePage() {
   const [placesCount, setPlacesCount] = useState<number>(0)
   const [mediaCount, setMediaCount] = useState<number>(0)
   const [nextVisitDate, setNextVisitDate] = useState<string | null>(null)
+  const [nextFlightLine, setNextFlightLine] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [coupleId, setCoupleId] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
@@ -69,6 +70,7 @@ export default function HomePage() {
       setPartner({ id: '2', display_name: 'けんた', avatar_color: '#2D6B9E' })
       setCouple({ anniversary: '2023-04-01' })
       setNextVisitDate(format(addDays(new Date(), 23), 'yyyy-MM-dd'))
+      setNextFlightLine('NH123  HND 10:00 → ITM 11:15')
       setEvents([
         { id: '2', title: '映画「君の名は」', date: format(addDays(new Date(), 5), 'yyyy-MM-dd'),  type: 'online' },
         { id: '3', title: '記念日',           date: format(addDays(new Date(), 30), 'yyyy-MM-dd'), type: 'anniversary' },
@@ -130,14 +132,43 @@ export default function HomePage() {
     // 次の「会う日」または「旅行」の直近1件
     const { data: nextVisit } = await db
       .from('events')
-      .select('event_date')
+      .select('id, event_date')
       .eq('couple_id', coupleId)
       .in('event_type', ['visit', 'trip'])
       .gte('event_date', today)
       .order('event_date', { ascending: true })
       .limit(1)
       .single()
-    if (nextVisit) setNextVisitDate(nextVisit.event_date)
+    if (nextVisit) {
+      setNextVisitDate(nextVisit.event_date)
+
+      // 次のフライト情報（最初の1便のみ表示）
+      const { data: fl } = await db
+        .from('flights')
+        .select('flight_number, departure_airport, arrival_airport, departure_time, arrival_time')
+        .eq('event_id', nextVisit.id)
+        .order('departure_time', { ascending: true })
+        .limit(1)
+        .single()
+      if (fl) {
+        const toHHmm = (iso: string | null) => {
+          if (!iso) return ''
+          const d = new Date(iso)
+          return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`
+        }
+        const parts = [
+          fl.flight_number,
+          fl.departure_airport,
+          toHHmm(fl.departure_time),
+          (fl.arrival_airport || fl.arrival_time) ? '→' : '',
+          toHHmm(fl.arrival_time),
+          fl.arrival_airport,
+        ].filter(Boolean)
+        if (parts.length > 0) setNextFlightLine(parts.join('  '))
+      } else {
+        setNextFlightLine(null)
+      }
+    }
 
     // 今日以降のイベント（最大5件）
     const { data: eventsData } = await db
@@ -380,23 +411,31 @@ export default function HomePage() {
             )}
           </div>
 
-          {/* Bottom: date + type pill */}
+          {/* Bottom: date + type pill + flight */}
           {nextMeeting && !loading && (
-            <div className="flex items-center gap-2 flex-wrap">
-              <span style={{ color: '#A3A3A3', fontSize: '13px' }}>
-                {format(nextMeeting, 'M月d日(E)', { locale: ja })}
-              </span>
-              <span style={{
-                backgroundColor: 'rgba(255,255,255,0.1)',
-                color: '#FAFAF7',
-                fontSize: '11px',
-                fontWeight: 500,
-                padding: '3px 12px',
-                borderRadius: '100px',
-                border: '0.5px solid rgba(255,255,255,0.15)',
-              }}>
-                {heroLabel}
-              </span>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span style={{ color: '#A3A3A3', fontSize: '13px' }}>
+                  {format(nextMeeting, 'M月d日(E)', { locale: ja })}
+                </span>
+                <span style={{
+                  backgroundColor: 'rgba(255,255,255,0.1)',
+                  color: '#FAFAF7',
+                  fontSize: '11px',
+                  fontWeight: 500,
+                  padding: '3px 12px',
+                  borderRadius: '100px',
+                  border: '0.5px solid rgba(255,255,255,0.15)',
+                }}>
+                  {heroLabel}
+                </span>
+              </div>
+              {nextFlightLine && (
+                <p style={{ color: '#555', fontSize: '12px', marginTop: '6px', letterSpacing: '0.03em' }}>
+                  <Plane size={11} style={{ display: 'inline', marginRight: '5px', verticalAlign: 'middle' }} />
+                  {nextFlightLine}
+                </p>
+              )}
             </div>
           )}
         </div>
