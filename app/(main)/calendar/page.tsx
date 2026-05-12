@@ -12,6 +12,7 @@ import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import BottomSheet from '@/components/BottomSheet'
 import DateInput from '@/components/ui/DateInput'
+import { haptic } from '@/lib/haptics'
 
 const eventTypeConfig = {
   visit:       { bg: '#F3F0FF', text: '#6D5BD0', dot: '#6D5BD0', label: '会う日' },
@@ -394,6 +395,7 @@ function CalendarPageInner() {
       setEvents(prev => [...prev, event])
     }
 
+    haptic('success')
     resetForm()
     setShowAddSheet(false)
     setShowEventSheet(true)
@@ -430,6 +432,7 @@ function CalendarPageInner() {
       flight_payer: (newType === 'visit' || newType === 'trip') ? newFlightPayer : undefined,
     } : e))
 
+    haptic('success')
     resetForm()
     setShowAddSheet(false)
     setShowEventSheet(true)
@@ -555,7 +558,7 @@ function CalendarPageInner() {
 
       {/* FAB */}
       <button
-        onClick={() => setShowAddSheet(true)}
+        onClick={() => { haptic('medium'); setShowAddSheet(true) }}
         className="fixed right-4 z-30 flex items-center gap-2 px-5 py-3 active:opacity-70 transition-opacity"
         style={{ bottom: `calc(env(safe-area-inset-bottom) + 76px)`, backgroundColor: '#1A1A1A', color: '#FFFFFF', borderRadius: '10px' }}
       >
@@ -607,6 +610,7 @@ function CalendarPageInner() {
                       </button>
                       <button
                         onClick={async () => {
+                          haptic('warning')
                           if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
                             const { createClient } = await import('@/lib/supabase/client')
                             // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Copy, Check, LogOut, Calendar, User, Link2, ChevronRight } from 'lucide-react'
+import { Copy, Check, LogOut, Calendar, User, Link2, ChevronRight, Vibrate } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import IconCircle from '@/components/ui/IconCircle'
@@ -40,6 +40,17 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
   const [loading, setLoading] = useState(true)
+  const [hapticsEnabled, setHapticsEnabled] = useState(true)
+
+  useEffect(() => {
+    setHapticsEnabled(localStorage.getItem('haptics_enabled') !== 'false')
+  }, [])
+
+  function toggleHaptics() {
+    const next = !hapticsEnabled
+    setHapticsEnabled(next)
+    localStorage.setItem('haptics_enabled', next ? 'true' : 'false')
+  }
 
   useEffect(() => {
     async function load() {
@@ -285,6 +296,28 @@ export default function SettingsPage() {
         {partnerId && (
           <p className="text-xs text-center" style={{ color: '#4A7C59' }}>✓ パートナーと繋がっています</p>
         )}
+      </Card>
+
+      {/* App Settings */}
+      <Card padding="none">
+        <button onClick={toggleHaptics} className="w-full flex items-center justify-between px-4 py-4">
+          <div className="flex items-center gap-3">
+            <Vibrate size={16} style={{ color: '#737373' }} />
+            <div className="text-left">
+              <span className="text-sm font-medium" style={{ color: '#1A1A1A' }}>振動フィードバック</span>
+              <p className="text-xs mt-0.5" style={{ color: '#A3A3A3' }}>ボタンタップ時に振動します</p>
+            </div>
+          </div>
+          <div
+            className="w-11 h-6 rounded-full transition-colors relative flex-shrink-0"
+            style={{ backgroundColor: hapticsEnabled ? '#1A1A1A' : '#E5E5E5' }}
+          >
+            <div
+              className="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform"
+              style={{ transform: hapticsEnabled ? 'translateX(20px)' : 'translateX(2px)' }}
+            />
+          </div>
+        </button>
       </Card>
 
       {/* Logout */}

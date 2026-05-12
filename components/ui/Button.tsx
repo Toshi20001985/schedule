@@ -1,6 +1,7 @@
 'use client'
 
 import { ButtonHTMLAttributes, forwardRef } from 'react'
+import { haptic } from '@/lib/haptics'
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'ghost' | 'danger'
@@ -22,7 +23,11 @@ const sizeMap = {
 }
 
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className = '', variant = 'primary', size = 'md', fullWidth = false, style, children, ...props }, ref) => {
+  ({ className = '', variant = 'primary', size = 'md', fullWidth = false, style, children, onClick, ...props }, ref) => {
+    function handleClick(e: React.MouseEvent<HTMLButtonElement>) {
+      haptic('light')
+      onClick?.(e)
+    }
     return (
       <button
         ref={ref}
@@ -40,6 +45,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           ...style,
         }}
         {...props}
+        onClick={handleClick}
       >
         {children}
       </button>

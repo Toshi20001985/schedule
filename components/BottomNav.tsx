@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Home, CalendarDays, List, Settings } from 'lucide-react'
+import { haptic } from '@/lib/haptics'
 
 const tabs = [
   { href: '/',          icon: Home,        label: 'ホーム' },
@@ -30,6 +31,7 @@ export default function BottomNav() {
             <Link
               key={href}
               href={href}
+              onClick={() => haptic('light')}
               className="flex-1 flex flex-col items-center justify-center py-2.5 gap-1 transition-opacity active:opacity-50"
               style={{ color: isActive ? '#1A1A1A' : '#A3A3A3' }}
             >

@@ -7,6 +7,7 @@ import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Tag from '@/components/ui/Tag'
 import BottomSheet from '@/components/BottomSheet'
+import { haptic } from '@/lib/haptics'
 
 type Owner = 'me' | 'partner' | 'both'
 
@@ -183,6 +184,7 @@ function ListPageInner() {
   const visitedPlaces = places.filter(p => p.is_visited)
 
   async function togglePlaceVisited(id: string) {
+    haptic('light')
     const place = places.find(p => p.id === id)
     if (!place) return
     const next = !place.is_visited
@@ -196,6 +198,7 @@ function ListPageInner() {
   }
 
   async function toggleMediaDone(id: string) {
+    haptic('light')
     const item = media.find(m => m.id === id)
     if (!item) return
     const next = !item.is_done
@@ -209,6 +212,7 @@ function ListPageInner() {
   }
 
   async function deletePlace(id: string) {
+    haptic('warning')
     setPlaces(prev => prev.filter(p => p.id !== id))
     if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
       const { createClient } = await import('@/lib/supabase/client')
@@ -219,6 +223,7 @@ function ListPageInner() {
   }
 
   async function deleteMedia(id: string) {
+    haptic('warning')
     setMedia(prev => prev.filter(m => m.id !== id))
     if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
       const { createClient } = await import('@/lib/supabase/client')
@@ -274,6 +279,7 @@ function ListPageInner() {
     } else {
       setPlaces(prev => [{ id: Date.now().toString(), name: newName, category: newCategory || 'その他', location: newLocation, memo: newMemo || undefined, is_visited: false, owner: newOwner }, ...prev])
     }
+    haptic('success')
     resetForm(); setShowSheet(false)
   }
 
@@ -294,6 +300,7 @@ function ListPageInner() {
     } else {
       setMedia(prev => [{ id: Date.now().toString(), title: newMediaTitle, media_type: newMediaType, memo: newMemo || undefined, is_done: false, owner: newOwner }, ...prev])
     }
+    haptic('success')
     resetForm(); setShowSheet(false)
   }
 
@@ -307,6 +314,7 @@ function ListPageInner() {
       const db = createClient() as any
       await db.from('places').update(updates).eq('id', editingPlace.id)
     }
+    haptic('success')
     resetForm(); setShowSheet(false)
   }
 
@@ -320,6 +328,7 @@ function ListPageInner() {
       const db = createClient() as any
       await db.from('media').update(updates).eq('id', editingMedia.id)
     }
+    haptic('success')
     resetForm(); setShowSheet(false)
   }
 
@@ -335,7 +344,7 @@ function ListPageInner() {
         ].map(({ key, icon: Icon, label }) => (
           <button
             key={key}
-            onClick={() => setTab(key as 'places' | 'media')}
+            onClick={() => { haptic('light'); setTab(key as 'places' | 'media') }}
             className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium transition-all"
             style={{
               backgroundColor: tab === key ? '#FFFFFF' : 'transparent',
@@ -479,7 +488,7 @@ function ListPageInner() {
 
       {/* FAB */}
       <button
-        onClick={() => setShowSheet(true)}
+        onClick={() => { haptic('medium'); setShowSheet(true) }}
         className="fixed right-4 z-30 flex items-center gap-2 px-5 py-3 active:opacity-70 transition-opacity"
         style={{ bottom: `calc(env(safe-area-inset-bottom) + 76px)`, backgroundColor: '#1A1A1A', color: '#FFFFFF', borderRadius: '10px' }}
       >
