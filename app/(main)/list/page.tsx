@@ -9,6 +9,7 @@ import Tag from '@/components/ui/Tag'
 import BottomSheet from '@/components/BottomSheet'
 import { haptic } from '@/lib/haptics'
 import { PullToRefresh } from '@/components/PullToRefresh'
+import { SwipeableListItem } from '@/components/SwipeableListItem'
 import { useRealtimeSync } from '@/hooks/useRealtimeSync'
 import { Toast } from '@/components/Toast'
 
@@ -448,7 +449,8 @@ function ListPageInner() {
         <div className="space-y-2.5">
           <p className="text-xs px-1" style={{ color: '#A3A3A3' }}>未訪問 {activePlaces.length}件</p>
           {activePlaces.map(place => (
-            <Card key={place.id} padding="md" style={{ boxShadow: place.id === highlightedId ? '0 0 0 2px #6D5BD0' : undefined }}>
+            <SwipeableListItem key={place.id} onEdit={() => openEditPlace(place)} onDelete={() => deletePlace(place.id)}>
+            <Card padding="md" style={{ boxShadow: place.id === highlightedId ? '0 0 0 2px #6D5BD0' : undefined }}>
               <div className="flex items-start gap-3">
                 <button
                   onClick={() => togglePlaceVisited(place.id)}
@@ -480,13 +482,15 @@ function ListPageInner() {
                 </div>
               </div>
             </Card>
+            </SwipeableListItem>
           ))}
 
           {visitedPlaces.length > 0 && (
             <>
               <p className="text-xs px-1 mt-4" style={{ color: '#A3A3A3' }}>訪問済み {visitedPlaces.length}件</p>
               {visitedPlaces.map(place => (
-                <Card key={place.id} padding="md" style={{ opacity: 0.5 }}>
+                <SwipeableListItem key={place.id} onEdit={() => openEditPlace(place)} onDelete={() => deletePlace(place.id)}>
+                <Card padding="md" style={{ opacity: 0.5 }}>
                   <div className="flex items-center gap-3">
                     <button onClick={() => togglePlaceVisited(place.id)} className="w-5 h-5 rounded flex-shrink-0 flex items-center justify-center" style={{ backgroundColor: '#F0F7F0' }}>
                       <Check size={12} style={{ color: '#4A7C59' }} />
@@ -502,6 +506,7 @@ function ListPageInner() {
                     </div>
                   </div>
                 </Card>
+                </SwipeableListItem>
               ))}
             </>
           )}
@@ -516,7 +521,8 @@ function ListPageInner() {
             const config = mediaTypeConfig[item.media_type]
             const Icon = config.icon
             return (
-              <Card key={item.id} padding="md" style={{ boxShadow: item.id === highlightedId ? '0 0 0 2px #6D5BD0' : undefined }}>
+              <SwipeableListItem key={item.id} onEdit={() => openEditMedia(item)} onDelete={() => deleteMedia(item.id)}>
+              <Card padding="md" style={{ boxShadow: item.id === highlightedId ? '0 0 0 2px #6D5BD0' : undefined }}>
                 <div className="flex items-start gap-3">
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: config.bg }}>
                     <Icon size={15} style={{ color: config.color }} />
@@ -542,6 +548,7 @@ function ListPageInner() {
                   </div>
                 </div>
               </Card>
+              </SwipeableListItem>
             )
           })}
 
@@ -552,7 +559,8 @@ function ListPageInner() {
                 const config = mediaTypeConfig[item.media_type]
                 const Icon = config.icon
                 return (
-                  <Card key={item.id} padding="md" style={{ opacity: 0.5 }}>
+                  <SwipeableListItem key={item.id} onEdit={() => openEditMedia(item)} onDelete={() => deleteMedia(item.id)}>
+                  <Card padding="md" style={{ opacity: 0.5 }}>
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#F5F5F3' }}>
                         <Icon size={15} style={{ color: '#A3A3A3' }} />
@@ -563,6 +571,7 @@ function ListPageInner() {
                       <button onClick={() => deleteMedia(item.id)} className="p-1 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Trash2 size={15} /></button>
                     </div>
                   </Card>
+                  </SwipeableListItem>
                 )
               })}
             </>

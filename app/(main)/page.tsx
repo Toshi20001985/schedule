@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { differenceInDays, format, addDays } from 'date-fns'
 import { ja } from 'date-fns/locale'
-import { MapPin, Play, Plane } from 'lucide-react'
+import { MapPin, Play, Plane, CalendarDays, List, Search } from 'lucide-react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import Card from '@/components/ui/Card'
 import { PullToRefresh } from '@/components/PullToRefresh'
 import { useRealtimeSync } from '@/hooks/useRealtimeSync'
@@ -48,6 +49,10 @@ interface HomePlace {
 }
 
 export default function HomePage() {
+  const router = useRouter()
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [showQuickMenu, setShowQuickMenu] = useState(false)
+
   const [me, setMe] = useState<UserProfile | null>(null)
   const [partner, setPartner] = useState<UserProfile | null>(null)
   const [couple, setCouple] = useState<CoupleData | null>(null)
@@ -314,6 +319,28 @@ export default function HomePage() {
     return 'ふたり'
   }
 
+  // ヒーローカード長押しハンドラー
+  function handleHeroTouchStart() {
+    longPressTimer.current = setTimeout(() => {
+      haptic('medium')
+      setShowQuickMenu(true)
+      longPressTimer.current = null
+    }, 500)
+  }
+  function handleHeroTouchEnd() {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current)
+      longPressTimer.current = null
+    }
+  }
+  function handleHeroTouchMove() {
+    // 移動したらキャンセル
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current)
+      longPressTimer.current = null
+    }
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   void couple // 将来の記念日表示用に保持
 
@@ -323,7 +350,14 @@ export default function HomePage() {
     <div className="px-4 pt-4 pb-4 max-w-lg mx-auto space-y-3">
 
       {/* ── Hero ─────────────────────────────────────────── */}
-      <Link href="/calendar" className="block active:opacity-90 transition-opacity">
+      <div
+        className="relative active:opacity-90 transition-opacity"
+        style={{ WebkitUserSelect: 'none', userSelect: 'none' }}
+        onTouchStart={handleHeroTouchStart}
+        onTouchEnd={handleHeroTouchEnd}
+        onTouchMove={handleHeroTouchMove}
+        onClick={() => { if (!showQuickMenu) router.push('/calendar') }}
+      >
         <div
           style={{
             backgroundColor: '#1A1A1A',
@@ -439,7 +473,45 @@ export default function HomePage() {
             </div>
           )}
         </div>
-      </Link>
+
+        {/* 長押しクイックアクションメニュー */}
+        {showQuickMenu && (
+          <>
+            {/* バックドロップ */}
+            <div
+              className="fixed inset-0 z-40"
+              onClick={e => { e.stopPropagation(); setShowQuickMenu(false) }}
+            />
+            {/* メニュー本体 */}
+            <div
+              className="absolute left-0 right-0 z-50"
+              style={{ bottom: '14px', padding: '0 12px' }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div style={{ backgroundColor: 'rgba(26,26,26,0.96)', borderRadius: '16px', overflow: 'hidden', backdropFilter: 'blur(12px)' }}>
+                {[
+                  { icon: CalendarDays, label: 'カレンダーを開く',   href: '/calendar' },
+                  { icon: List,         label: 'リストを見る',       href: '/list'     },
+                  { icon: Search,       label: '検索する',           href: '/search'   },
+                ].map(({ icon: Icon, label, href }, i, arr) => (
+                  <div key={href}>
+                    <button
+                      className="w-full flex items-center gap-3 px-5 py-4 active:opacity-60 transition-opacity"
+                      onClick={() => { setShowQuickMenu(false); router.push(href) }}
+                    >
+                      <Icon size={18} style={{ color: '#FAFAF7', flexShrink: 0 }} />
+                      <span style={{ color: '#FAFAF7', fontSize: '15px', fontWeight: 500 }}>{label}</span>
+                    </button>
+                    {i < arr.length - 1 && (
+                      <div style={{ height: '0.5px', backgroundColor: 'rgba(255,255,255,0.1)', margin: '0 16px' }} />
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+      </div>
 
       {/* ── Stats row ──────────────────────────────────────── */}
       <div className="grid grid-cols-2 gap-3">

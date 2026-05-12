@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, Suspense } from 'react'
+import { useState, useEffect, useCallback, useRef, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval,
@@ -14,6 +14,8 @@ import BottomSheet from '@/components/BottomSheet'
 import DateInput from '@/components/ui/DateInput'
 import { haptic } from '@/lib/haptics'
 import { PullToRefresh } from '@/components/PullToRefresh'
+import { motion, AnimatePresence } from 'framer-motion'
+import { useSwipeable } from 'react-swipeable'
 import { useRealtimeSync } from '@/hooks/useRealtimeSync'
 import { Toast } from '@/components/Toast'
 
@@ -41,6 +43,24 @@ interface CalEvent {
 }
 
 const DAY_LABELS = ['日', '月', '火', '水', '木', '金', '土']
+
+/** カレンダーグリッドの月切り替えアニメーション variants */
+const calGridVariants = {
+  enter: (dir: number) => ({
+    x: dir > 0 ? '40%' : '-40%',
+    opacity: 0,
+  }),
+  center: {
+    x: 0,
+    opacity: 1,
+    transition: { duration: 0.22, ease: [0.25, 0.1, 0.25, 1] as const },
+  },
+  exit: (dir: number) => ({
+    x: dir > 0 ? '-40%' : '40%',
+    opacity: 0,
+    transition: { duration: 0.16 },
+  }),
+}
 
 const inputStyle: React.CSSProperties = {
   width: '100%',
@@ -614,6 +634,7 @@ function CalendarPageInner() {
   })()
 
   const [currentMonth, setCurrentMonth] = useState(initialDate ?? new Date())
+  const [swipeDir, setSwipeDir] = useState(0)  // 1=次月, -1=前月
   const [selectedDate, setSelectedDate] = useState<Date | null>(initialDate)
   const [showAddSheet, setShowAddSheet] = useState(false)
   const [showEventSheet, setShowEventSheet] = useState(!!initialDate)
@@ -747,6 +768,21 @@ function CalendarPageInner() {
     onDelete: (id) => {
       setEvents(prev => prev.filter(x => x.id !== id))
     },
+  })
+
+  /** 月切り替え（スワイプ・ボタン共通） */
+  function changeMonth(dir: 1 | -1) {
+    setSwipeDir(dir)
+    setCurrentMonth(prev => dir === 1 ? addMonths(prev, 1) : subMonths(prev, 1))
+    haptic('light')
+  }
+
+  const swipeHandlers = useSwipeable({
+    onSwipedLeft:  () => changeMonth(1),
+    onSwipedRight: () => changeMonth(-1),
+    trackMouse: false,
+    delta: 40,
+    preventScrollOnSwipe: false,
   })
 
   const monthStart = startOfMonth(currentMonth)
@@ -973,7 +1009,7 @@ function CalendarPageInner() {
     <div className="px-4 pt-6 max-w-lg mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
-        <button onClick={() => setCurrentMonth(prev => subMonths(prev, 1))} className="p-2 transition-opacity active:opacity-50" style={{ color: '#737373' }}>
+        <button onClick={() => changeMonth(-1)} className="p-2 transition-opacity active:opacity-50" style={{ color: '#737373' }}>
           <ChevronLeft size={20} />
         </button>
         <div className="flex items-center gap-2">
@@ -988,7 +1024,7 @@ function CalendarPageInner() {
             今日
           </button>
         </div>
-        <button onClick={() => setCurrentMonth(prev => addMonths(prev, 1))} className="p-2 transition-opacity active:opacity-50" style={{ color: '#737373' }}>
+        <button onClick={() => changeMonth(1)} className="p-2 transition-opacity active:opacity-50" style={{ color: '#737373' }}>
           <ChevronRight size={20} />
         </button>
       </div>
@@ -1003,7 +1039,17 @@ function CalendarPageInner() {
         ))}
       </div>
 
-      {/* Calendar Grid */}
+      {/* Calendar Grid — スワイプで月切り替え */}
+      <div {...swipeHandlers} style={{ overflow: 'hidden', borderRadius: '12px' }}>
+        <AnimatePresence mode="wait" custom={swipeDir} initial={false}>
+        <motion.div
+          key={format(currentMonth, 'yyyy-MM')}
+          custom={swipeDir}
+          variants={calGridVariants}
+          initial="enter"
+          animate="center"
+          exit="exit"
+        >
       <Card padding="sm">
         <div className="grid grid-cols-7 mb-1">
           {DAY_LABELS.map(d => (
@@ -1086,6 +1132,9 @@ function CalendarPageInner() {
           })}
         </div>
       </Card>
+        </motion.div>
+        </AnimatePresence>
+      </div>
 
       {/* FAB */}
       <button
