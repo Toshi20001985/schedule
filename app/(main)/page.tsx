@@ -1,9 +1,9 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { differenceInDays, format, addDays, startOfWeek } from 'date-fns'
+import { differenceInDays, format, addDays } from 'date-fns'
 import { ja } from 'date-fns/locale'
-import { MapPin, Play, Calendar, ChevronRight, Plane } from 'lucide-react'
+import { MapPin, Play, Plane } from 'lucide-react'
 import Link from 'next/link'
 import Card from '@/components/ui/Card'
 import { PullToRefresh } from '@/components/PullToRefresh'
@@ -47,42 +47,6 @@ interface HomePlace {
   owner: 'me' | 'partner' | 'both'
 }
 
-function MiniWeekCalendar({ nextMeeting, eventDates }: { nextMeeting: Date | null; eventDates: string[] }) {
-  const today = new Date()
-  const weekStart = startOfWeek(today, { locale: ja })
-  const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
-  const dayLabels = ['日', '月', '火', '水', '木', '金', '土']
-
-  return (
-    <div className="flex justify-between gap-1">
-      {days.map((day, i) => {
-        const dayStr    = format(day, 'yyyy-MM-dd')
-        const isToday   = dayStr === format(today, 'yyyy-MM-dd')
-        const isMeeting = nextMeeting && dayStr === format(nextMeeting, 'yyyy-MM-dd')
-        const hasEvent  = eventDates.includes(dayStr)
-        return (
-          <div key={i} className="flex-1 flex flex-col items-center gap-1">
-            <span className="text-xs" style={{ color: '#A3A3A3' }}>{dayLabels[i]}</span>
-            <div
-              className="w-8 h-8 rounded-full flex items-center justify-center text-sm relative"
-              style={{
-                backgroundColor: isToday ? '#1A1A1A' : isMeeting ? '#F3F0FF' : 'transparent',
-                color: isToday ? '#FFFFFF' : isMeeting ? '#6D5BD0' : '#1A1A1A',
-                fontWeight: isToday || isMeeting ? 600 : 400,
-              }}
-            >
-              {format(day, 'd')}
-              {(isMeeting || hasEvent) && !isToday && (
-                <span className="absolute bottom-0.5 w-1 h-1 rounded-full" style={{ backgroundColor: isMeeting ? '#6D5BD0' : '#A3A3A3' }} />
-              )}
-            </div>
-          </div>
-        )
-      })}
-    </div>
-  )
-}
-
 export default function HomePage() {
   const [me, setMe] = useState<UserProfile | null>(null)
   const [partner, setPartner] = useState<UserProfile | null>(null)
@@ -95,6 +59,8 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true)
   const [coupleId, setCoupleId] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
+  // カウントアップ表示用
+  const [displayCount, setDisplayCount] = useState(0)
 
   const load = useCallback(async () => {
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
@@ -233,6 +199,29 @@ export default function HomePage() {
     load()
   }, [load])
 
+  // カウントアップアニメーション
+  useEffect(() => {
+    if (daysUntilMeeting === null || daysUntilMeeting <= 0) {
+      setDisplayCount(daysUntilMeeting ?? 0)
+      return
+    }
+    const target   = daysUntilMeeting
+    const duration = 900
+    const start    = performance.now()
+    let raf: number
+
+    function step(now: number) {
+      const p     = Math.min((now - start) / duration, 1)
+      const eased = 1 - Math.pow(1 - p, 3)          // easeOut cubic
+      setDisplayCount(Math.round(eased * target))
+      if (p < 1) raf = requestAnimationFrame(step)
+    }
+
+    raf = requestAnimationFrame(step)
+    return () => cancelAnimationFrame(raf)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nextVisitDate]) // nextVisitDate が変わった時だけ再アニメーション
+
   // Realtime 購読（ホームは集計データが多いため、変更時に load() を再実行）
   const reloadOnPartnerChange = useCallback(
     (isPartner: boolean, name?: string, label?: string) => {
@@ -276,14 +265,17 @@ export default function HomePage() {
     : null
   const daysUntilMeeting = nextMeeting ? differenceInDays(nextMeeting, new Date()) : null
 
-  const hour = new Date().getHours()
+  const hour     = new Date().getHours()
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening'
 
   const upcomingEvents: HomeEvent[] = [...events].sort((a, b) => a.date.localeCompare(b.date))
-  const thisWeekEventDates = events.map(e => e.date)
 
   const myName      = me?.display_name      || 'わたし'
   const partnerName = partner?.display_name || 'パートナー'
+
+  // ヒーローに表示する次の会う日のイベント情報
+  const nextVisitEvent = upcomingEvents.find(e => e.type === 'visit' || e.type === 'trip')
+  const heroLabel = nextVisitEvent ? eventTypeConfig[nextVisitEvent.type].label : '会う日'
 
   function placeOwnerLabel(owner: 'me' | 'partner' | 'both') {
     if (owner === 'me')      return myName
@@ -291,80 +283,132 @@ export default function HomePage() {
     return 'ふたり'
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  void couple // 将来の記念日表示用に保持
+
   return (
     <PullToRefresh onRefresh={load}>
     <Toast message={toast} onDismiss={() => setToast(null)} />
-    <div className="px-4 pt-6 pb-2 max-w-lg mx-auto space-y-4">
+    <div className="px-4 pt-4 pb-4 max-w-lg mx-auto space-y-3">
 
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-xs" style={{ color: '#A3A3A3' }}>
-            {format(new Date(), 'M月d日(E)', { locale: ja })}
-          </p>
-          <h1 className="text-lg font-semibold mt-0.5" style={{ color: '#1A1A1A' }}>
-            {greeting}
-          </h1>
-        </div>
-        <div className="flex items-center gap-2">
-          {loading ? (
-            <div className="w-8 h-8 rounded-full" style={{ backgroundColor: '#E5E5E5' }} />
-          ) : (
-            <>
-              <Link href="/settings">
-                <IconCircle initial={me?.display_name || '?'} color={me?.avatar_color || '#6D5BD0'} size="sm" />
-              </Link>
-              {partner && (
-                <Link href="/settings">
-                  <IconCircle initial={partner.display_name || '?'} color={partner.avatar_color || '#2D6B9E'} size="sm" />
-                </Link>
-              )}
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Countdown Hero */}
-      <Link href="/calendar">
-        <Card padding="lg">
-          <div className="flex items-start justify-between mb-4">
+      {/* ── Hero ─────────────────────────────────────────── */}
+      <Link href="/calendar" className="block active:opacity-90 transition-opacity">
+        <div
+          style={{
+            backgroundColor: '#1A1A1A',
+            borderRadius: '20px',
+            padding: '24px',
+            minHeight: '46dvh',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+          }}
+        >
+          {/* Top row: greeting + avatars */}
+          <div className="flex items-start justify-between">
             <div>
-              <p className="text-xs font-medium uppercase tracking-widest mb-1" style={{ color: '#A3A3A3' }}>
-                Next Layover
+              <p style={{ color: '#737373', fontSize: '11px', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+                {greeting}
               </p>
-              {daysUntilMeeting !== null ? (
-                <div className="flex items-baseline gap-1.5">
-                  <span className="text-5xl font-semibold" style={{ color: '#1A1A1A' }}>{daysUntilMeeting}</span>
-                  <span className="text-lg" style={{ color: '#737373' }}>days</span>
-                </div>
-              ) : (
-                <p className="text-base" style={{ color: '#A3A3A3' }}>次の約束を設定しよう</p>
-              )}
+              <p style={{ color: '#FAFAF7', fontSize: '13px', fontWeight: 500, marginTop: '3px' }}>
+                {format(new Date(), 'M月d日(E)', { locale: ja })}
+              </p>
             </div>
-            <div className="p-2.5 rounded-xl" style={{ backgroundColor: '#F3F0FF' }}>
-              <Plane size={20} style={{ color: '#6D5BD0' }} />
+            <div className="flex items-center gap-1.5">
+              {loading ? (
+                <>
+                  <div className="w-7 h-7 rounded-full" style={{ backgroundColor: '#333' }} />
+                  <div className="w-7 h-7 rounded-full" style={{ backgroundColor: '#333' }} />
+                </>
+              ) : (
+                <>
+                  {me      && <IconCircle initial={me.display_name}      color={me.avatar_color}      size="sm" />}
+                  {partner && <IconCircle initial={partner.display_name} color={partner.avatar_color} size="sm" />}
+                </>
+              )}
             </div>
           </div>
-          {nextMeeting && (
-            <div className="flex items-center gap-2 pt-3" style={{ borderTop: '0.5px solid #E5E5E5' }}>
-              <span className="px-2 py-0.5 text-xs font-medium" style={{ backgroundColor: '#F3F0FF', color: '#6D5BD0', borderRadius: '6px' }}>
-                会う日
-              </span>
-              <span className="text-sm" style={{ color: '#737373' }}>
+
+          {/* Center: countdown */}
+          <div className="flex flex-col items-center justify-center py-4 text-center">
+            {loading ? (
+              <div style={{ color: '#555', fontSize: '14px' }}>—</div>
+            ) : daysUntilMeeting === null ? (
+              /* 予定なし */
+              <>
+                <p style={{ color: '#555', fontSize: '11px', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: '16px' }}>
+                  Next Layover
+                </p>
+                <p style={{ color: '#FAFAF7', fontSize: '22px', fontWeight: 300, lineHeight: 1.4 }}>
+                  Let&apos;s plan<br />our next meet
+                </p>
+                <div
+                  className="mt-5 px-5 py-2 text-sm font-medium"
+                  style={{ backgroundColor: 'rgba(255,255,255,0.08)', color: '#A3A3A3', borderRadius: '100px', border: '0.5px solid rgba(255,255,255,0.12)' }}
+                >
+                  カレンダーで追加する →
+                </div>
+              </>
+            ) : daysUntilMeeting === 0 ? (
+              /* 当日 */
+              <>
+                <p style={{ color: '#6D5BD0', fontSize: '11px', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: '16px' }}>
+                  Next Layover
+                </p>
+                <div className="flex items-center justify-center gap-4">
+                  <Plane size={36} style={{ color: '#FAFAF7' }} />
+                  <span style={{ fontSize: '64px', fontWeight: 200, color: '#FAFAF7', lineHeight: 1, letterSpacing: '-0.02em' }}>
+                    Today!
+                  </span>
+                </div>
+              </>
+            ) : (
+              /* 通常カウントダウン */
+              <>
+                <p style={{ color: '#555', fontSize: '11px', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: '8px' }}>
+                  Next Layover
+                </p>
+                <div className="flex items-baseline gap-3" style={{ lineHeight: 1 }}>
+                  <span style={{ fontSize: '104px', fontWeight: 200, color: '#FAFAF7', lineHeight: 0.9, letterSpacing: '-0.03em' }}>
+                    {displayCount}
+                  </span>
+                  <span style={{ color: '#737373', fontSize: '22px', fontWeight: 300 }}>
+                    days
+                  </span>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Bottom: date + type pill */}
+          {nextMeeting && !loading && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <span style={{ color: '#A3A3A3', fontSize: '13px' }}>
                 {format(nextMeeting, 'M月d日(E)', { locale: ja })}
+              </span>
+              <span style={{
+                backgroundColor: 'rgba(255,255,255,0.1)',
+                color: '#FAFAF7',
+                fontSize: '11px',
+                fontWeight: 500,
+                padding: '3px 12px',
+                borderRadius: '100px',
+                border: '0.5px solid rgba(255,255,255,0.15)',
+              }}>
+                {heroLabel}
               </span>
             </div>
           )}
-        </Card>
+        </div>
       </Link>
 
-      {/* Stats */}
+      {/* ── Stats row ──────────────────────────────────────── */}
       <div className="grid grid-cols-2 gap-3">
         <Link href="/list" className="block">
           <Card padding="md">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg" style={{ backgroundColor: '#F0F7F0' }}>
-                <MapPin size={16} style={{ color: '#4A7C59' }} />
+                <MapPin size={15} style={{ color: '#4A7C59' }} />
               </div>
               <div>
                 <p className="text-xs" style={{ color: '#A3A3A3' }}>行きたい場所</p>
@@ -377,7 +421,7 @@ export default function HomePage() {
           <Card padding="md">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg" style={{ backgroundColor: '#FFF7F0' }}>
-                <Play size={16} style={{ color: '#C2782D' }} />
+                <Play size={15} style={{ color: '#C2782D' }} />
               </div>
               <div>
                 <p className="text-xs" style={{ color: '#A3A3A3' }}>観たい・聴きたい</p>
@@ -388,95 +432,70 @@ export default function HomePage() {
         </Link>
       </div>
 
-      {/* This Week */}
-      <Card>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold" style={{ color: '#1A1A1A' }}>今週</h2>
-          <Link href="/calendar" className="text-xs flex items-center gap-0.5" style={{ color: '#A3A3A3' }}>
-            カレンダー <ChevronRight size={12} />
-          </Link>
-        </div>
-        <MiniWeekCalendar nextMeeting={nextMeeting} eventDates={thisWeekEventDates} />
-      </Card>
-
-      {/* Upcoming Events */}
-      <Card>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold" style={{ color: '#1A1A1A' }}>近いイベント</h2>
-          <Link href="/calendar">
-            <Calendar size={14} style={{ color: '#A3A3A3' }} />
-          </Link>
-        </div>
-        {loading ? (
-          <div className="space-y-3">
-            {[1, 2].map(i => (
-              <div key={i} className="flex items-center gap-3">
-                <div className="w-1 h-8 rounded-full flex-shrink-0" style={{ backgroundColor: '#E5E5E5' }} />
-                <div className="flex-1 space-y-1.5">
-                  <div className="h-3 rounded" style={{ backgroundColor: '#E5E5E5', width: '60%' }} />
-                  <div className="h-2.5 rounded" style={{ backgroundColor: '#E5E5E5', width: '40%' }} />
-                </div>
-              </div>
-            ))}
+      {/* ── Upcoming events ────────────────────────────────── */}
+      {(loading || upcomingEvents.length > 0) && (
+        <Card>
+          <div className="flex items-center justify-between mb-2.5">
+            <h2 className="text-sm font-semibold" style={{ color: '#1A1A1A' }}>近いイベント</h2>
+            <Link href="/calendar" className="text-xs" style={{ color: '#A3A3A3' }}>
+              すべて見る →
+            </Link>
           </div>
-        ) : upcomingEvents.length === 0 ? (
-          <p className="text-sm text-center py-4" style={{ color: '#A3A3A3' }}>予定はありません</p>
-        ) : (
-          <div className="space-y-3">
-            {upcomingEvents.slice(0, 5).map(event => {
-              const config    = eventTypeConfig[event.type]
-              const startDate = new Date(event.date.replace(/-/g, '/'))
-              const endDate   = event.end_date && event.end_date !== event.date
-                ? new Date(event.end_date.replace(/-/g, '/'))
-                : null
-              const dateLabel = endDate
-                ? `${format(startDate, 'M月d日(E)', { locale: ja })} 〜 ${format(endDate, 'M月d日(E)', { locale: ja })}`
-                : format(startDate, 'M月d日(E)', { locale: ja })
-              return (
-                <Link key={event.id} href={`/calendar?date=${event.date}`} className="flex items-center gap-3">
-                  <div className="w-1 h-8 rounded-full flex-shrink-0" style={{ backgroundColor: config.text }} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate" style={{ color: '#1A1A1A' }}>{event.title}</p>
-                    <p className="text-xs" style={{ color: '#A3A3A3' }}>{dateLabel}</p>
+          {loading ? (
+            <div className="space-y-2.5">
+              {[1, 2].map(i => (
+                <div key={i} className="flex items-center gap-3">
+                  <div className="w-1 h-7 rounded-full flex-shrink-0" style={{ backgroundColor: '#E5E5E5' }} />
+                  <div className="flex-1 space-y-1.5">
+                    <div className="h-2.5 rounded" style={{ backgroundColor: '#E5E5E5', width: '55%' }} />
+                    <div className="h-2 rounded"   style={{ backgroundColor: '#E5E5E5', width: '35%' }} />
                   </div>
-                  <span className="text-xs px-2 py-0.5 flex-shrink-0" style={{ backgroundColor: config.bg, color: config.text, borderRadius: '6px' }}>
-                    {config.label}
-                  </span>
-                </Link>
-              )
-            })}
-          </div>
-        )}
-      </Card>
-
-      {/* Recent Places */}
-      <Card>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold" style={{ color: '#1A1A1A' }}>最近追加された場所</h2>
-          <Link href="/list">
-            <MapPin size={14} style={{ color: '#A3A3A3' }} />
-          </Link>
-        </div>
-        {loading ? (
-          <div className="space-y-2.5">
-            {[1, 2].map(i => (
-              <div key={i} className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg flex-shrink-0" style={{ backgroundColor: '#F5F5F3' }} />
-                <div className="flex-1 space-y-1.5">
-                  <div className="h-3 rounded" style={{ backgroundColor: '#E5E5E5', width: '50%' }} />
-                  <div className="h-2.5 rounded" style={{ backgroundColor: '#E5E5E5', width: '30%' }} />
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-2.5">
+              {upcomingEvents.slice(0, 4).map(event => {
+                const config    = eventTypeConfig[event.type]
+                const startDate = new Date(event.date.replace(/-/g, '/'))
+                const endDate   = event.end_date && event.end_date !== event.date
+                  ? new Date(event.end_date.replace(/-/g, '/'))
+                  : null
+                const dateLabel = endDate
+                  ? `${format(startDate, 'M/d(E)', { locale: ja })} 〜 ${format(endDate, 'M/d(E)', { locale: ja })}`
+                  : format(startDate, 'M月d日(E)', { locale: ja })
+                return (
+                  <Link key={event.id} href={`/calendar?date=${event.date}`} className="flex items-center gap-3">
+                    <div className="w-1 h-7 rounded-full flex-shrink-0" style={{ backgroundColor: config.text }} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate" style={{ color: '#1A1A1A' }}>{event.title}</p>
+                      <p className="text-xs" style={{ color: '#A3A3A3' }}>{dateLabel}</p>
+                    </div>
+                    <span className="text-xs px-2 py-0.5 flex-shrink-0" style={{ backgroundColor: config.bg, color: config.text, borderRadius: '6px' }}>
+                      {config.label}
+                    </span>
+                  </Link>
+                )
+              })}
+            </div>
+          )}
+        </Card>
+      )}
+
+      {/* ── Recent places (compact) ────────────────────────── */}
+      {places.length > 0 && !loading && (
+        <Card>
+          <div className="flex items-center justify-between mb-2.5">
+            <h2 className="text-sm font-semibold" style={{ color: '#1A1A1A' }}>最近追加された場所</h2>
+            <Link href="/list" style={{ color: '#A3A3A3' }}>
+              <MapPin size={13} />
+            </Link>
           </div>
-        ) : places.length === 0 ? (
-          <p className="text-sm text-center py-4" style={{ color: '#A3A3A3' }}>場所が登録されていません</p>
-        ) : (
-          <div className="space-y-2.5">
+          <div className="space-y-2">
             {places.map(place => (
-              <Link key={place.id} href="/list" className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#F5F5F3' }}>
-                  <MapPin size={14} style={{ color: '#737373' }} />
+              <Link key={place.id} href="/list" className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#F5F5F3' }}>
+                  <MapPin size={12} style={{ color: '#737373' }} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate" style={{ color: '#1A1A1A' }}>{place.name}</p>
@@ -486,8 +505,9 @@ export default function HomePage() {
               </Link>
             ))}
           </div>
-        )}
-      </Card>
+        </Card>
+      )}
+
     </div>
     </PullToRefresh>
   )
