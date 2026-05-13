@@ -8,8 +8,8 @@ export function PageTransition({ children }: { children: ReactNode }) {
 
   return (
     <motion.div
-      initial={reduced ? false : { opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
+      initial={reduced ? false : { opacity: 0 }}
+      animate={{ opacity: 1 }}
       transition={{ duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
     >
       {children}
