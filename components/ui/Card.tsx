@@ -4,24 +4,34 @@ import { HTMLAttributes, forwardRef } from 'react'
 
 interface CardProps extends HTMLAttributes<HTMLDivElement> {
   padding?: 'none' | 'sm' | 'md' | 'lg'
+  shadow?:  'none' | 'sm' | 'md' | 'lg'
 }
 
 const paddingMap = {
   none: '',
-  sm: 'p-3',
-  md: 'p-4',
-  lg: 'p-5',
+  sm:   'p-3',
+  md:   'p-4',
+  lg:   'p-5',
+}
+
+const shadowMap = {
+  none: 'none',
+  sm:   'var(--shadow-sm)',
+  md:   'var(--shadow-md)',
+  lg:   'var(--shadow-lg)',
 }
 
 const Card = forwardRef<HTMLDivElement, CardProps>(
-  ({ className = '', padding = 'md', children, style, ...props }, ref) => {
+  ({ className = '', padding = 'md', shadow = 'none', children, style, ...props }, ref) => {
     return (
       <div
         ref={ref}
-        className={`bg-white ${paddingMap[padding]} ${className}`}
+        className={`${paddingMap[padding]} ${className}`}
         style={{
-          border: '0.5px solid #E5E5E5',
-          borderRadius: '12px',
+          backgroundColor: 'var(--color-card)',
+          border: '0.5px solid var(--color-border)',
+          borderRadius: 'var(--radius-lg)',
+          boxShadow: shadowMap[shadow],
           ...style,
         }}
         {...props}

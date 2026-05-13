@@ -7,9 +7,9 @@ interface TagProps {
 }
 
 const ownerStyle = {
-  me:      { bg: '#EEECF9', text: '#6D5BD0' },
-  partner: { bg: '#E8EFF6', text: '#2D6B9E' },
-  both:    { bg: '#F5F5F3', text: '#737373' },
+  me:      { bg: 'var(--color-visit-accent-soft)', text: 'var(--color-me)'      },
+  partner: { bg: '#E8EFF6',                        text: 'var(--color-partner)'  },
+  both:    { bg: 'var(--color-surface)',            text: 'var(--color-muted)'   },
 }
 
 export default function Tag({ label, owner, className = '' }: TagProps) {
@@ -19,10 +19,10 @@ export default function Tag({ label, owner, className = '' }: TagProps) {
     <span
       className={`inline-flex items-center px-2 py-0.5 text-xs font-medium ${className}`}
       style={{
-        borderRadius: '6px',
+        borderRadius: 'var(--radius-sm)',
         ...(style
           ? { backgroundColor: style.bg, color: style.text }
-          : { backgroundColor: '#F5F5F3', color: '#737373' }),
+          : { backgroundColor: 'var(--color-surface)', color: 'var(--color-muted)' }),
       }}
     >
       {label}

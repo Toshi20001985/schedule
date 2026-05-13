@@ -10,10 +10,24 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variantStyles: Record<string, React.CSSProperties> = {
-  primary:   { backgroundColor: '#1A1A1A', color: '#FFFFFF' },
-  secondary: { backgroundColor: '#FFFFFF', color: '#1A1A1A', border: '0.5px solid #E5E5E5' },
-  ghost:     { backgroundColor: 'transparent', color: '#737373' },
-  danger:    { backgroundColor: '#FFF0F3', color: '#B5465A' },
+  primary: {
+    backgroundColor: 'var(--color-text)',
+    color: 'var(--color-bg)',
+    boxShadow: 'var(--shadow-sm)',
+  },
+  secondary: {
+    backgroundColor: 'var(--color-card)',
+    color: 'var(--color-text)',
+    border: '0.5px solid var(--color-border)',
+  },
+  ghost: {
+    backgroundColor: 'transparent',
+    color: 'var(--color-muted)',
+  },
+  danger: {
+    backgroundColor: 'var(--color-anniversary-soft)',
+    color: 'var(--color-anniversary-accent)',
+  },
 }
 
 const sizeMap = {
@@ -40,7 +54,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           ${className}
         `}
         style={{
-          borderRadius: '10px',
+          borderRadius: 'var(--radius-md)',
           ...variantStyles[variant],
           ...style,
         }}

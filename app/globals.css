@@ -1,45 +1,68 @@
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+JP:wght@300;400;500;600&display=swap');
 @import "tailwindcss";
 
 @theme {
-  /* ── Design tokens ── */
+  /* ── Color tokens ── */
 
   /* Neutrals */
-  --color-bg: #FAFAF7;
-  --color-card: #FFFFFF;
-  --color-border: #E5E5E5;
-  --color-text: #1A1A1A;
-  --color-muted: #737373;
-  --color-subtle: #A3A3A3;
-  --color-surface: #F5F5F3;
+  --color-bg:       #FAFAF7;
+  --color-card:     #FFFFFF;
+  --color-border:   #E5E5E5;
+  --color-text:     #1A1A1A;
+  --color-muted:    #737373;
+  --color-subtle:   #A3A3A3;
+  --color-surface:  #F5F5F3;
 
-  /* Accent (minimal) */
-  --color-accent: #1A1A1A;
+  /* Accent */
+  --color-accent:       #1A1A1A;
   --color-accent-hover: #333333;
 
-  /* Event colors (muted) */
-  --color-visit-soft: #F3F0FF;
-  --color-visit-accent: #6D5BD0;
-  --color-trip-soft: #F0F7F0;
-  --color-trip-accent: #4A7C59;
-  --color-online-soft: #FFF7F0;
-  --color-online-accent: #C2782D;
-  --color-anniversary-soft: #FFF0F3;
-  --color-anniversary-accent: #B5465A;
-  --color-personal-soft: #F5F5F3;
-  --color-personal-accent: #737373;
+  /* Hero */
+  --color-hero-bg:      #111111;
+  --color-hero-text:    #FAFAF7;
+  --color-hero-muted:   #555555;
+  --color-hero-subtle:  #A3A3A3;
 
-  /* Partner colors (subtle) */
-  --color-me: #6D5BD0;
-  --color-him: #2D6B9E;
+  /* Event colors */
+  --color-visit-soft:        #F3F0FF;
+  --color-visit-accent:      #6D5BD0;
+  --color-visit-accent-soft: #EEECF9;
+  --color-trip-soft:         #F0F7F0;
+  --color-trip-accent:       #4A7C59;
+  --color-online-soft:       #FFF7F0;
+  --color-online-accent:     #C2782D;
+  --color-anniversary-soft:  #FFF0F3;
+  --color-anniversary-accent:#B5465A;
+  --color-personal-soft:     #F5F5F3;
+  --color-personal-accent:   #737373;
 
-  /* Fonts */
-  --font-sans: 'Manrope', 'Noto Sans JP', sans-serif;
+  /* Partner colors */
+  --color-me:      #6D5BD0;
+  --color-partner: #2D6B9E;
 
-  /* Radius */
+  /* ── Font tokens ── */
+  --font-sans:  'Inter', 'Noto Sans JP', sans-serif;
+  --font-serif: 'Instrument Serif', serif;
+  --font-mono:  'JetBrains Mono', monospace;
+
+  /* ── Radius tokens ── */
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 14px;
+  --radius-xl: 20px;
+
+  /* ── Shadow tokens ── */
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,0.10), 0 4px 8px rgba(0,0,0,0.06);
+  --shadow-xl: 0 16px 48px rgba(0,0,0,0.12), 0 8px 16px rgba(0,0,0,0.08);
+
+  /* ── Animation tokens ── */
+  --duration-fast: 120ms;
+  --duration-base: 220ms;
+  --duration-slow: 380ms;
+  --ease-spring:   cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-smooth:   cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
 :root {
@@ -56,24 +79,47 @@ html {
 }
 
 body {
-  background-color: #FAFAF7;
-  color: #1A1A1A;
-  font-family: 'Manrope', 'Noto Sans JP', sans-serif;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
   min-height: 100dvh;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Safe area */
+/* ── Safe area ── */
 .safe-top    { padding-top:    env(safe-area-inset-top); }
 .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
 .safe-left   { padding-left:   env(safe-area-inset-left); }
 .safe-right  { padding-right:  env(safe-area-inset-right); }
 
-/* Scrollbar */
+/* ── Scrollbar ── */
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #E5E5E5; border-radius: 2px; }
+::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 2px; }
 
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ── Glassmorphism ── */
+.glass {
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+.glass-dark {
+  background: rgba(17, 17, 17, 0.82);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+.glass-border {
+  border: 0.5px solid rgba(255, 255, 255, 0.16);
+}
+
+/* ── Mono text ── */
+.font-mono {
+  font-family: var(--font-mono);
+}
+.font-serif {
+  font-family: var(--font-serif);
+}

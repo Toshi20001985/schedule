@@ -67,10 +67,10 @@ const inputStyle: React.CSSProperties = {
   padding: '10px 14px',
   fontSize: '14px',
   outline: 'none',
-  border: '0.5px solid #E5E5E5',
-  borderRadius: '10px',
-  backgroundColor: '#FAFAF7',
-  color: '#1A1A1A',
+  border: '0.5px solid var(--color-border)',
+  borderRadius: 'var(--radius-md)',
+  backgroundColor: 'var(--color-bg)',
+  color: 'var(--color-text)',
 }
 
 function parseDateStr(dateStr: string): Date {
@@ -371,7 +371,7 @@ function StoredFlightCard({
 
       {/* 便名・航空会社 */}
       {(flight.flight_number || flight.airline) && (
-        <p className="text-sm font-semibold mb-2.5" style={{ color: '#1A1A1A' }}>
+        <p className="text-sm font-semibold mb-2.5" style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-text)', letterSpacing: '0.03em' }}>
           {[flight.flight_number, flight.airline].filter(Boolean).join(' · ')}
         </p>
       )}
@@ -380,8 +380,8 @@ function StoredFlightCard({
       {(depTime || arrTime || flight.departure_airport || flight.arrival_airport) && (
         <div className="flex items-center gap-2 mb-2.5">
           <div className="text-center">
-            <p className="text-base font-semibold" style={{ color: '#1A1A1A', lineHeight: 1 }}>{depTime || '—'}</p>
-            <p className="text-xs font-medium mt-0.5" style={{ color: '#6D5BD0' }}>{flight.departure_airport || '—'}</p>
+            <p className="text-base font-semibold" style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-text)', lineHeight: 1, letterSpacing: '0.02em' }}>{depTime || '—'}</p>
+            <p className="text-xs font-medium mt-0.5" style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-visit-accent)', letterSpacing: '0.06em' }}>{flight.departure_airport || '—'}</p>
           </div>
           <div className="flex-1 flex items-center gap-1">
             <div style={{ flex: 1, height: '1px', backgroundColor: '#C4B8F0' }} />
@@ -389,8 +389,8 @@ function StoredFlightCard({
             <div style={{ flex: 1, height: '1px', backgroundColor: '#C4B8F0' }} />
           </div>
           <div className="text-center">
-            <p className="text-base font-semibold" style={{ color: '#1A1A1A', lineHeight: 1 }}>{arrTime || '—'}</p>
-            <p className="text-xs font-medium mt-0.5" style={{ color: '#6D5BD0' }}>{flight.arrival_airport || '—'}</p>
+            <p className="text-base font-semibold" style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-text)', lineHeight: 1, letterSpacing: '0.02em' }}>{arrTime || '—'}</p>
+            <p className="text-xs font-medium mt-0.5" style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-visit-accent)', letterSpacing: '0.06em' }}>{flight.arrival_airport || '—'}</p>
           </div>
         </div>
       )}
@@ -416,11 +416,13 @@ const flightInputStyle: React.CSSProperties = {
   width: '100%',
   padding: '8px 10px',
   fontSize: '13px',
+  fontFamily: 'var(--font-mono)',
+  letterSpacing: '0.03em',
   outline: 'none',
   border: '0.5px solid #D4CAFF',
   borderRadius: '8px',
-  backgroundColor: '#FAFAF7',
-  color: '#1A1A1A',
+  backgroundColor: 'var(--color-bg)',
+  color: 'var(--color-text)',
 }
 const flightLabelStyle: React.CSSProperties = {
   display: 'block',

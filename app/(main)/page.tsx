@@ -360,8 +360,8 @@ export default function HomePage() {
       >
         <div
           style={{
-            backgroundColor: '#1A1A1A',
-            borderRadius: '20px',
+            backgroundColor: 'var(--color-hero-bg)',
+            borderRadius: 'var(--radius-xl)',
             padding: '24px',
             minHeight: '46dvh',
             display: 'flex',
@@ -372,10 +372,10 @@ export default function HomePage() {
           {/* Top row: greeting + avatars */}
           <div className="flex items-start justify-between">
             <div>
-              <p style={{ color: '#737373', fontSize: '11px', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+              <p style={{ color: 'var(--color-hero-muted)', fontSize: '11px', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
                 {greeting}
               </p>
-              <p style={{ color: '#FAFAF7', fontSize: '13px', fontWeight: 500, marginTop: '3px' }}>
+              <p style={{ color: 'var(--color-hero-text)', fontSize: '13px', fontWeight: 500, marginTop: '3px' }}>
                 {format(new Date(), 'M月d日(E)', { locale: ja })}
               </p>
             </div>
@@ -401,15 +401,15 @@ export default function HomePage() {
             ) : daysUntilMeeting === null ? (
               /* 予定なし */
               <>
-                <p style={{ color: '#555', fontSize: '11px', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: '16px' }}>
+                <p style={{ color: 'var(--color-hero-muted)', fontSize: '11px', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: '16px' }}>
                   Next Layover
                 </p>
-                <p style={{ color: '#FAFAF7', fontSize: '22px', fontWeight: 300, lineHeight: 1.4 }}>
+                <p style={{ color: 'var(--color-hero-text)', fontSize: '22px', fontWeight: 300, lineHeight: 1.4 }}>
                   Let&apos;s plan<br />our next meet
                 </p>
                 <div
                   className="mt-5 px-5 py-2 text-sm font-medium"
-                  style={{ backgroundColor: 'rgba(255,255,255,0.08)', color: '#A3A3A3', borderRadius: '100px', border: '0.5px solid rgba(255,255,255,0.12)' }}
+                  style={{ backgroundColor: 'rgba(255,255,255,0.08)', color: 'var(--color-hero-subtle)', borderRadius: '100px', border: '0.5px solid rgba(255,255,255,0.12)' }}
                 >
                   カレンダーで追加する →
                 </div>
@@ -417,12 +417,12 @@ export default function HomePage() {
             ) : daysUntilMeeting === 0 ? (
               /* 当日 */
               <>
-                <p style={{ color: '#6D5BD0', fontSize: '11px', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: '16px' }}>
+                <p style={{ color: 'var(--color-me)', fontSize: '11px', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: '16px' }}>
                   Next Layover
                 </p>
                 <div className="flex items-center justify-center gap-4">
-                  <Plane size={36} style={{ color: '#FAFAF7' }} />
-                  <span style={{ fontSize: '64px', fontWeight: 200, color: '#FAFAF7', lineHeight: 1, letterSpacing: '-0.02em' }}>
+                  <Plane size={36} style={{ color: 'var(--color-hero-text)' }} />
+                  <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: '64px', fontWeight: 400, color: 'var(--color-hero-text)', lineHeight: 1, letterSpacing: '-0.01em' }}>
                     Today!
                   </span>
                 </div>
@@ -430,14 +430,14 @@ export default function HomePage() {
             ) : (
               /* 通常カウントダウン */
               <>
-                <p style={{ color: '#555', fontSize: '11px', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: '8px' }}>
+                <p style={{ color: 'var(--color-hero-muted)', fontSize: '11px', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: '8px' }}>
                   Next Layover
                 </p>
                 <div className="flex items-baseline gap-3" style={{ lineHeight: 1 }}>
-                  <span style={{ fontSize: '104px', fontWeight: 200, color: '#FAFAF7', lineHeight: 0.9, letterSpacing: '-0.03em' }}>
+                  <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: '104px', fontWeight: 400, color: 'var(--color-hero-text)', lineHeight: 0.9, letterSpacing: '-0.02em' }}>
                     {displayCount}
                   </span>
-                  <span style={{ color: '#737373', fontSize: '22px', fontWeight: 300 }}>
+                  <span style={{ color: 'var(--color-hero-muted)', fontSize: '22px', fontWeight: 300 }}>
                     days
                   </span>
                 </div>
@@ -449,12 +449,12 @@ export default function HomePage() {
           {nextMeeting && !loading && (
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <span style={{ color: '#A3A3A3', fontSize: '13px' }}>
+                <span style={{ color: 'var(--color-hero-subtle)', fontSize: '13px' }}>
                   {format(nextMeeting, 'M月d日(E)', { locale: ja })}
                 </span>
                 <span style={{
                   backgroundColor: 'rgba(255,255,255,0.1)',
-                  color: '#FAFAF7',
+                  color: 'var(--color-hero-text)',
                   fontSize: '11px',
                   fontWeight: 500,
                   padding: '3px 12px',
@@ -465,8 +465,8 @@ export default function HomePage() {
                 </span>
               </div>
               {nextFlightLine && (
-                <p style={{ color: '#555', fontSize: '12px', marginTop: '6px', letterSpacing: '0.03em' }}>
-                  <Plane size={11} style={{ display: 'inline', marginRight: '5px', verticalAlign: 'middle' }} />
+                <p style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-hero-muted)', fontSize: '11px', marginTop: '8px', letterSpacing: '0.04em' }}>
+                  <Plane size={11} style={{ display: 'inline', marginRight: '6px', verticalAlign: 'middle' }} />
                   {nextFlightLine}
                 </p>
               )}
@@ -488,7 +488,7 @@ export default function HomePage() {
               style={{ bottom: '14px', padding: '0 12px' }}
               onClick={e => e.stopPropagation()}
             >
-              <div style={{ backgroundColor: 'rgba(26,26,26,0.96)', borderRadius: '16px', overflow: 'hidden', backdropFilter: 'blur(12px)' }}>
+              <div className="glass-dark glass-border" style={{ borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
                 {[
                   { icon: CalendarDays, label: 'カレンダーを開く',   href: '/calendar' },
                   { icon: List,         label: 'リストを見る',       href: '/list'     },
