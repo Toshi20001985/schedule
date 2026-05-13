@@ -27,6 +27,8 @@ export function EdgeSwipeBack() {
       const dy = Math.abs(e.changedTouches[0].clientY - startY)
       // 80px 以上の右スワイプ かつ 縦方向の動きが小さい
       if (dx > 80 && dy < dx * 0.6) {
+        // 戻り先ページのクイックメニューなど残存状態をリセットさせる
+        window.dispatchEvent(new CustomEvent('edge-swipe-back'))
         router.back()
       }
     }

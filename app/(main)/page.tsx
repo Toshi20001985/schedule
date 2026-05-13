@@ -53,6 +53,44 @@ export default function HomePage() {
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [showQuickMenu, setShowQuickMenu] = useState(false)
 
+  // Router Cache からの復元時・マウント時にメニューを確実に閉じる
+  useEffect(() => {
+    setShowQuickMenu(false)
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current)
+      longPressTimer.current = null
+    }
+    // EdgeSwipeBack がスワイプ戻りを検知したときもリセット（キャッシュ復元対応）
+    function onSwipeBack() {
+      setShowQuickMenu(false)
+      if (longPressTimer.current) {
+        clearTimeout(longPressTimer.current)
+        longPressTimer.current = null
+      }
+    }
+    window.addEventListener('edge-swipe-back', onSwipeBack)
+    return () => window.removeEventListener('edge-swipe-back', onSwipeBack)
+  }, [])
+
+  // メニューが開いているとき、メニュー外タッチで閉じる
+  useEffect(() => {
+    if (!showQuickMenu) return
+    function onOutsideTouch(e: TouchEvent) {
+      const target = e.target as HTMLElement
+      if (!target.closest('[data-quick-menu]')) {
+        setShowQuickMenu(false)
+      }
+    }
+    // 長押し終了イベントがそのまま閉じないよう少し遅延
+    const id = window.setTimeout(() => {
+      document.addEventListener('touchstart', onOutsideTouch, { passive: true })
+    }, 100)
+    return () => {
+      window.clearTimeout(id)
+      document.removeEventListener('touchstart', onOutsideTouch)
+    }
+  }, [showQuickMenu])
+
   const [me, setMe] = useState<UserProfile | null>(null)
   const [partner, setPartner] = useState<UserProfile | null>(null)
   const [couple, setCouple] = useState<CoupleData | null>(null)
@@ -476,40 +514,35 @@ export default function HomePage() {
 
         {/* 長押しクイックアクションメニュー */}
         {showQuickMenu && (
-          <>
-            {/* バックドロップ */}
-            <div
-              className="fixed inset-0 z-40"
-              onClick={e => { e.stopPropagation(); setShowQuickMenu(false) }}
-            />
-            {/* メニュー本体 */}
-            <div
-              className="absolute left-0 right-0 z-60"
-              style={{ bottom: '14px', padding: '0 12px' }}
-              onClick={e => e.stopPropagation()}
-            >
-              <div className="glass-dark glass-border" style={{ borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
-                {[
-                  { icon: CalendarDays, label: 'カレンダーを開く',   href: '/calendar' },
-                  { icon: List,         label: 'リストを見る',       href: '/list'     },
-                  { icon: Search,       label: '検索する',           href: '/search'   },
-                ].map(({ icon: Icon, label, href }, i, arr) => (
-                  <div key={href}>
-                    <button
-                      className="w-full flex items-center gap-3 px-5 py-4 active:opacity-60 transition-opacity"
-                      onClick={() => { setShowQuickMenu(false); router.push(href) }}
-                    >
-                      <Icon size={18} style={{ color: '#FAFAF7', flexShrink: 0 }} />
-                      <span style={{ color: '#FAFAF7', fontSize: '15px', fontWeight: 500 }}>{label}</span>
-                    </button>
-                    {i < arr.length - 1 && (
-                      <div style={{ height: '0.5px', backgroundColor: 'rgba(255,255,255,0.1)', margin: '0 16px' }} />
-                    )}
-                  </div>
-                ))}
-              </div>
+          /* バックドロップなし: fixed inset-0 はタッチイベントをブロックしてスクロールを壊すため廃止。
+             代わりに useEffect でメニュー外タッチを検知して閉じる。 */
+          <div
+            data-quick-menu
+            className="absolute left-0 right-0 z-60"
+            style={{ bottom: '14px', padding: '0 12px' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="glass-dark glass-border" style={{ borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
+              {[
+                { icon: CalendarDays, label: 'カレンダーを開く',   href: '/calendar' },
+                { icon: List,         label: 'リストを見る',       href: '/list'     },
+                { icon: Search,       label: '検索する',           href: '/search'   },
+              ].map(({ icon: Icon, label, href }, i, arr) => (
+                <div key={href}>
+                  <button
+                    className="w-full flex items-center gap-3 px-5 py-4 active:opacity-60 transition-opacity"
+                    onClick={() => { setShowQuickMenu(false); router.push(href) }}
+                  >
+                    <Icon size={18} style={{ color: 'var(--color-hero-text)', flexShrink: 0 }} />
+                    <span style={{ color: 'var(--color-hero-text)', fontSize: '15px', fontWeight: 500 }}>{label}</span>
+                  </button>
+                  {i < arr.length - 1 && (
+                    <div style={{ height: '0.5px', backgroundColor: 'rgba(255,255,255,0.1)', margin: '0 16px' }} />
+                  )}
+                </div>
+              ))}
             </div>
-          </>
+          </div>
         )}
       </div>
 
