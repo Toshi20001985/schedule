@@ -122,14 +122,22 @@ export function PullToRefresh({ onRefresh, children }: Props) {
       }
     }
 
-    el.addEventListener('touchstart', onTouchStart, { passive: true })
-    el.addEventListener('touchmove',  onTouchMove,  { passive: false })
-    el.addEventListener('touchend',   onTouchEnd,   { passive: true })
+    function onTouchCancel() {
+      touchStartedRef.current = false
+      axisRef.current = null
+      if (isPullingRef.current) resetPull()
+    }
+
+    el.addEventListener('touchstart',  onTouchStart,  { passive: true })
+    el.addEventListener('touchmove',   onTouchMove,   { passive: false })
+    el.addEventListener('touchend',    onTouchEnd,    { passive: true })
+    el.addEventListener('touchcancel', onTouchCancel, { passive: true })
 
     return () => {
-      el.removeEventListener('touchstart', onTouchStart)
-      el.removeEventListener('touchmove',  onTouchMove)
-      el.removeEventListener('touchend',   onTouchEnd)
+      el.removeEventListener('touchstart',  onTouchStart)
+      el.removeEventListener('touchmove',   onTouchMove)
+      el.removeEventListener('touchend',    onTouchEnd)
+      el.removeEventListener('touchcancel', onTouchCancel)
       // アンマウント時にリフレッシュ中フラグもリセット
       refreshingRef.current   = false
       touchStartedRef.current = false
