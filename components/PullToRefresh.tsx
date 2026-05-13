@@ -21,10 +21,13 @@ export function PullToRefresh({ onRefresh, children }: Props) {
   const onRefreshRef = useRef(onRefresh)
   useEffect(() => { onRefreshRef.current = onRefresh }, [onRefresh])
 
-  const startYRef    = useRef(0)
-  const pullDistRef  = useRef(0)
-  const isPullingRef = useRef(false)
+  const startYRef     = useRef(0)
+  const startXRef     = useRef(0)
+  const pullDistRef   = useRef(0)
+  const isPullingRef  = useRef(false)
   const refreshingRef = useRef(false)
+  // null = 未確定, 'v' = 縦, 'h' = 横
+  const axisRef = useRef<'v' | 'h' | null>(null)
 
   useEffect(() => {
     const el = containerRef.current
@@ -42,40 +45,57 @@ export function PullToRefresh({ onRefresh, children }: Props) {
     }
     const scrollParent = findScrollParent(el)
 
+    function resetPull() {
+      isPullingRef.current = false
+      pullDistRef.current  = 0
+      setPullDistance(0)
+    }
+
     function onTouchStart(e: TouchEvent) {
       if (refreshingRef.current) return
       if (scrollParent.scrollTop > 0) return
-      startYRef.current = e.touches[0].clientY
+      startYRef.current  = e.touches[0].clientY
+      startXRef.current  = e.touches[0].clientX
+      axisRef.current    = null
       isPullingRef.current = false
     }
 
     function onTouchMove(e: TouchEvent) {
       if (refreshingRef.current) return
       if (scrollParent.scrollTop > 0) {
-        if (isPullingRef.current) {
-          isPullingRef.current = false
-          pullDistRef.current = 0
-          setPullDistance(0)
-        }
+        if (isPullingRef.current) resetPull()
         return
       }
+
       const dy = e.touches[0].clientY - startYRef.current
-      if (dy <= 0) {
-        if (isPullingRef.current) {
-          isPullingRef.current = false
-          pullDistRef.current = 0
-          setPullDistance(0)
-        }
+      const dx = e.touches[0].clientX - startXRef.current
+
+      // 最初の有意な動きで軸を確定（5px 以上）
+      if (axisRef.current === null && (Math.abs(dx) > 5 || Math.abs(dy) > 5)) {
+        axisRef.current = Math.abs(dy) > Math.abs(dx) ? 'v' : 'h'
+      }
+
+      // 横スワイプと判定されたら PullToRefresh は関与しない
+      if (axisRef.current === 'h') {
+        if (isPullingRef.current) resetPull()
         return
       }
+
+      if (dy <= 0) {
+        if (isPullingRef.current) resetPull()
+        return
+      }
+
+      // 縦下方向の確定したジェスチャーのみスクロールを止めてプル動作
       e.preventDefault()
       isPullingRef.current = true
       const dist = Math.min(dy * 0.5, MAX_PULL)
-      pullDistRef.current = dist
+      pullDistRef.current  = dist
       setPullDistance(dist)
     }
 
     async function onTouchEnd() {
+      axisRef.current = null
       if (!isPullingRef.current) return
       isPullingRef.current = false
       const dist = pullDistRef.current
