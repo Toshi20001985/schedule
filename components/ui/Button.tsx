@@ -1,6 +1,7 @@
 'use client'
 
 import { ButtonHTMLAttributes, forwardRef } from 'react'
+import { motion, useReducedMotion } from 'framer-motion'
 import { haptic } from '@/lib/haptics'
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -38,13 +39,17 @@ const sizeMap = {
 
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className = '', variant = 'primary', size = 'md', fullWidth = false, style, children, onClick, ...props }, ref) => {
+    const reduced = useReducedMotion()
+
     function handleClick(e: React.MouseEvent<HTMLButtonElement>) {
       haptic('light')
       onClick?.(e)
     }
     return (
-      <button
+      <motion.button
         ref={ref}
+        whileTap={reduced ? undefined : { scale: 0.96 }}
+        transition={{ duration: 0.12, ease: [0.4, 0, 0.2, 1] }}
         className={`
           inline-flex items-center justify-center gap-2 font-medium
           transition-opacity duration-150 active:opacity-70
@@ -58,11 +63,12 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           ...variantStyles[variant],
           ...style,
         }}
-        {...props}
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        {...(props as any)}
         onClick={handleClick}
       >
         {children}
-      </button>
+      </motion.button>
     )
   }
 )

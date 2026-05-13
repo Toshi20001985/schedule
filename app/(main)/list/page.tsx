@@ -12,6 +12,7 @@ import { PullToRefresh } from '@/components/PullToRefresh'
 import { SwipeableListItem } from '@/components/SwipeableListItem'
 import { useRealtimeSync } from '@/hooks/useRealtimeSync'
 import { Toast } from '@/components/Toast'
+import { PageTransition } from '@/components/PageTransition'
 
 type Owner = 'me' | 'partner' | 'both'
 
@@ -416,6 +417,7 @@ function ListPageInner() {
   }
 
   return (
+    <PageTransition>
     <PullToRefresh onRefresh={load}>
     <Toast message={toast} onDismiss={() => setToast(null)} />
     <div className="px-4 pt-6 max-w-lg mx-auto">
@@ -678,6 +680,7 @@ function ListPageInner() {
       </BottomSheet>
     </div>
     </PullToRefresh>
+    </PageTransition>
   )
 }
 

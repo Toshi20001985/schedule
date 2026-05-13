@@ -18,6 +18,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useSwipeable } from 'react-swipeable'
 import { useRealtimeSync } from '@/hooks/useRealtimeSync'
 import { Toast } from '@/components/Toast'
+import { PageTransition } from '@/components/PageTransition'
 
 const eventTypeConfig = {
   visit:       { bg: '#F3F0FF', text: '#6D5BD0', dot: '#6D5BD0', label: '会う日' },
@@ -1006,6 +1007,7 @@ function CalendarPageInner() {
   }
 
   return (
+    <PageTransition>
     <PullToRefresh onRefresh={load}>
     <Toast message={toast} onDismiss={() => setToast(null)} />
     <div className="px-4 pt-6 max-w-lg mx-auto">
@@ -1371,6 +1373,7 @@ function CalendarPageInner() {
       </BottomSheet>
     </div>
     </PullToRefresh>
+    </PageTransition>
   )
 }
 

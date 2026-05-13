@@ -6,6 +6,7 @@ import { ja } from 'date-fns/locale'
 import { MapPin, Play, Plane, CalendarDays, List, Search } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { motion, useReducedMotion } from 'framer-motion'
 import Card from '@/components/ui/Card'
 import { PullToRefresh } from '@/components/PullToRefresh'
 import { useRealtimeSync } from '@/hooks/useRealtimeSync'
@@ -13,6 +14,8 @@ import { Toast } from '@/components/Toast'
 import { haptic } from '@/lib/haptics'
 import IconCircle from '@/components/ui/IconCircle'
 import Tag from '@/components/ui/Tag'
+import { PageTransition } from '@/components/PageTransition'
+import { AnimatedNumber } from '@/components/AnimatedNumber'
 
 interface UserProfile {
   id: string
@@ -48,8 +51,18 @@ interface HomePlace {
   owner: 'me' | 'partner' | 'both'
 }
 
+const staggerContainer = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.07, delayChildren: 0.1 } },
+}
+const staggerItem = {
+  hidden: { opacity: 0, y: 10 },
+  show:   { opacity: 1, y: 0, transition: { duration: 0.3, ease: [0.4, 0, 0.2, 1] as [number, number, number, number] } },
+}
+
 export default function HomePage() {
   const router = useRouter()
+  const reduced = useReducedMotion()
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [showQuickMenu, setShowQuickMenu] = useState(false)
 
@@ -103,8 +116,6 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true)
   const [coupleId, setCoupleId] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
-  // カウントアップ表示用
-  const [displayCount, setDisplayCount] = useState(0)
 
   const load = useCallback(async () => {
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
@@ -273,29 +284,6 @@ export default function HomePage() {
     load()
   }, [load])
 
-  // カウントアップアニメーション
-  useEffect(() => {
-    if (daysUntilMeeting === null || daysUntilMeeting <= 0) {
-      setDisplayCount(daysUntilMeeting ?? 0)
-      return
-    }
-    const target   = daysUntilMeeting
-    const duration = 900
-    const start    = performance.now()
-    let raf: number
-
-    function step(now: number) {
-      const p     = Math.min((now - start) / duration, 1)
-      const eased = 1 - Math.pow(1 - p, 3)          // easeOut cubic
-      setDisplayCount(Math.round(eased * target))
-      if (p < 1) raf = requestAnimationFrame(step)
-    }
-
-    raf = requestAnimationFrame(step)
-    return () => cancelAnimationFrame(raf)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nextVisitDate]) // nextVisitDate が変わった時だけ再アニメーション
-
   // Realtime 購読（ホームは集計データが多いため、変更時に load() を再実行）
   const reloadOnPartnerChange = useCallback(
     (isPartner: boolean, name?: string, label?: string) => {
@@ -383,12 +371,19 @@ export default function HomePage() {
   void couple // 将来の記念日表示用に保持
 
   return (
+    <PageTransition>
     <PullToRefresh onRefresh={load}>
     <Toast message={toast} onDismiss={() => setToast(null)} />
-    <div className="px-5 pt-6 pb-6 max-w-lg mx-auto space-y-6">
+    <motion.div
+      className="px-5 pt-6 pb-6 max-w-lg mx-auto space-y-6"
+      variants={reduced ? undefined : staggerContainer}
+      initial="hidden"
+      animate="show"
+    >
 
       {/* ── Hero ─────────────────────────────────────────── */}
-      <div
+      <motion.div
+        variants={reduced ? undefined : staggerItem}
         className="relative active:opacity-90 transition-opacity"
         style={{ WebkitUserSelect: 'none', userSelect: 'none' }}
         onTouchStart={handleHeroTouchStart}
@@ -472,9 +467,10 @@ export default function HomePage() {
                   Next Layover
                 </p>
                 <div className="flex items-baseline gap-2" style={{ lineHeight: 1 }}>
-                  <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: '108px', fontWeight: 400, color: 'var(--color-hero-text)', lineHeight: 0.88, letterSpacing: '-0.03em' }}>
-                    {displayCount}
-                  </span>
+                  <AnimatedNumber
+                    value={daysUntilMeeting!}
+                    style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: '108px', fontWeight: 400, color: 'var(--color-hero-text)', lineHeight: 0.88, letterSpacing: '-0.03em' }}
+                  />
                   <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--color-hero-muted)', fontSize: '28px', fontWeight: 400, letterSpacing: '-0.01em' }}>
                     days
                   </span>
@@ -544,10 +540,10 @@ export default function HomePage() {
             </div>
           </div>
         )}
-      </div>
+      </motion.div>
 
       {/* ── Stats row ──────────────────────────────────────── */}
-      <div className="grid grid-cols-2 gap-4">
+      <motion.div variants={reduced ? undefined : staggerItem} className="grid grid-cols-2 gap-4">
         <Link href="/list" className="block">
           <Card padding="lg" shadow="sm">
             <div className="flex items-center gap-4">
@@ -556,7 +552,11 @@ export default function HomePage() {
               </div>
               <div>
                 <p style={{ color: 'var(--color-subtle)', fontSize: '11px', letterSpacing: '0.03em', marginBottom: '5px' }}>行きたい場所</p>
-                <p style={{ fontFamily: 'var(--font-mono)', fontSize: '26px', fontWeight: 500, color: 'var(--color-text)', lineHeight: 1 }}>{loading ? '—' : placesCount}</p>
+                {loading ? (
+                  <p style={{ fontFamily: 'var(--font-mono)', fontSize: '26px', fontWeight: 500, color: 'var(--color-text)', lineHeight: 1 }}>—</p>
+                ) : (
+                  <AnimatedNumber value={placesCount} style={{ fontFamily: 'var(--font-mono)', fontSize: '26px', fontWeight: 500, color: 'var(--color-text)', lineHeight: 1, display: 'block' }} />
+                )}
               </div>
             </div>
           </Card>
@@ -569,15 +569,20 @@ export default function HomePage() {
               </div>
               <div>
                 <p style={{ color: 'var(--color-subtle)', fontSize: '11px', letterSpacing: '0.03em', marginBottom: '5px' }}>観たい・聴きたい</p>
-                <p style={{ fontFamily: 'var(--font-mono)', fontSize: '26px', fontWeight: 500, color: 'var(--color-text)', lineHeight: 1 }}>{loading ? '—' : mediaCount}</p>
+                {loading ? (
+                  <p style={{ fontFamily: 'var(--font-mono)', fontSize: '26px', fontWeight: 500, color: 'var(--color-text)', lineHeight: 1 }}>—</p>
+                ) : (
+                  <AnimatedNumber value={mediaCount} style={{ fontFamily: 'var(--font-mono)', fontSize: '26px', fontWeight: 500, color: 'var(--color-text)', lineHeight: 1, display: 'block' }} />
+                )}
               </div>
             </div>
           </Card>
         </Link>
-      </div>
+      </motion.div>
 
       {/* ── Upcoming events ────────────────────────────────── */}
       {(loading || upcomingEvents.length > 0) && (
+        <motion.div variants={reduced ? undefined : staggerItem}>
         <Card padding="lg" shadow="sm">
           <div className="flex items-start justify-between mb-5">
             <div>
@@ -629,10 +634,12 @@ export default function HomePage() {
             </div>
           )}
         </Card>
+        </motion.div>
       )}
 
       {/* ── Recent places (compact) ────────────────────────── */}
       {places.length > 0 && !loading && (
+        <motion.div variants={reduced ? undefined : staggerItem}>
         <Card padding="lg" shadow="sm">
           <div className="flex items-start justify-between mb-5">
             <div>
@@ -660,9 +667,11 @@ export default function HomePage() {
             ))}
           </div>
         </Card>
+        </motion.div>
       )}
 
-    </div>
+    </motion.div>
     </PullToRefresh>
+    </PageTransition>
   )
 }

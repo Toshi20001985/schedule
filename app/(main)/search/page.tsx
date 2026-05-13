@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Search, X, CalendarDays, MapPin, Film, Music, Book, Tv, Play, Clock } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import { haptic } from '@/lib/haptics'
+import { PageTransition } from '@/components/PageTransition'
 
 // ---- Types ----
 
@@ -291,6 +292,7 @@ export default function SearchPage() {
   const hasResults = totalResults > 0
 
   return (
+    <PageTransition>
     <div className="px-4 pt-6 max-w-lg mx-auto pb-8">
       <h1 className="text-lg font-semibold mb-4" style={{ color: '#1A1A1A' }}>検索</h1>
 
@@ -537,5 +539,6 @@ export default function SearchPage() {
         </div>
       )}
     </div>
+    </PageTransition>
   )
 }

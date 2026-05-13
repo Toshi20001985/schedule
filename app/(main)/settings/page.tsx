@@ -7,6 +7,7 @@ import { Copy, Check, LogOut, Calendar, User, Link2, ChevronRight, Vibrate } fro
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import IconCircle from '@/components/ui/IconCircle'
+import { PageTransition } from '@/components/PageTransition'
 
 const AVATAR_COLORS = [
   '#1A1A1A', '#6D5BD0', '#2D6B9E', '#4A7C59', '#B5465A',
@@ -184,6 +185,7 @@ export default function SettingsPage() {
   }
 
   return (
+    <PageTransition>
     <div className="px-4 pt-6 pb-8 max-w-lg mx-auto space-y-5">
       <h1 className="text-lg font-semibold" style={{ color: '#1A1A1A' }}>設定</h1>
 
@@ -333,5 +335,6 @@ export default function SettingsPage() {
 
       <p className="text-center text-xs" style={{ color: '#A3A3A3' }}>Layover v1.0.0</p>
     </div>
+    </PageTransition>
   )
 }
