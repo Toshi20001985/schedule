@@ -197,7 +197,7 @@ export default function SettingsPage() {
             <span className="text-sm font-medium" style={{ color: '#1A1A1A' }}>{myName || '未設定'}</span>
             <span className="text-xs" style={{ color: '#A3A3A3' }}>わたし</span>
           </div>
-          <div className="w-8 h-px" style={{ backgroundColor: '#E5E5E5' }} />
+          <div className="divider-soft w-8" />
           <div className="flex flex-col items-center gap-2">
             <IconCircle initial={partnerName || '?'} color={partnerColor} size="lg" />
             <span className="text-sm font-medium" style={{ color: '#1A1A1A' }}>{partnerName || '未設定'}</span>
@@ -209,7 +209,7 @@ export default function SettingsPage() {
       {/* Profile */}
       <Card>
         <h2 className="text-xs font-medium uppercase tracking-widest mb-4 flex items-center gap-2" style={{ color: '#A3A3A3' }}>
-          <User size={13} /> プロフィール
+          <User size={13} strokeWidth={1.5} /> プロフィール
         </h2>
         <div className="space-y-4">
           <div>
@@ -246,7 +246,7 @@ export default function SettingsPage() {
       {/* Dates */}
       <Card>
         <h2 className="text-xs font-medium uppercase tracking-widest mb-4 flex items-center gap-2" style={{ color: '#A3A3A3' }}>
-          <Calendar size={13} /> 日付
+          <Calendar size={13} strokeWidth={1.5} /> 日付
         </h2>
         <div className="space-y-4">
           <div>
@@ -269,7 +269,7 @@ export default function SettingsPage() {
       {/* Invite Code */}
       <Card>
         <h2 className="text-xs font-medium uppercase tracking-widest mb-3 flex items-center gap-2" style={{ color: '#A3A3A3' }}>
-          <Link2 size={13} /> 招待コード
+          <Link2 size={13} strokeWidth={1.5} /> 招待コード
         </h2>
         <p className="text-xs mb-2" style={{ color: '#737373' }}>
           あなたのコードをパートナーに共有してください
@@ -281,7 +281,7 @@ export default function SettingsPage() {
           </div>
           <button onClick={copyCode} className="p-3 transition-opacity active:opacity-50"
             style={{ backgroundColor: '#F5F5F3', color: copied ? '#4A7C59' : '#737373', borderRadius: '10px' }}>
-            {copied ? <Check size={18} /> : <Copy size={18} />}
+            {copied ? <Check size={18} strokeWidth={1.5} /> : <Copy size={18} strokeWidth={1.5} />}
           </button>
         </div>
         {/* パートナーのコードを入力するボタン */}
@@ -292,7 +292,7 @@ export default function SettingsPage() {
             style={{ backgroundColor: '#1A1A1A', color: '#FFFFFF', borderRadius: '10px' }}
           >
             パートナーのコードを入力する
-            <ChevronRight size={15} />
+            <ChevronRight size={15} strokeWidth={1.5} />
           </Link>
         )}
         {partnerId && (
@@ -304,7 +304,7 @@ export default function SettingsPage() {
       <Card padding="none">
         <button onClick={toggleHaptics} className="w-full flex items-center justify-between px-4 py-4">
           <div className="flex items-center gap-3">
-            <Vibrate size={16} style={{ color: '#737373' }} />
+            <Vibrate size={16} strokeWidth={1.5} style={{ color: '#737373' }} />
             <div className="text-left">
               <span className="text-sm font-medium" style={{ color: '#1A1A1A' }}>振動フィードバック</span>
               <p className="text-xs mt-0.5" style={{ color: '#A3A3A3' }}>ボタンタップ時に振動します</p>
@@ -326,10 +326,10 @@ export default function SettingsPage() {
       <Card padding="none">
         <button onClick={handleLogout} className="w-full flex items-center justify-between px-4 py-4">
           <div className="flex items-center gap-3">
-            <LogOut size={16} style={{ color: '#B5465A' }} />
+            <LogOut size={16} strokeWidth={1.5} style={{ color: '#B5465A' }} />
             <span className="text-sm font-medium" style={{ color: '#B5465A' }}>ログアウト</span>
           </div>
-          <ChevronRight size={14} style={{ color: '#A3A3A3' }} />
+          <ChevronRight size={14} strokeWidth={1.5} style={{ color: '#A3A3A3' }} />
         </button>
       </Card>
 

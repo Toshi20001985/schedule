@@ -400,8 +400,15 @@ export default function HomePage() {
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'space-between',
+            position: 'relative',
+            overflow: 'hidden',
           }}
         >
+          {/* Gradient colour overlay */}
+          <div aria-hidden style={{
+            position: 'absolute', inset: 0, borderRadius: 'inherit', pointerEvents: 'none',
+            background: 'linear-gradient(135deg, rgba(109,91,208,0.18) 0%, transparent 55%, rgba(45,107,158,0.14) 100%)',
+          }} />
           {/* Top row: greeting + avatars */}
           <div className="flex items-start justify-between">
             <div>
@@ -454,7 +461,7 @@ export default function HomePage() {
                   Next Layover
                 </p>
                 <div className="flex items-center justify-center gap-5">
-                  <Plane size={32} style={{ color: 'var(--color-hero-muted)' }} />
+                  <Plane size={32} strokeWidth={1.5} style={{ color: 'var(--color-hero-muted)' }} />
                   <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: '72px', fontWeight: 400, color: 'var(--color-hero-text)', lineHeight: 1, letterSpacing: '-0.01em' }}>
                     Today!
                   </span>
@@ -500,7 +507,7 @@ export default function HomePage() {
               </div>
               {nextFlightLine && (
                 <p style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-hero-muted)', fontSize: '11px', marginTop: '8px', letterSpacing: '0.04em' }}>
-                  <Plane size={11} style={{ display: 'inline', marginRight: '6px', verticalAlign: 'middle' }} />
+                  <Plane size={11} strokeWidth={1.5} style={{ display: 'inline', marginRight: '6px', verticalAlign: 'middle' }} />
                   {nextFlightLine}
                 </p>
               )}
@@ -548,7 +555,7 @@ export default function HomePage() {
           <Card padding="lg" shadow="sm">
             <div className="flex items-center gap-4">
               <div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--color-trip-soft)' }}>
-                <MapPin size={16} style={{ color: 'var(--color-trip-accent)' }} />
+                <MapPin size={16} strokeWidth={1.5} style={{ color: 'var(--color-trip-accent)' }} />
               </div>
               <div>
                 <p style={{ color: 'var(--color-subtle)', fontSize: '11px', letterSpacing: '0.03em', marginBottom: '5px' }}>行きたい場所</p>
@@ -565,7 +572,7 @@ export default function HomePage() {
           <Card padding="lg" shadow="sm">
             <div className="flex items-center gap-4">
               <div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--color-online-soft)' }}>
-                <Play size={16} style={{ color: 'var(--color-online-accent)' }} />
+                <Play size={16} strokeWidth={1.5} style={{ color: 'var(--color-online-accent)' }} />
               </div>
               <div>
                 <p style={{ color: 'var(--color-subtle)', fontSize: '11px', letterSpacing: '0.03em', marginBottom: '5px' }}>観たい・聴きたい</p>
@@ -599,10 +606,10 @@ export default function HomePage() {
             <div className="space-y-4">
               {[1, 2].map(i => (
                 <div key={i} className="flex items-center gap-3">
-                  <div className="w-1 h-8 rounded-full flex-shrink-0" style={{ backgroundColor: 'var(--color-border)' }} />
+                  <div className="skeleton w-1 h-8 rounded-full flex-shrink-0" />
                   <div className="flex-1 space-y-2">
-                    <div className="h-2.5 rounded" style={{ backgroundColor: 'var(--color-border)', width: '55%' }} />
-                    <div className="h-2 rounded"   style={{ backgroundColor: 'var(--color-border)', width: '35%' }} />
+                    <div className="skeleton h-2.5 rounded" style={{ width: '55%' }} />
+                    <div className="skeleton h-2 rounded"   style={{ width: '35%' }} />
                   </div>
                 </div>
               ))}
@@ -656,7 +663,7 @@ export default function HomePage() {
             {places.map(place => (
               <Link key={place.id} href="/list" className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: 'var(--color-surface)' }}>
-                  <MapPin size={13} style={{ color: 'var(--color-muted)' }} />
+                  <MapPin size={13} strokeWidth={1.5} style={{ color: 'var(--color-muted)' }} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p style={{ color: 'var(--color-text)', fontSize: '14px', fontWeight: 500 }} className="truncate">{place.name}</p>

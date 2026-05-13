@@ -450,6 +450,12 @@ function ListPageInner() {
       {tab === 'places' && (
         <div className="space-y-2.5">
           <p className="text-xs px-1" style={{ color: '#A3A3A3' }}>未訪問 {activePlaces.length}件</p>
+          {activePlaces.length === 0 && (
+            <div className="flex flex-col items-center py-16 gap-3">
+              <MapPin size={28} strokeWidth={1.5} style={{ color: '#D4D4D4' }} />
+              <p className="font-serif italic" style={{ color: '#A3A3A3', fontSize: '15px' }}>行きたい場所を追加しよう</p>
+            </div>
+          )}
           {activePlaces.map(place => (
             <SwipeableListItem key={place.id} onEdit={() => openEditPlace(place)} onDelete={() => deletePlace(place.id)}>
             <Card padding="md" style={{ boxShadow: place.id === highlightedId ? '0 0 0 2px #6D5BD0' : undefined }}>
@@ -468,7 +474,7 @@ function ListPageInner() {
                     <span className="text-xs px-2 py-0.5" style={{ backgroundColor: '#F5F5F3', color: '#737373', borderRadius: '6px' }}>{place.category}</span>
                     {place.location && (
                       <span className="text-xs flex items-center gap-0.5" style={{ color: '#A3A3A3' }}>
-                        <MapPin size={10} /> {place.location}
+                        <MapPin size={10} strokeWidth={1.5} /> {place.location}
                       </span>
                     )}
                   </div>
@@ -476,10 +482,10 @@ function ListPageInner() {
                 </div>
                 <div className="flex gap-1 flex-shrink-0">
                   <button onClick={() => openEditPlace(place)} className="p-1.5 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}>
-                    <Pencil size={14} />
+                    <Pencil size={14} strokeWidth={1.5} />
                   </button>
                   <button onClick={() => deletePlace(place.id)} className="p-1.5 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}>
-                    <Trash2 size={15} />
+                    <Trash2 size={15} strokeWidth={1.5} />
                   </button>
                 </div>
               </div>
@@ -495,15 +501,15 @@ function ListPageInner() {
                 <Card padding="md" style={{ opacity: 0.5 }}>
                   <div className="flex items-center gap-3">
                     <button onClick={() => togglePlaceVisited(place.id)} className="w-5 h-5 rounded flex-shrink-0 flex items-center justify-center" style={{ backgroundColor: '#F0F7F0' }}>
-                      <Check size={12} style={{ color: '#4A7C59' }} />
+                      <Check size={12} strokeWidth={1.5} style={{ color: '#4A7C59' }} />
                     </button>
                     <span className="flex-1 text-sm line-through" style={{ color: '#737373' }}>{place.name}</span>
                     <div className="flex gap-1 flex-shrink-0">
                       <button onClick={() => openEditPlace(place)} className="p-1.5 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}>
-                        <Pencil size={14} />
+                        <Pencil size={14} strokeWidth={1.5} />
                       </button>
                       <button onClick={() => deletePlace(place.id)} className="p-1.5 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}>
-                        <Trash2 size={15} />
+                        <Trash2 size={15} strokeWidth={1.5} />
                       </button>
                     </div>
                   </div>
@@ -519,6 +525,12 @@ function ListPageInner() {
       {tab === 'media' && (
         <div className="space-y-2.5">
           <p className="text-xs px-1" style={{ color: '#A3A3A3' }}>未完了 {media.filter(m => !m.is_done).length}件</p>
+          {media.filter(m => !m.is_done).length === 0 && (
+            <div className="flex flex-col items-center py-16 gap-3">
+              <Play size={28} strokeWidth={1.5} style={{ color: '#D4D4D4' }} />
+              <p className="font-serif italic" style={{ color: '#A3A3A3', fontSize: '15px' }}>観たい・聴きたいを追加しよう</p>
+            </div>
+          )}
           {media.filter(m => !m.is_done).map(item => {
             const config = mediaTypeConfig[item.media_type]
             const Icon = config.icon
@@ -527,7 +539,7 @@ function ListPageInner() {
               <Card padding="md" style={{ boxShadow: item.id === highlightedId ? '0 0 0 2px #6D5BD0' : undefined }}>
                 <div className="flex items-start gap-3">
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: config.bg }}>
-                    <Icon size={15} style={{ color: config.color }} />
+                    <Icon size={15} strokeWidth={1.5} style={{ color: config.color }} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap mb-1">
@@ -565,12 +577,12 @@ function ListPageInner() {
                   <Card padding="md" style={{ opacity: 0.5 }}>
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#F5F5F3' }}>
-                        <Icon size={15} style={{ color: '#A3A3A3' }} />
+                        <Icon size={15} strokeWidth={1.5} style={{ color: '#A3A3A3' }} />
                       </div>
                       <span className="flex-1 text-sm line-through" style={{ color: '#737373' }}>{item.title}</span>
-                      <button onClick={() => toggleMediaDone(item.id)} className="p-1"><Check size={16} style={{ color: '#4A7C59' }} /></button>
-                      <button onClick={() => openEditMedia(item)} className="p-1 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Pencil size={13} /></button>
-                      <button onClick={() => deleteMedia(item.id)} className="p-1 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Trash2 size={15} /></button>
+                      <button onClick={() => toggleMediaDone(item.id)} className="p-1"><Check size={16} strokeWidth={1.5} style={{ color: '#4A7C59' }} /></button>
+                      <button onClick={() => openEditMedia(item)} className="p-1 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Pencil size={13} strokeWidth={1.5} /></button>
+                      <button onClick={() => deleteMedia(item.id)} className="p-1 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Trash2 size={15} strokeWidth={1.5} /></button>
                     </div>
                   </Card>
                   </SwipeableListItem>

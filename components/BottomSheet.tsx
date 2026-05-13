@@ -28,15 +28,17 @@ export default function BottomSheet({
         <Drawer.Content
           className="fixed bottom-0 left-0 right-0 z-50 flex flex-col outline-none"
           style={{
-            backgroundColor: '#FFFFFF',
+            background: 'rgba(255, 255, 255, 0.94)',
+            backdropFilter: 'blur(24px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(24px) saturate(180%)',
             borderRadius: '16px 16px 0 0',
-            borderTop: '0.5px solid #E5E5E5',
+            borderTop: '0.5px solid rgba(255,255,255,0.7)',
             maxHeight: '92dvh',
           }}
         >
           {/* Handle */}
           <div className="flex justify-center pt-3 pb-1">
-            <div className="w-8 h-1 rounded-full" style={{ backgroundColor: '#E5E5E5' }} />
+            <div className="w-9 h-1 rounded-full" style={{ backgroundColor: 'rgba(0,0,0,0.14)' }} />
           </div>
 
           {/* Header */}
@@ -53,7 +55,7 @@ export default function BottomSheet({
                 className="p-1.5 transition-opacity active:opacity-50"
                 style={{ color: '#A3A3A3' }}
               >
-                <X size={18} />
+                <X size={18} strokeWidth={1.5} />
               </button>
             </div>
           ) : (

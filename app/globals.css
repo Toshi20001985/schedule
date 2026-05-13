@@ -146,3 +146,21 @@ body {
 .font-serif {
   font-family: var(--font-serif);
 }
+
+/* ── Skeleton loading ── */
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+.skeleton {
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+  background-color: var(--color-border);
+  border-radius: 4px;
+}
+
+/* ── Gradient divider ── */
+.divider-soft {
+  height: 1px;
+  border: none;
+  background: linear-gradient(to right, transparent, var(--color-border) 30%, var(--color-border) 70%, transparent);
+}

@@ -306,7 +306,7 @@ export default function SearchPage() {
           height: '44px',
         }}
       >
-        <Search size={17} style={{ color: '#A3A3A3', flexShrink: 0 }} />
+        <Search size={17} strokeWidth={1.5} style={{ color: '#A3A3A3', flexShrink: 0 }} />
         <input
           ref={inputRef}
           type="text"
@@ -333,13 +333,20 @@ export default function SearchPage() {
         )}
       </div>
 
-      {/* Loading */}
+      {/* Loading — skeleton cards */}
       {loading && (
-        <div className="flex justify-center py-10">
-          <div
-            className="w-5 h-5 rounded-full border-2 animate-spin"
-            style={{ borderColor: '#E5E5E5', borderTopColor: '#6D5BD0' }}
-          />
+        <div className="space-y-3">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="p-4 rounded-xl" style={{ backgroundColor: 'var(--color-card)' }}>
+              <div className="flex items-start gap-3">
+                <div className="skeleton w-8 h-8 rounded-lg flex-shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <div className="skeleton h-3 rounded" style={{ width: `${50 + i * 10}%` }} />
+                  <div className="skeleton h-2.5 rounded" style={{ width: `${30 + i * 8}%` }} />
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
@@ -352,7 +359,7 @@ export default function SearchPage() {
               <div className="space-y-1">
                 {history.map(q => (
                   <div key={q} className="flex items-center gap-2 py-2">
-                    <Clock size={15} style={{ color: '#A3A3A3', flexShrink: 0 }} />
+                    <Clock size={15} strokeWidth={1.5} style={{ color: '#A3A3A3', flexShrink: 0 }} />
                     <button
                       className="flex-1 text-left text-sm"
                       style={{ color: '#1A1A1A' }}
@@ -373,8 +380,8 @@ export default function SearchPage() {
           )}
           {history.length === 0 && (
             <div className="flex flex-col items-center py-16 gap-3">
-              <Search size={32} style={{ color: '#E5E5E5' }} />
-              <p className="text-sm" style={{ color: '#A3A3A3' }}>キーワードで検索してみよう</p>
+              <Search size={28} strokeWidth={1.5} style={{ color: '#D4D4D4' }} />
+              <p className="font-serif italic" style={{ color: '#A3A3A3', fontSize: '15px' }}>キーワードで検索してみよう</p>
             </div>
           )}
         </>
@@ -383,8 +390,8 @@ export default function SearchPage() {
       {/* No results */}
       {!loading && searched && query && !hasResults && (
         <div className="flex flex-col items-center py-16 gap-3">
-          <Search size={32} style={{ color: '#E5E5E5' }} />
-          <p className="text-sm" style={{ color: '#A3A3A3' }}>「{query}」の検索結果はありません</p>
+          <Search size={28} strokeWidth={1.5} style={{ color: '#D4D4D4' }} />
+          <p className="font-serif italic" style={{ color: '#A3A3A3', fontSize: '15px' }}>「{query}」の結果はありません</p>
         </div>
       )}
 
@@ -395,7 +402,7 @@ export default function SearchPage() {
           {events.length > 0 && (
             <section>
               <div className="flex items-center gap-1.5 mb-2">
-                <CalendarDays size={14} style={{ color: '#6D5BD0' }} />
+                <CalendarDays size={14} strokeWidth={1.5} style={{ color: '#6D5BD0' }} />
                 <p className="text-xs font-medium uppercase tracking-widest" style={{ color: '#A3A3A3' }}>
                   予定 <span style={{ color: '#6D5BD0' }}>{events.length}</span>
                 </p>
@@ -439,7 +446,7 @@ export default function SearchPage() {
           {places.length > 0 && (
             <section>
               <div className="flex items-center gap-1.5 mb-2">
-                <MapPin size={14} style={{ color: '#4A7C59' }} />
+                <MapPin size={14} strokeWidth={1.5} style={{ color: '#4A7C59' }} />
                 <p className="text-xs font-medium uppercase tracking-widest" style={{ color: '#A3A3A3' }}>
                   行きたい場所 <span style={{ color: '#4A7C59' }}>{places.length}</span>
                 </p>
@@ -453,7 +460,7 @@ export default function SearchPage() {
                           className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
                           style={{ backgroundColor: '#F0F7F0' }}
                         >
-                          <MapPin size={14} style={{ color: '#4A7C59' }} />
+                          <MapPin size={14} strokeWidth={1.5} style={{ color: '#4A7C59' }} />
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium" style={{ color: place.is_visited ? '#A3A3A3' : '#1A1A1A' }}>
@@ -490,7 +497,7 @@ export default function SearchPage() {
           {media.length > 0 && (
             <section>
               <div className="flex items-center gap-1.5 mb-2">
-                <Film size={14} style={{ color: '#2D6B9E' }} />
+                <Film size={14} strokeWidth={1.5} style={{ color: '#2D6B9E' }} />
                 <p className="text-xs font-medium uppercase tracking-widest" style={{ color: '#A3A3A3' }}>
                   観たい・聴きたい <span style={{ color: '#2D6B9E' }}>{media.length}</span>
                 </p>

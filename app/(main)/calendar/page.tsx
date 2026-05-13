@@ -7,7 +7,7 @@ import {
   startOfWeek, endOfWeek, isSameMonth, isSameDay, addMonths, subMonths
 } from 'date-fns'
 import { ja } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight, Plus, Trash2, Plane, Pencil, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, Trash2, Plane, Pencil, X, CalendarDays } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import BottomSheet from '@/components/BottomSheet'
@@ -1014,7 +1014,7 @@ function CalendarPageInner() {
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <button onClick={() => changeMonth(-1)} className="p-2 transition-opacity active:opacity-50" style={{ color: '#737373' }}>
-          <ChevronLeft size={20} />
+          <ChevronLeft size={20} strokeWidth={1.5} />
         </button>
         <div className="flex items-center gap-2">
           <h1 className="text-base font-semibold" style={{ color: '#1A1A1A' }}>
@@ -1029,7 +1029,7 @@ function CalendarPageInner() {
           </button>
         </div>
         <button onClick={() => changeMonth(1)} className="p-2 transition-opacity active:opacity-50" style={{ color: '#737373' }}>
-          <ChevronRight size={20} />
+          <ChevronRight size={20} strokeWidth={1.5} />
         </button>
       </div>
 
@@ -1157,9 +1157,10 @@ function CalendarPageInner() {
         title={selectedDate ? format(selectedDate, 'M月d日(E)', { locale: ja }) : undefined}
       >
         {selectedDayEvents.length === 0 ? (
-          <div className="text-center py-10">
-            <p className="text-sm" style={{ color: '#A3A3A3' }}>この日の予定はありません</p>
-            <Button className="mt-4" variant="secondary" onClick={() => { setShowEventSheet(false); setShowAddSheet(true) }}>
+          <div className="flex flex-col items-center py-12 gap-3">
+            <CalendarDays size={28} strokeWidth={1.5} style={{ color: '#D4D4D4' }} />
+            <p className="font-serif italic" style={{ color: '#A3A3A3', fontSize: '15px' }}>この日の予定はありません</p>
+            <Button className="mt-2" variant="secondary" onClick={() => { setShowEventSheet(false); setShowAddSheet(true) }}>
               予定を追加する
             </Button>
           </div>
@@ -1199,7 +1200,7 @@ function CalendarPageInner() {
                         className="p-2 rounded-lg transition-opacity active:opacity-50"
                         style={{ backgroundColor: 'rgba(255,255,255,0.6)', color: '#737373' }}
                       >
-                        <Pencil size={15} />
+                        <Pencil size={15} strokeWidth={1.5} />
                       </button>
                       <button
                         onClick={async () => {
@@ -1215,7 +1216,7 @@ function CalendarPageInner() {
                         className="p-2 rounded-lg transition-opacity active:opacity-50"
                         style={{ backgroundColor: 'rgba(255,255,255,0.6)', color: '#B5465A' }}
                       >
-                        <Trash2 size={16} />
+                        <Trash2 size={16} strokeWidth={1.5} />
                       </button>
                     </div>
                   </div>
