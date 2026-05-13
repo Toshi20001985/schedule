@@ -347,7 +347,7 @@ export default function HomePage() {
   return (
     <PullToRefresh onRefresh={load}>
     <Toast message={toast} onDismiss={() => setToast(null)} />
-    <div className="px-4 pt-4 pb-4 max-w-lg mx-auto space-y-3">
+    <div className="px-5 pt-6 pb-6 max-w-lg mx-auto space-y-6">
 
       {/* ── Hero ─────────────────────────────────────────── */}
       <div
@@ -362,7 +362,7 @@ export default function HomePage() {
           style={{
             backgroundColor: 'var(--color-hero-bg)',
             borderRadius: 'var(--radius-xl)',
-            padding: '24px',
+            padding: '28px 28px 24px',
             minHeight: '46dvh',
             display: 'flex',
             flexDirection: 'column',
@@ -372,10 +372,10 @@ export default function HomePage() {
           {/* Top row: greeting + avatars */}
           <div className="flex items-start justify-between">
             <div>
-              <p style={{ color: 'var(--color-hero-muted)', fontSize: '11px', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+              <p style={{ color: 'var(--color-hero-muted)', fontSize: '10px', letterSpacing: '0.16em', textTransform: 'uppercase', fontWeight: 500 }}>
                 {greeting}
               </p>
-              <p style={{ color: 'var(--color-hero-text)', fontSize: '13px', fontWeight: 500, marginTop: '3px' }}>
+              <p style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--color-hero-text)', fontSize: '16px', fontWeight: 400, marginTop: '5px', letterSpacing: '0.01em' }}>
                 {format(new Date(), 'M月d日(E)', { locale: ja })}
               </p>
             </div>
@@ -395,21 +395,21 @@ export default function HomePage() {
           </div>
 
           {/* Center: countdown */}
-          <div className="flex flex-col items-center justify-center py-4 text-center">
+          <div className="flex flex-col items-center justify-center py-6 text-center">
             {loading ? (
               <div style={{ color: '#555', fontSize: '14px' }}>—</div>
             ) : daysUntilMeeting === null ? (
               /* 予定なし */
               <>
-                <p style={{ color: 'var(--color-hero-muted)', fontSize: '11px', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: '16px' }}>
+                <p style={{ color: 'var(--color-hero-muted)', fontSize: '10px', letterSpacing: '0.18em', textTransform: 'uppercase', fontWeight: 500, marginBottom: '20px' }}>
                   Next Layover
                 </p>
-                <p style={{ color: 'var(--color-hero-text)', fontSize: '22px', fontWeight: 300, lineHeight: 1.4 }}>
+                <p style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--color-hero-text)', fontSize: '26px', fontWeight: 400, lineHeight: 1.45 }}>
                   Let&apos;s plan<br />our next meet
                 </p>
                 <div
-                  className="mt-5 px-5 py-2 text-sm font-medium"
-                  style={{ backgroundColor: 'rgba(255,255,255,0.08)', color: 'var(--color-hero-subtle)', borderRadius: '100px', border: '0.5px solid rgba(255,255,255,0.12)' }}
+                  className="mt-6 px-5 py-2 text-xs font-medium"
+                  style={{ backgroundColor: 'rgba(255,255,255,0.07)', color: 'var(--color-hero-subtle)', borderRadius: '100px', border: '0.5px solid rgba(255,255,255,0.12)', letterSpacing: '0.04em' }}
                 >
                   カレンダーで追加する →
                 </div>
@@ -417,12 +417,12 @@ export default function HomePage() {
             ) : daysUntilMeeting === 0 ? (
               /* 当日 */
               <>
-                <p style={{ color: 'var(--color-me)', fontSize: '11px', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: '16px' }}>
+                <p style={{ color: 'var(--color-me)', fontSize: '10px', letterSpacing: '0.18em', textTransform: 'uppercase', fontWeight: 500, marginBottom: '20px' }}>
                   Next Layover
                 </p>
-                <div className="flex items-center justify-center gap-4">
-                  <Plane size={36} style={{ color: 'var(--color-hero-text)' }} />
-                  <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: '64px', fontWeight: 400, color: 'var(--color-hero-text)', lineHeight: 1, letterSpacing: '-0.01em' }}>
+                <div className="flex items-center justify-center gap-5">
+                  <Plane size={32} style={{ color: 'var(--color-hero-muted)' }} />
+                  <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: '72px', fontWeight: 400, color: 'var(--color-hero-text)', lineHeight: 1, letterSpacing: '-0.01em' }}>
                     Today!
                   </span>
                 </div>
@@ -430,14 +430,14 @@ export default function HomePage() {
             ) : (
               /* 通常カウントダウン */
               <>
-                <p style={{ color: 'var(--color-hero-muted)', fontSize: '11px', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: '8px' }}>
+                <p style={{ color: 'var(--color-hero-muted)', fontSize: '10px', letterSpacing: '0.18em', textTransform: 'uppercase', fontWeight: 500, marginBottom: '12px' }}>
                   Next Layover
                 </p>
-                <div className="flex items-baseline gap-3" style={{ lineHeight: 1 }}>
-                  <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: '104px', fontWeight: 400, color: 'var(--color-hero-text)', lineHeight: 0.9, letterSpacing: '-0.02em' }}>
+                <div className="flex items-baseline gap-2" style={{ lineHeight: 1 }}>
+                  <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: '108px', fontWeight: 400, color: 'var(--color-hero-text)', lineHeight: 0.88, letterSpacing: '-0.03em' }}>
                     {displayCount}
                   </span>
-                  <span style={{ color: 'var(--color-hero-muted)', fontSize: '22px', fontWeight: 300 }}>
+                  <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--color-hero-muted)', fontSize: '28px', fontWeight: 400, letterSpacing: '-0.01em' }}>
                     days
                   </span>
                 </div>
@@ -449,7 +449,7 @@ export default function HomePage() {
           {nextMeeting && !loading && (
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <span style={{ color: 'var(--color-hero-subtle)', fontSize: '13px' }}>
+                <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--color-hero-subtle)', fontSize: '15px' }}>
                   {format(nextMeeting, 'M月d日(E)', { locale: ja })}
                 </span>
                 <span style={{
@@ -514,29 +514,29 @@ export default function HomePage() {
       </div>
 
       {/* ── Stats row ──────────────────────────────────────── */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-4">
         <Link href="/list" className="block">
-          <Card padding="md">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg" style={{ backgroundColor: '#F0F7F0' }}>
-                <MapPin size={15} style={{ color: '#4A7C59' }} />
+          <Card padding="lg" shadow="sm">
+            <div className="flex items-center gap-4">
+              <div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--color-trip-soft)' }}>
+                <MapPin size={16} style={{ color: 'var(--color-trip-accent)' }} />
               </div>
               <div>
-                <p className="text-xs" style={{ color: '#A3A3A3' }}>行きたい場所</p>
-                <p className="text-xl font-semibold" style={{ color: '#1A1A1A' }}>{loading ? '—' : placesCount}</p>
+                <p style={{ color: 'var(--color-subtle)', fontSize: '11px', letterSpacing: '0.03em', marginBottom: '5px' }}>行きたい場所</p>
+                <p style={{ fontFamily: 'var(--font-mono)', fontSize: '26px', fontWeight: 500, color: 'var(--color-text)', lineHeight: 1 }}>{loading ? '—' : placesCount}</p>
               </div>
             </div>
           </Card>
         </Link>
         <Link href="/list?tab=media" className="block">
-          <Card padding="md">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg" style={{ backgroundColor: '#FFF7F0' }}>
-                <Play size={15} style={{ color: '#C2782D' }} />
+          <Card padding="lg" shadow="sm">
+            <div className="flex items-center gap-4">
+              <div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--color-online-soft)' }}>
+                <Play size={16} style={{ color: 'var(--color-online-accent)' }} />
               </div>
               <div>
-                <p className="text-xs" style={{ color: '#A3A3A3' }}>観たい・聴きたい</p>
-                <p className="text-xl font-semibold" style={{ color: '#1A1A1A' }}>{loading ? '—' : mediaCount}</p>
+                <p style={{ color: 'var(--color-subtle)', fontSize: '11px', letterSpacing: '0.03em', marginBottom: '5px' }}>観たい・聴きたい</p>
+                <p style={{ fontFamily: 'var(--font-mono)', fontSize: '26px', fontWeight: 500, color: 'var(--color-text)', lineHeight: 1 }}>{loading ? '—' : mediaCount}</p>
               </div>
             </div>
           </Card>
@@ -545,27 +545,32 @@ export default function HomePage() {
 
       {/* ── Upcoming events ────────────────────────────────── */}
       {(loading || upcomingEvents.length > 0) && (
-        <Card>
-          <div className="flex items-center justify-between mb-2.5">
-            <h2 className="text-sm font-semibold" style={{ color: '#1A1A1A' }}>近いイベント</h2>
-            <Link href="/calendar" className="text-xs" style={{ color: '#A3A3A3' }}>
+        <Card padding="lg" shadow="sm">
+          <div className="flex items-start justify-between mb-5">
+            <div>
+              <p style={{ color: 'var(--color-subtle)', fontSize: '10px', letterSpacing: '0.16em', textTransform: 'uppercase', fontWeight: 500, marginBottom: '5px' }}>
+                Coming up
+              </p>
+              <h2 style={{ color: 'var(--color-text)', fontSize: '16px', fontWeight: 600 }}>近いイベント</h2>
+            </div>
+            <Link href="/calendar" style={{ color: 'var(--color-subtle)', fontSize: '12px', marginTop: '20px' }}>
               すべて見る →
             </Link>
           </div>
           {loading ? (
-            <div className="space-y-2.5">
+            <div className="space-y-4">
               {[1, 2].map(i => (
                 <div key={i} className="flex items-center gap-3">
-                  <div className="w-1 h-7 rounded-full flex-shrink-0" style={{ backgroundColor: '#E5E5E5' }} />
-                  <div className="flex-1 space-y-1.5">
-                    <div className="h-2.5 rounded" style={{ backgroundColor: '#E5E5E5', width: '55%' }} />
-                    <div className="h-2 rounded"   style={{ backgroundColor: '#E5E5E5', width: '35%' }} />
+                  <div className="w-1 h-8 rounded-full flex-shrink-0" style={{ backgroundColor: 'var(--color-border)' }} />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-2.5 rounded" style={{ backgroundColor: 'var(--color-border)', width: '55%' }} />
+                    <div className="h-2 rounded"   style={{ backgroundColor: 'var(--color-border)', width: '35%' }} />
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="space-y-2.5">
+            <div className="space-y-4">
               {upcomingEvents.slice(0, 4).map(event => {
                 const config    = eventTypeConfig[event.type]
                 const startDate = new Date(event.date.replace(/-/g, '/'))
@@ -577,12 +582,12 @@ export default function HomePage() {
                   : format(startDate, 'M月d日(E)', { locale: ja })
                 return (
                   <Link key={event.id} href={`/calendar?date=${event.date}`} className="flex items-center gap-3">
-                    <div className="w-1 h-7 rounded-full flex-shrink-0" style={{ backgroundColor: config.text }} />
+                    <div className="w-0.5 h-8 rounded-full flex-shrink-0" style={{ backgroundColor: config.text }} />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate" style={{ color: '#1A1A1A' }}>{event.title}</p>
-                      <p className="text-xs" style={{ color: '#A3A3A3' }}>{dateLabel}</p>
+                      <p style={{ color: 'var(--color-text)', fontSize: '14px', fontWeight: 500 }} className="truncate">{event.title}</p>
+                      <p style={{ color: 'var(--color-subtle)', fontSize: '12px', marginTop: '2px' }}>{dateLabel}</p>
                     </div>
-                    <span className="text-xs px-2 py-0.5 flex-shrink-0" style={{ backgroundColor: config.bg, color: config.text, borderRadius: '6px' }}>
+                    <span style={{ backgroundColor: config.bg, color: config.text, fontSize: '11px', fontWeight: 500, padding: '3px 10px', borderRadius: 'var(--radius-sm)', flexShrink: 0 }}>
                       {config.label}
                     </span>
                   </Link>
@@ -595,22 +600,27 @@ export default function HomePage() {
 
       {/* ── Recent places (compact) ────────────────────────── */}
       {places.length > 0 && !loading && (
-        <Card>
-          <div className="flex items-center justify-between mb-2.5">
-            <h2 className="text-sm font-semibold" style={{ color: '#1A1A1A' }}>最近追加された場所</h2>
-            <Link href="/list" style={{ color: '#A3A3A3' }}>
-              <MapPin size={13} />
+        <Card padding="lg" shadow="sm">
+          <div className="flex items-start justify-between mb-5">
+            <div>
+              <p style={{ color: 'var(--color-subtle)', fontSize: '10px', letterSpacing: '0.16em', textTransform: 'uppercase', fontWeight: 500, marginBottom: '5px' }}>
+                Wishlist
+              </p>
+              <h2 style={{ color: 'var(--color-text)', fontSize: '16px', fontWeight: 600 }}>最近追加された場所</h2>
+            </div>
+            <Link href="/list" style={{ color: 'var(--color-subtle)', marginTop: '20px' }}>
+              <MapPin size={14} />
             </Link>
           </div>
-          <div className="space-y-2">
+          <div className="space-y-3">
             {places.map(place => (
-              <Link key={place.id} href="/list" className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#F5F5F3' }}>
-                  <MapPin size={12} style={{ color: '#737373' }} />
+              <Link key={place.id} href="/list" className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: 'var(--color-surface)' }}>
+                  <MapPin size={13} style={{ color: 'var(--color-muted)' }} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate" style={{ color: '#1A1A1A' }}>{place.name}</p>
-                  <p className="text-xs" style={{ color: '#A3A3A3' }}>{place.location}</p>
+                  <p style={{ color: 'var(--color-text)', fontSize: '14px', fontWeight: 500 }} className="truncate">{place.name}</p>
+                  <p style={{ color: 'var(--color-subtle)', fontSize: '12px', marginTop: '2px' }}>{place.location}</p>
                 </div>
                 <Tag label={placeOwnerLabel(place.owner)} owner={place.owner} />
               </Link>
