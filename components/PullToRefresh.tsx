@@ -21,13 +21,16 @@ export function PullToRefresh({ onRefresh, children }: Props) {
   const onRefreshRef = useRef(onRefresh)
   useEffect(() => { onRefreshRef.current = onRefresh }, [onRefresh])
 
-  const startYRef     = useRef(0)
-  const startXRef     = useRef(0)
-  const pullDistRef   = useRef(0)
-  const isPullingRef  = useRef(false)
-  const refreshingRef = useRef(false)
+  const startYRef      = useRef(0)
+  const startXRef      = useRef(0)
+  const pullDistRef    = useRef(0)
+  const isPullingRef   = useRef(false)
+  const refreshingRef  = useRef(false)
   // null = 未確定, 'v' = 縦, 'h' = 横
-  const axisRef = useRef<'v' | 'h' | null>(null)
+  const axisRef        = useRef<'v' | 'h' | null>(null)
+  // このコンポーネントが touchstart を受け取ったかどうか
+  // （マウント直後に進行中のジェスチャーを拾わないためのガード）
+  const touchStartedRef = useRef(false)
 
   useEffect(() => {
     const el = containerRef.current
@@ -54,13 +57,16 @@ export function PullToRefresh({ onRefresh, children }: Props) {
     function onTouchStart(e: TouchEvent) {
       if (refreshingRef.current) return
       if (scrollParent.scrollTop > 0) return
-      startYRef.current  = e.touches[0].clientY
-      startXRef.current  = e.touches[0].clientX
-      axisRef.current    = null
-      isPullingRef.current = false
+      touchStartedRef.current  = true
+      startYRef.current        = e.touches[0].clientY
+      startXRef.current        = e.touches[0].clientX
+      axisRef.current          = null
+      isPullingRef.current     = false
     }
 
     function onTouchMove(e: TouchEvent) {
+      // このコンポーネントのマウント前に始まったジェスチャーは無視
+      if (!touchStartedRef.current) return
       if (refreshingRef.current) return
       if (scrollParent.scrollTop > 0) {
         if (isPullingRef.current) resetPull()
@@ -95,6 +101,7 @@ export function PullToRefresh({ onRefresh, children }: Props) {
     }
 
     async function onTouchEnd() {
+      touchStartedRef.current = false
       axisRef.current = null
       if (!isPullingRef.current) return
       isPullingRef.current = false
@@ -123,6 +130,9 @@ export function PullToRefresh({ onRefresh, children }: Props) {
       el.removeEventListener('touchstart', onTouchStart)
       el.removeEventListener('touchmove',  onTouchMove)
       el.removeEventListener('touchend',   onTouchEnd)
+      // アンマウント時にリフレッシュ中フラグもリセット
+      refreshingRef.current   = false
+      touchStartedRef.current = false
     }
   }, [])
 
@@ -140,7 +150,7 @@ export function PullToRefresh({ onRefresh, children }: Props) {
           height: indicatorHeight,
           overflow: 'hidden',
           transition: !refreshing && pullDistance === 0 ? 'height 0.2s ease' : 'none',
-          color: thresholdReached || refreshing ? '#1A1A1A' : '#A3A3A3',
+          color: thresholdReached || refreshing ? 'var(--color-text)' : 'var(--color-subtle)',
         }}
       >
         <RefreshCw
