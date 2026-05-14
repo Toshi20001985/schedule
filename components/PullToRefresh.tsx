@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useRef, useEffect, ReactNode } from 'react'
-import { RefreshCw } from 'lucide-react'
+import { RefreshCw, CheckCircle } from 'lucide-react'
+import { AnimatePresence, motion } from 'framer-motion'
 import { haptic } from '@/lib/haptics'
 
 interface Props {
@@ -14,7 +15,8 @@ const MAX_PULL = 120
 
 export function PullToRefresh({ onRefresh, children }: Props) {
   const [pullDistance, setPullDistance] = useState(0)
-  const [refreshing, setRefreshing] = useState(false)
+  const [refreshing, setRefreshing]     = useState(false)
+  const [done, setDone]                 = useState(false)
 
   const containerRef = useRef<HTMLDivElement>(null)
   // onRefresh を ref で保持して useEffect の再登録を防ぐ
@@ -118,6 +120,9 @@ export function PullToRefresh({ onRefresh, children }: Props) {
         } finally {
           refreshingRef.current = false
           setRefreshing(false)
+          // 完了チェックマークを 800ms 表示
+          setDone(true)
+          setTimeout(() => setDone(false), 800)
         }
       }
     }
@@ -145,9 +150,12 @@ export function PullToRefresh({ onRefresh, children }: Props) {
   }, [])
 
   const thresholdReached = pullDistance >= THRESHOLD
-  // インジケーターの高さで content を自然に押し下げる（transform は使わない）
-  // → position: fixed の FAB に干渉しない
-  const indicatorHeight = refreshing ? 48 : pullDistance
+  // done 中も高さを維持して、チェックマークが消えるまで見せる
+  const indicatorHeight = (refreshing || done) ? 48 : pullDistance
+  const showTransition  = !refreshing && pullDistance === 0
+
+  // インジケーターの状態キー
+  const indicatorKey = done ? 'done' : refreshing ? 'refreshing' : 'pulling'
 
   return (
     <div ref={containerRef}>
@@ -157,20 +165,57 @@ export function PullToRefresh({ onRefresh, children }: Props) {
         style={{
           height: indicatorHeight,
           overflow: 'hidden',
-          transition: !refreshing && pullDistance === 0 ? 'height 0.2s ease' : 'none',
-          color: thresholdReached || refreshing ? 'var(--color-text)' : 'var(--color-subtle)',
+          transition: showTransition ? 'height 0.2s ease' : 'none',
+          color: (thresholdReached || refreshing || done)
+            ? 'var(--color-text)'
+            : 'var(--color-subtle)',
         }}
       >
-        <RefreshCw
-          size={16}
-          className={refreshing ? 'animate-spin' : ''}
-          style={!refreshing ? { transform: `rotate(${pullDistance * 2.5}deg)` } : undefined}
-        />
-        {!refreshing && pullDistance > 0 && (
-          <span className="text-xs">
-            {thresholdReached ? '離して更新' : '引っ張って更新'}
-          </span>
-        )}
+        <AnimatePresence mode="wait" initial={false}>
+          {done ? (
+            // ── 完了チェックマーク ──
+            <motion.div
+              key="done"
+              initial={{ opacity: 0, scale: 0.5 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.5 }}
+              transition={{ duration: 0.22, ease: 'backOut' }}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+            >
+              <CheckCircle size={16} strokeWidth={1.5} style={{ color: '#4A7C59' }} />
+            </motion.div>
+          ) : refreshing ? (
+            // ── リフレッシュ中スピナー ──
+            <motion.div
+              key="refreshing"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+            >
+              <RefreshCw size={16} strokeWidth={1.5} className="animate-spin" />
+            </motion.div>
+          ) : pullDistance > 0 ? (
+            // ── 引っ張り中 ──
+            <motion.div
+              key="pulling"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.1 }}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+            >
+              <RefreshCw
+                size={16}
+                strokeWidth={1.5}
+                style={{ transform: `rotate(${pullDistance * 2.5}deg)` }}
+              />
+              <span className="text-xs">
+                {thresholdReached ? '離して更新' : '引っ張って更新'}
+              </span>
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
       </div>
 
       {children}

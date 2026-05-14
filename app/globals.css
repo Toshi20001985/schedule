@@ -164,3 +164,12 @@ body {
   border: none;
   background: linear-gradient(to right, transparent, var(--color-border) 30%, var(--color-border) 70%, transparent);
 }
+
+/* ── Input focus ring ── */
+/* box-shadow でフォーカス時のリングを表現（outline は各コンポーネントで none 設定済み） */
+input, textarea, select {
+  transition: box-shadow 0.18s ease, border-color 0.18s ease;
+}
+input:focus, textarea:focus, select:focus {
+  box-shadow: 0 0 0 3px rgba(109, 91, 208, 0.10);
+}

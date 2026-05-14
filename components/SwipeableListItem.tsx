@@ -18,12 +18,16 @@ const OPEN_THR = -48   // メニューを開くスワイプ閾値
  * 左スワイプで編集・削除ボタンを表示するリストアイテムラッパー。
  * - ネイティブ touchmove (passive: false) で縦スクロールと排他制御
  * - CSS transform アニメーション（React state は最小）
+ * - スワイプ量に応じて削除ボタンの赤が濃くなる
+ * - 閾値超え時に haptic('light') を一度だけ発火
  */
 export function SwipeableListItem({ children, onEdit, onDelete }: SwipeableListItemProps) {
-  const outerRef  = useRef<HTMLDivElement>(null)
-  const innerRef  = useRef<HTMLDivElement>(null)
-  const currentX  = useRef(0)
-  const isOpenRef = useRef(false)
+  const outerRef        = useRef<HTMLDivElement>(null)
+  const innerRef        = useRef<HTMLDivElement>(null)
+  const deleteBtnRef    = useRef<HTMLButtonElement>(null)
+  const currentX        = useRef(0)
+  const isOpenRef       = useRef(false)
+  const thresholdFired  = useRef(false)
   const [isOpen, setIsOpen] = useState(false)
 
   /** transform をアニメーション付きで設定 */
@@ -35,10 +39,19 @@ export function SwipeableListItem({ children, onEdit, onDelete }: SwipeableListI
     currentX.current    = x
   }
 
+  /** 削除ボタンの背景色を通常に戻す（transition 付き） */
+  const resetDeleteColor = () => {
+    const btn = deleteBtnRef.current
+    if (!btn) return
+    btn.style.transition       = 'background-color 0.2s ease'
+    btn.style.backgroundColor  = '#B5465A'
+  }
+
   const close = (animate = true) => {
     setX(0, animate)
     isOpenRef.current = false
     setIsOpen(false)
+    resetDeleteColor()
   }
 
   const openMenu = () => {
@@ -64,6 +77,11 @@ export function SwipeableListItem({ children, onEdit, onDelete }: SwipeableListI
       startY = e.touches[0].clientY
       baseX  = currentX.current
       axis   = null
+      // すでにメニューが開いていれば閾値は超え済み扱い
+      thresholdFired.current = isOpenRef.current
+      // スワイプ開始時はトランジションを切って即時反応に
+      const btn = deleteBtnRef.current
+      if (btn) btn.style.transition = 'none'
     }
 
     function onTouchMove(e: TouchEvent) {
@@ -85,11 +103,30 @@ export function SwipeableListItem({ children, onEdit, onDelete }: SwipeableListI
       inner.style.transition = 'none'
       inner.style.transform  = `translateX(${newX}px)`
       currentX.current       = newX
+
+      // ── 削除ボタンの色：スワイプ進行度に応じて濃くなる ──
+      if (deleteBtnRef.current && onDelete) {
+        const progress = Math.min(1, Math.abs(newX) / Math.abs(OPEN_X))
+        // 薄い赤(0.45) → 濃い赤(1.0)
+        deleteBtnRef.current.style.backgroundColor =
+          `rgba(181, 70, 90, ${0.45 + progress * 0.55})`
+      }
+
+      // ── 閾値超え時にハプティックを一度だけ発火 ──
+      if (!thresholdFired.current && newX <= OPEN_THR) {
+        thresholdFired.current = true
+        haptic('light')
+      } else if (newX > OPEN_THR) {
+        thresholdFired.current = false
+      }
     }
 
     function onTouchEnd() {
       if (axis !== 'h') { axis = null; return }
       axis = null
+
+      // スワイプ終了：色をリセット（スナップ先は open/close が管理）
+      resetDeleteColor()
 
       const x = currentX.current
       if (x < OPEN_THR) {
@@ -147,7 +184,8 @@ export function SwipeableListItem({ children, onEdit, onDelete }: SwipeableListI
           )}
           {onDelete && (
             <button
-              className="flex-1 flex flex-col items-center justify-center gap-1 active:opacity-70 transition-opacity"
+              ref={deleteBtnRef}
+              className="flex-1 flex flex-col items-center justify-center gap-1 active:opacity-70"
               style={{ backgroundColor: '#B5465A' }}
               onClick={() => { close(); haptic('warning'); onDelete() }}
             >
