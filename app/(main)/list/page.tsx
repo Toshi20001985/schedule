@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { MapPin, Play, Check, Plus, Film, Music, Book, Tv, Trash2, Pencil } from 'lucide-react'
+import { MapPin, Play, Check, Plus, Film, Music, Book, Tv, Trash2, Pencil, Star } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Tag from '@/components/ui/Tag'
@@ -30,6 +30,15 @@ interface MediaItem {
   id: string
   title: string
   media_type: 'movie' | 'tv' | 'anime' | 'music' | 'book' | 'other'
+  memo?: string
+  is_done: boolean
+  owner: Owner
+}
+
+interface Todo {
+  id: string
+  title: string
+  category: string
   memo?: string
   is_done: boolean
   owner: Owner
@@ -68,6 +77,18 @@ function toPlace(r: Record<string, unknown>): Place {
   }
 }
 
+/** Realtime payload の todos レコードを Todo にマップ */
+function toTodo(r: Record<string, unknown>): Todo {
+  return {
+    id:       r.id       as string,
+    title:    r.title    as string,
+    category:(r.category as string | null) ?? '',
+    memo:    (r.memo     as string | null) ?? undefined,
+    is_done:  r.is_done  as boolean,
+    owner:   (r.owner    as Owner) ?? 'both',
+  }
+}
+
 /** Realtime payload の media レコードを MediaItem にマップ */
 function toMedia(r: Record<string, unknown>): MediaItem {
   return {
@@ -82,11 +103,13 @@ function toMedia(r: Record<string, unknown>): MediaItem {
 
 function ListPageInner() {
   const searchParams = useSearchParams()
-  const [tab, setTab] = useState<'places' | 'media'>(
-    searchParams.get('tab') === 'media' ? 'media' : 'places'
+  const [tab, setTab] = useState<'places' | 'media' | 'todos'>(
+    searchParams.get('tab') === 'media'  ? 'media'  :
+    searchParams.get('tab') === 'todos'  ? 'todos'  : 'places'
   )
   const [places, setPlaces] = useState<Place[]>([])
-  const [media, setMedia] = useState<MediaItem[]>([])
+  const [media,  setMedia]  = useState<MediaItem[]>([])
+  const [todos,  setTodos]  = useState<Todo[]>([])
   const [myId, setMyId] = useState<string | null>(null)
   const [coupleId, setCoupleId] = useState<string | null>(null)
   const [myName, setMyName] = useState('わたし')
@@ -95,11 +118,14 @@ function ListPageInner() {
   const [showSheet, setShowSheet] = useState(false)
   const [editingPlace, setEditingPlace] = useState<Place | null>(null)
   const [editingMedia, setEditingMedia] = useState<MediaItem | null>(null)
+  const [editingTodo,  setEditingTodo]  = useState<Todo | null>(null)
   const [newName, setNewName] = useState('')
   const [newCategory, setNewCategory] = useState('')
   const [newLocation, setNewLocation] = useState('')
   const [newMediaTitle, setNewMediaTitle] = useState('')
   const [newMediaType, setNewMediaType] = useState<MediaItem['media_type']>('movie')
+  const [newTodoTitle,    setNewTodoTitle]    = useState('')
+  const [newTodoCategory, setNewTodoCategory] = useState('')
   const [newMemo, setNewMemo] = useState('')
   const [newOwner, setNewOwner] = useState<Owner>('both')
   const [highlightedId, setHighlightedId] = useState<string | null>(null)
@@ -131,6 +157,11 @@ function ListPageInner() {
         { id: '2', title: 'スラムダンク',            media_type: 'anime', is_done: false, owner: 'partner' },
         { id: '3', title: 'Taylor Swift - Eras Tour', media_type: 'music', is_done: false, owner: 'me' },
         { id: '4', title: '呪術廻戦',                media_type: 'tv',    is_done: false, owner: 'both' },
+      ])
+      setTodos([
+        { id: '1', title: '富士山に登る',     category: 'アウトドア', is_done: false, owner: 'both' },
+        { id: '2', title: '花火大会に行く',   category: 'イベント',   is_done: false, owner: 'both' },
+        { id: '3', title: '手料理をふるまう', category: 'グルメ',     memo: '得意料理を作りたい', is_done: true, owner: 'me' },
       ])
       return
     }
@@ -171,13 +202,17 @@ function ListPageInner() {
       }
     }
 
-    const [{ data: placesData }, { data: mediaData }] = await Promise.all([
+    const [{ data: placesData }, { data: mediaData }, { data: todosData }] = await Promise.all([
       db.from('places')
         .select('id, name, category, location, memo, is_visited, owner')
         .eq('couple_id', cId)
         .order('created_at', { ascending: false }),
       db.from('media')
         .select('id, title, media_type, memo, is_done, owner')
+        .eq('couple_id', cId)
+        .order('created_at', { ascending: false }),
+      db.from('todos')
+        .select('id, title, category, memo, is_done, owner')
         .eq('couple_id', cId)
         .order('created_at', { ascending: false }),
     ])
@@ -205,6 +240,18 @@ function ListPageInner() {
         memo: m.memo ?? undefined,
         is_done: m.is_done,
         owner: (m.owner as Owner) ?? 'me',
+      })))
+    }
+    if (todosData) {
+      setTodos(todosData.map((t: {
+        id: string; title: string; category?: string
+        memo?: string; is_done: boolean; owner?: Owner
+      }) => ({
+        id: t.id, title: t.title,
+        category: t.category ?? '',
+        memo: t.memo ?? undefined,
+        is_done: t.is_done,
+        owner: (t.owner as Owner) ?? 'both',
       })))
     }
   }, [])
@@ -240,6 +287,28 @@ function ListPageInner() {
       if (isPartner) haptic('light')
     },
     onDelete: (id) => setPlaces(prev => prev.filter(x => x.id !== id)),
+  })
+
+  // Realtime 購読 — todos
+  useRealtimeSync({
+    table: 'todos',
+    coupleId,
+    myId,
+    onInsert: (rec, isPartner) => {
+      const t = toTodo(rec)
+      setTodos(prev => prev.some(x => x.id === t.id) ? prev : [t, ...prev])
+      if (isPartner) {
+        haptic('light')
+        setHighlightedId(t.id)
+        setToast(`「${t.title}」が追加されました`)
+      }
+    },
+    onUpdate: (rec, isPartner) => {
+      const t = toTodo(rec)
+      setTodos(prev => prev.map(x => x.id === t.id ? t : x))
+      if (isPartner) haptic('light')
+    },
+    onDelete: (id) => setTodos(prev => prev.filter(x => x.id !== id)),
   })
 
   // Realtime 購読 — media
@@ -306,6 +375,31 @@ function ListPageInner() {
     }
   }
 
+  async function toggleTodoDone(id: string) {
+    haptic('light')
+    const todo = todos.find(t => t.id === id)
+    if (!todo) return
+    const next = !todo.is_done
+    setTodos(prev => prev.map(t => t.id === id ? { ...t, is_done: next } : t))
+    if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      const { createClient } = await import('@/lib/supabase/client')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const db = createClient() as any
+      await db.from('todos').update({ is_done: next }).eq('id', id)
+    }
+  }
+
+  async function deleteTodo(id: string) {
+    haptic('warning')
+    setTodos(prev => prev.filter(t => t.id !== id))
+    if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      const { createClient } = await import('@/lib/supabase/client')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const db = createClient() as any
+      await db.from('todos').delete().eq('id', id)
+    }
+  }
+
   async function deleteMedia(id: string) {
     haptic('warning')
     setMedia(prev => prev.filter(m => m.id !== id))
@@ -321,7 +415,8 @@ function ListPageInner() {
     setNewName(''); setNewCategory(''); setNewLocation('')
     setNewMediaTitle(''); setNewMemo(''); setNewOwner('both')
     setNewMediaType('movie')
-    setEditingPlace(null); setEditingMedia(null)
+    setNewTodoTitle(''); setNewTodoCategory('')
+    setEditingPlace(null); setEditingMedia(null); setEditingTodo(null)
   }
 
   function openEditPlace(place: Place) {
@@ -332,6 +427,16 @@ function ListPageInner() {
     setNewMemo(place.memo ?? '')
     setNewOwner(place.owner)
     setTab('places')
+    setShowSheet(true)
+  }
+
+  function openEditTodo(todo: Todo) {
+    setEditingTodo(todo)
+    setNewTodoTitle(todo.title)
+    setNewTodoCategory(todo.category)
+    setNewMemo(todo.memo ?? '')
+    setNewOwner(todo.owner)
+    setTab('todos')
     setShowSheet(true)
   }
 
@@ -362,6 +467,41 @@ function ListPageInner() {
       }
     } else {
       setPlaces(prev => [{ id: Date.now().toString(), name: newName, category: newCategory || 'その他', location: newLocation, memo: newMemo || undefined, is_visited: false, owner: newOwner }, ...prev])
+    }
+    haptic('success')
+    resetForm(); setShowSheet(false)
+  }
+
+  async function handleAddTodo() {
+    if (!newTodoTitle) return
+    if (process.env.NEXT_PUBLIC_SUPABASE_URL && myId && coupleId) {
+      const { createClient } = await import('@/lib/supabase/client')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const db = createClient() as any
+      const { data, error } = await db.from('todos').insert({
+        couple_id: coupleId, added_by: myId,
+        title: newTodoTitle, category: newTodoCategory || '',
+        memo: newMemo || null, is_done: false, owner: newOwner,
+      }).select().single()
+      if (!error && data) {
+        setTodos(prev => [{ id: data.id, title: data.title, category: data.category ?? '', memo: data.memo ?? undefined, is_done: false, owner: newOwner }, ...prev])
+      }
+    } else {
+      setTodos(prev => [{ id: Date.now().toString(), title: newTodoTitle, category: newTodoCategory, memo: newMemo || undefined, is_done: false, owner: newOwner }, ...prev])
+    }
+    haptic('success')
+    resetForm(); setShowSheet(false)
+  }
+
+  async function handleUpdateTodo() {
+    if (!editingTodo || !newTodoTitle) return
+    const updates = { title: newTodoTitle, category: newTodoCategory, memo: newMemo || null, owner: newOwner }
+    setTodos(prev => prev.map(t => t.id === editingTodo.id ? { ...t, ...updates, memo: newMemo || undefined } : t))
+    if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      const { createClient } = await import('@/lib/supabase/client')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const db = createClient() as any
+      await db.from('todos').update(updates).eq('id', editingTodo.id)
     }
     haptic('success')
     resetForm(); setShowSheet(false)
@@ -428,19 +568,21 @@ function ListPageInner() {
         {[
           { key: 'places', icon: MapPin, label: '行きたい場所' },
           { key: 'media',  icon: Play,   label: '観たい・聴きたい' },
+          { key: 'todos',  icon: Star,   label: 'やりたいこと' },
         ].map(({ key, icon: Icon, label }) => (
           <button
             key={key}
-            onClick={() => { haptic('light'); setTab(key as 'places' | 'media') }}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium transition-all"
+            onClick={() => { haptic('light'); setTab(key as 'places' | 'media' | 'todos') }}
+            className="flex-1 flex items-center justify-center gap-1 py-2 font-medium transition-all"
             style={{
+              fontSize: '11px',
               backgroundColor: tab === key ? '#FFFFFF' : 'transparent',
               color: tab === key ? '#1A1A1A' : '#737373',
               borderRadius: '8px',
               border: tab === key ? '0.5px solid #E5E5E5' : 'none',
             }}
           >
-            <Icon size={14} />
+            <Icon size={12} />
             {label}
           </button>
         ))}
@@ -593,6 +735,76 @@ function ListPageInner() {
         </div>
       )}
 
+      {/* Todos Tab */}
+      {tab === 'todos' && (
+        <div className="space-y-2.5">
+          <p className="text-xs px-1" style={{ color: '#A3A3A3' }}>未完了 {todos.filter(t => !t.is_done).length}件</p>
+          {todos.filter(t => !t.is_done).length === 0 && (
+            <div className="flex flex-col items-center py-16 gap-3">
+              <Star size={28} strokeWidth={1.5} style={{ color: '#D4D4D4' }} />
+              <p className="font-serif italic" style={{ color: '#A3A3A3', fontSize: '15px' }}>やりたいことを追加しよう</p>
+            </div>
+          )}
+          {todos.filter(t => !t.is_done).map(todo => (
+            <SwipeableListItem key={todo.id} onEdit={() => openEditTodo(todo)} onDelete={() => deleteTodo(todo.id)}>
+            <Card padding="md" style={{ boxShadow: todo.id === highlightedId ? '0 0 0 2px #B07D2C' : undefined }}>
+              <div className="flex items-start gap-3">
+                <button
+                  onClick={() => toggleTodoDone(todo.id)}
+                  className="w-5 h-5 rounded border flex-shrink-0 mt-0.5 flex items-center justify-center"
+                  style={{ borderColor: '#E5E5E5', borderWidth: '0.5px' }}
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap mb-1">
+                    <span className="text-sm font-medium" style={{ color: '#1A1A1A' }}>{todo.title}</span>
+                    <Tag label={ownerLabel(todo.owner)} owner={todo.owner} />
+                  </div>
+                  {todo.category && (
+                    <span className="text-xs px-2 py-0.5" style={{ backgroundColor: '#FFF8EC', color: '#B07D2C', borderRadius: '6px' }}>{todo.category}</span>
+                  )}
+                  {todo.memo && <p className="text-xs mt-1.5" style={{ color: '#737373' }}>{todo.memo}</p>}
+                </div>
+                <div className="flex gap-1 flex-shrink-0">
+                  <button onClick={() => openEditTodo(todo)} className="p-1.5 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}>
+                    <Pencil size={14} strokeWidth={1.5} />
+                  </button>
+                  <button onClick={() => deleteTodo(todo.id)} className="p-1.5 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}>
+                    <Trash2 size={15} strokeWidth={1.5} />
+                  </button>
+                </div>
+              </div>
+            </Card>
+            </SwipeableListItem>
+          ))}
+
+          {todos.filter(t => t.is_done).length > 0 && (
+            <>
+              <p className="text-xs px-1 mt-4" style={{ color: '#A3A3A3' }}>完了 {todos.filter(t => t.is_done).length}件</p>
+              {todos.filter(t => t.is_done).map(todo => (
+                <SwipeableListItem key={todo.id} onEdit={() => openEditTodo(todo)} onDelete={() => deleteTodo(todo.id)}>
+                <Card padding="md" style={{ opacity: 0.5 }}>
+                  <div className="flex items-center gap-3">
+                    <button onClick={() => toggleTodoDone(todo.id)} className="w-5 h-5 rounded flex-shrink-0 flex items-center justify-center" style={{ backgroundColor: '#FFF8EC' }}>
+                      <Check size={12} strokeWidth={1.5} style={{ color: '#B07D2C' }} />
+                    </button>
+                    <span className="flex-1 text-sm line-through" style={{ color: '#737373' }}>{todo.title}</span>
+                    <div className="flex gap-1 flex-shrink-0">
+                      <button onClick={() => openEditTodo(todo)} className="p-1.5 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}>
+                        <Pencil size={14} strokeWidth={1.5} />
+                      </button>
+                      <button onClick={() => deleteTodo(todo.id)} className="p-1.5 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}>
+                        <Trash2 size={15} strokeWidth={1.5} />
+                      </button>
+                    </div>
+                  </div>
+                </Card>
+                </SwipeableListItem>
+              ))}
+            </>
+          )}
+        </div>
+      )}
+
       {/* FAB */}
       <button
         onClick={() => { haptic('medium'); setShowSheet(true) }}
@@ -607,9 +819,44 @@ function ListPageInner() {
       <BottomSheet
         open={showSheet}
         onClose={() => { setShowSheet(false); resetForm() }}
-        title={tab === 'places' ? (editingPlace ? '場所を編集' : '場所を追加') : (editingMedia ? 'アイテムを編集' : 'アイテムを追加')}
+        title={
+          tab === 'places' ? (editingPlace ? '場所を編集'         : '場所を追加') :
+          tab === 'media'  ? (editingMedia ? 'アイテムを編集'     : 'アイテムを追加') :
+                             (editingTodo  ? 'やりたいことを編集' : 'やりたいことを追加')
+        }
       >
-        {tab === 'places' ? (
+        {tab === 'todos' ? (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-medium uppercase tracking-widest mb-2" style={{ color: '#A3A3A3' }}>やりたいこと</label>
+              <input type="text" value={newTodoTitle} onChange={e => setNewTodoTitle(e.target.value)} style={inputStyle} placeholder="例：富士山に登る" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium uppercase tracking-widest mb-2" style={{ color: '#A3A3A3' }}>カテゴリ（任意）</label>
+              <input type="text" value={newTodoCategory} onChange={e => setNewTodoCategory(e.target.value)} style={inputStyle} placeholder="例：アウトドア" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium uppercase tracking-widest mb-2" style={{ color: '#A3A3A3' }}>追加者</label>
+              <div className="flex gap-2">
+                {ownerOptions.map(o => (
+                  <button key={o.value} onClick={() => setNewOwner(o.value)}
+                    className="flex-1 py-2 text-sm font-medium transition-opacity"
+                    style={{ backgroundColor: newOwner === o.value ? o.bg : '#F5F5F3', color: newOwner === o.value ? o.color : '#737373', borderRadius: '8px', border: `0.5px solid ${newOwner === o.value ? o.color : '#E5E5E5'}` }}>
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-medium uppercase tracking-widest mb-2" style={{ color: '#A3A3A3' }}>メモ（任意）</label>
+              <textarea value={newMemo} onChange={e => setNewMemo(e.target.value)} style={{ ...inputStyle, resize: 'none' }} rows={2} placeholder="メモ..." />
+            </div>
+            {editingTodo
+              ? <Button fullWidth onClick={handleUpdateTodo} disabled={!newTodoTitle}>更新する</Button>
+              : <Button fullWidth onClick={handleAddTodo}    disabled={!newTodoTitle}>追加する</Button>
+            }
+          </div>
+        ) : tab === 'places' ? (
           <div className="space-y-4">
             <div>
               <label className="block text-xs font-medium uppercase tracking-widest mb-2" style={{ color: '#A3A3A3' }}>場所の名前</label>

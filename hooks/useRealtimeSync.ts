@@ -3,7 +3,7 @@
 import { useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
-type Table = 'events' | 'places' | 'media'
+type Table = 'events' | 'places' | 'media' | 'todos'
 
 interface Options {
   table: Table
