@@ -20,6 +20,10 @@ const OPEN_THR = -48   // メニューを開くスワイプ閾値
  * - CSS transform アニメーション（React state は最小）
  * - スワイプ量に応じて削除ボタンの赤が濃くなる
  * - 閾値超え時に haptic('light') を一度だけ発火
+ *
+ * ⚠️ innerRef の静的スタイルに transform / will-change を置かない。
+ *    transform があると position:fixed の子孫の含有ブロックが崩れるため、
+ *    アニメーション中だけ JS で直接設定し、終了後に必ずクリアする。
  */
 export function SwipeableListItem({ children, onEdit, onDelete }: SwipeableListItemProps) {
   const outerRef        = useRef<HTMLDivElement>(null)
@@ -30,21 +34,43 @@ export function SwipeableListItem({ children, onEdit, onDelete }: SwipeableListI
   const thresholdFired  = useRef(false)
   const [isOpen, setIsOpen] = useState(false)
 
-  /** transform をアニメーション付きで設定 */
+  /**
+   * transform をアニメーション付きで設定。
+   * x === 0 のとき transform/will-change を完全クリアして
+   * position:fixed 含有ブロック問題を防ぐ。
+   */
   const setX = (x: number, animate: boolean) => {
     const el = innerRef.current
     if (!el) return
-    el.style.transition = animate ? 'transform 220ms cubic-bezier(0.25,0.1,0.25,1)' : 'none'
-    el.style.transform  = `translateX(${x}px)`
-    currentX.current    = x
+
+    if (x === 0) {
+      el.style.transition = animate ? 'transform 220ms cubic-bezier(0.25,0.1,0.25,1)' : 'none'
+      el.style.transform  = ''        // transform を完全クリア
+      // トランジション完了後に will-change をクリア
+      const cleanup = () => {
+        if (innerRef.current && currentX.current === 0) {
+          innerRef.current.style.willChange = 'auto'
+        }
+      }
+      if (animate) {
+        setTimeout(cleanup, 240)
+      } else {
+        el.style.willChange = 'auto'
+      }
+    } else {
+      el.style.willChange = 'transform'
+      el.style.transition = animate ? 'transform 220ms cubic-bezier(0.25,0.1,0.25,1)' : 'none'
+      el.style.transform  = `translateX(${x}px)`
+    }
+    currentX.current = x
   }
 
   /** 削除ボタンの背景色を通常に戻す（transition 付き） */
   const resetDeleteColor = () => {
     const btn = deleteBtnRef.current
     if (!btn) return
-    btn.style.transition       = 'background-color 0.2s ease'
-    btn.style.backgroundColor  = '#B5465A'
+    btn.style.transition      = 'background-color 0.2s ease'
+    btn.style.backgroundColor = '#B5465A'
   }
 
   const close = (animate = true) => {
@@ -70,7 +96,7 @@ export function SwipeableListItem({ children, onEdit, onDelete }: SwipeableListI
     let startX = 0
     let startY = 0
     let baseX  = 0
-    let axis: 'h' | 'v' | null = null   // 判定前は null
+    let axis: 'h' | 'v' | null = null
 
     function onTouchStart(e: TouchEvent) {
       startX = e.touches[0].clientX
@@ -79,7 +105,7 @@ export function SwipeableListItem({ children, onEdit, onDelete }: SwipeableListI
       axis   = null
       // すでにメニューが開いていれば閾値は超え済み扱い
       thresholdFired.current = isOpenRef.current
-      // スワイプ開始時はトランジションを切って即時反応に
+      // スワイプ開始時：削除ボタンの transition を切って即時反応に
       const btn = deleteBtnRef.current
       if (btn) btn.style.transition = 'none'
     }
@@ -88,18 +114,20 @@ export function SwipeableListItem({ children, onEdit, onDelete }: SwipeableListI
       const dx = e.touches[0].clientX - startX
       const dy = e.touches[0].clientY - startY
 
-      // 最初の5px で軸を確定
       if (axis === null && (Math.abs(dx) > 5 || Math.abs(dy) > 5)) {
         axis = Math.abs(dx) > Math.abs(dy) ? 'h' : 'v'
       }
       if (axis !== 'h') return
 
-      e.preventDefault()  // 縦スクロールをキャンセル
+      e.preventDefault()
 
       if (!inner) return
       const btnCount = (onEdit ? 1 : 0) + (onDelete ? 1 : 0)
-      const minX = -(BTN_W * btnCount) - 20  // 少し引っ張り代
+      const minX = -(BTN_W * btnCount) - 20
       const newX = Math.min(0, Math.max(minX, baseX + dx))
+
+      // ── スワイプ中のみ transform / will-change を有効化 ──
+      inner.style.willChange = 'transform'
       inner.style.transition = 'none'
       inner.style.transform  = `translateX(${newX}px)`
       currentX.current       = newX
@@ -107,7 +135,6 @@ export function SwipeableListItem({ children, onEdit, onDelete }: SwipeableListI
       // ── 削除ボタンの色：スワイプ進行度に応じて濃くなる ──
       if (deleteBtnRef.current && onDelete) {
         const progress = Math.min(1, Math.abs(newX) / Math.abs(OPEN_X))
-        // 薄い赤(0.45) → 濃い赤(1.0)
         deleteBtnRef.current.style.backgroundColor =
           `rgba(181, 70, 90, ${0.45 + progress * 0.55})`
       }
@@ -125,7 +152,7 @@ export function SwipeableListItem({ children, onEdit, onDelete }: SwipeableListI
       if (axis !== 'h') { axis = null; return }
       axis = null
 
-      // スワイプ終了：色をリセット（スナップ先は open/close が管理）
+      // スワイプ終了：削除ボタン色をリセット
       resetDeleteColor()
 
       const x = currentX.current
@@ -197,15 +224,13 @@ export function SwipeableListItem({ children, onEdit, onDelete }: SwipeableListI
       )}
 
       {/* スワイプ可能なコンテンツ */}
+      {/* ⚠️ transform / will-change は静的スタイルに含めない（JS で動的管理） */}
       <div
         ref={innerRef}
         onClick={handleContentClick}
         style={{
-          transform: 'translateX(0)',
-          willChange: 'transform',
           position: 'relative',
           zIndex: 1,
-          // 影: 開いているときに浮き感
           boxShadow: isOpen ? '0 4px 16px rgba(0,0,0,0.10)' : 'none',
           transition: 'box-shadow 220ms ease',
         }}

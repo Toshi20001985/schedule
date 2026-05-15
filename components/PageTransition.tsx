@@ -1,18 +1,19 @@
 'use client'
 
-import { motion, useReducedMotion } from 'framer-motion'
+import { useReducedMotion } from 'framer-motion'
 import { ReactNode } from 'react'
 
+/**
+ * ページ遷移フェードイン。
+ * framer-motion の motion.div を使わず CSS animation に変更。
+ * → motion.div が内部で will-change: transform を設定することで
+ *   position:fixed 子要素の含有ブロックが崩れるバグを防ぐ。
+ */
 export function PageTransition({ children }: { children: ReactNode }) {
   const reduced = useReducedMotion()
-
   return (
-    <motion.div
-      initial={reduced ? false : { opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
-    >
+    <div className={reduced ? undefined : 'page-fade-in'}>
       {children}
-    </motion.div>
+    </div>
   )
 }

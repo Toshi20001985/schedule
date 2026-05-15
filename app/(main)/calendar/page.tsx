@@ -1044,7 +1044,9 @@ function CalendarPageInner() {
       </div>
 
       {/* Calendar Grid — スワイプで月切り替え */}
-      <div {...swipeHandlers} style={{ overflow: 'hidden', borderRadius: '12px' }}>
+      {/* overflow:clip = hidden と同じ視覚クリップだが BFC を作らず
+           position:fixed の含有ブロックに影響しない */}
+      <div {...swipeHandlers} style={{ overflow: 'clip', borderRadius: '12px' }}>
         <AnimatePresence mode="wait" custom={swipeDir} initial={false}>
         <motion.div
           key={format(currentMonth, 'yyyy-MM')}

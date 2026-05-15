@@ -165,6 +165,15 @@ body {
   background: linear-gradient(to right, transparent, var(--color-border) 30%, var(--color-border) 70%, transparent);
 }
 
+/* ── Page transition fade-in (CSS-only, avoids framer-motion will-change:transform side effects) ── */
+@keyframes page-fade-in {
+  from { opacity: 0 }
+  to   { opacity: 1 }
+}
+.page-fade-in {
+  animation: page-fade-in 0.28s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
 /* ── Input focus ring ── */
 /* box-shadow でフォーカス時のリングを表現（outline は各コンポーネントで none 設定済み） */
 input, textarea, select {

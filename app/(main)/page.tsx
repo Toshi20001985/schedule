@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { differenceInDays, format, addDays } from 'date-fns'
 import { ja } from 'date-fns/locale'
-import { MapPin, Play, Plane, CalendarDays, List, Search } from 'lucide-react'
+import { MapPin, Play, Plane, CalendarDays, List, Search, Star } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { motion, useReducedMotion } from 'framer-motion'
@@ -110,7 +110,8 @@ export default function HomePage() {
   const [events, setEvents] = useState<HomeEvent[]>([])
   const [places, setPlaces] = useState<HomePlace[]>([])
   const [placesCount, setPlacesCount] = useState<number>(0)
-  const [mediaCount, setMediaCount] = useState<number>(0)
+  const [mediaCount,  setMediaCount]  = useState<number>(0)
+  const [todosCount,  setTodosCount]  = useState<number>(0)
   const [nextVisitDate, setNextVisitDate] = useState<string | null>(null)
   const [nextFlightLine, setNextFlightLine] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -135,6 +136,7 @@ export default function HomePage() {
       ])
       setPlacesCount(12)
       setMediaCount(8)
+      setTodosCount(5)
       setLoading(false)
       return
     }
@@ -277,6 +279,14 @@ export default function HomePage() {
       .eq('is_done', false)
     setMediaCount(mCount ?? 0)
 
+    // カウント：未完了のやりたいこと
+    const { count: tCount } = await db
+      .from('todos')
+      .select('id', { count: 'exact', head: true })
+      .eq('couple_id', coupleId)
+      .eq('is_done', false)
+    setTodosCount(tCount ?? 0)
+
     setLoading(false)
   }, [])
 
@@ -318,6 +328,15 @@ export default function HomePage() {
     coupleId,
     myId: me?.id ?? null,
     onInsert: (rec, isPartner) => reloadOnPartnerChange(isPartner, rec.title as string, 'アイテム'),
+    onUpdate: (_rec, isPartner) => { if (isPartner) load() },
+    onDelete: (_id) => load(),
+  })
+
+  useRealtimeSync({
+    table: 'todos',
+    coupleId,
+    myId: me?.id ?? null,
+    onInsert: (rec, isPartner) => reloadOnPartnerChange(isPartner, rec.title as string, 'やりたいこと'),
     onUpdate: (_rec, isPartner) => { if (isPartner) load() },
     onDelete: (_id) => load(),
   })
@@ -523,6 +542,8 @@ export default function HomePage() {
             data-quick-menu
             className="absolute left-0 right-0 z-60"
             style={{ bottom: '14px', padding: '0 12px' }}
+            onTouchStart={e => e.stopPropagation()}
+            onTouchEnd={e => e.stopPropagation()}
             onClick={e => e.stopPropagation()}
           >
             <div className="glass-dark glass-border" style={{ borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
@@ -550,36 +571,53 @@ export default function HomePage() {
       </motion.div>
 
       {/* ── Stats row ──────────────────────────────────────── */}
-      <motion.div variants={reduced ? undefined : staggerItem} className="grid grid-cols-2 gap-4">
+      <motion.div variants={reduced ? undefined : staggerItem} className="grid grid-cols-3 gap-3">
         <Link href="/list" className="block">
-          <Card padding="lg" shadow="sm">
-            <div className="flex items-center gap-4">
-              <div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--color-trip-soft)' }}>
-                <MapPin size={16} strokeWidth={1.5} style={{ color: 'var(--color-trip-accent)' }} />
+          <Card padding="sm" shadow="sm">
+            <div className="flex flex-col gap-2.5 p-1">
+              <div className="p-2 rounded-lg w-fit" style={{ backgroundColor: 'var(--color-trip-soft)' }}>
+                <MapPin size={14} strokeWidth={1.5} style={{ color: 'var(--color-trip-accent)' }} />
               </div>
               <div>
-                <p style={{ color: 'var(--color-subtle)', fontSize: '11px', letterSpacing: '0.03em', marginBottom: '5px' }}>行きたい場所</p>
+                <p style={{ color: 'var(--color-subtle)', fontSize: '10px', letterSpacing: '0.03em', marginBottom: '4px' }}>行きたい場所</p>
                 {loading ? (
-                  <p style={{ fontFamily: 'var(--font-mono)', fontSize: '26px', fontWeight: 500, color: 'var(--color-text)', lineHeight: 1 }}>—</p>
+                  <p style={{ fontFamily: 'var(--font-mono)', fontSize: '22px', fontWeight: 500, color: 'var(--color-text)', lineHeight: 1 }}>—</p>
                 ) : (
-                  <AnimatedNumber value={placesCount} style={{ fontFamily: 'var(--font-mono)', fontSize: '26px', fontWeight: 500, color: 'var(--color-text)', lineHeight: 1, display: 'block' }} />
+                  <AnimatedNumber value={placesCount} style={{ fontFamily: 'var(--font-mono)', fontSize: '22px', fontWeight: 500, color: 'var(--color-text)', lineHeight: 1, display: 'block' }} />
                 )}
               </div>
             </div>
           </Card>
         </Link>
         <Link href="/list?tab=media" className="block">
-          <Card padding="lg" shadow="sm">
-            <div className="flex items-center gap-4">
-              <div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--color-online-soft)' }}>
-                <Play size={16} strokeWidth={1.5} style={{ color: 'var(--color-online-accent)' }} />
+          <Card padding="sm" shadow="sm">
+            <div className="flex flex-col gap-2.5 p-1">
+              <div className="p-2 rounded-lg w-fit" style={{ backgroundColor: 'var(--color-online-soft)' }}>
+                <Play size={14} strokeWidth={1.5} style={{ color: 'var(--color-online-accent)' }} />
               </div>
               <div>
-                <p style={{ color: 'var(--color-subtle)', fontSize: '11px', letterSpacing: '0.03em', marginBottom: '5px' }}>観たい・聴きたい</p>
+                <p style={{ color: 'var(--color-subtle)', fontSize: '10px', letterSpacing: '0.03em', marginBottom: '4px' }}>観たい・聴きたい</p>
                 {loading ? (
-                  <p style={{ fontFamily: 'var(--font-mono)', fontSize: '26px', fontWeight: 500, color: 'var(--color-text)', lineHeight: 1 }}>—</p>
+                  <p style={{ fontFamily: 'var(--font-mono)', fontSize: '22px', fontWeight: 500, color: 'var(--color-text)', lineHeight: 1 }}>—</p>
                 ) : (
-                  <AnimatedNumber value={mediaCount} style={{ fontFamily: 'var(--font-mono)', fontSize: '26px', fontWeight: 500, color: 'var(--color-text)', lineHeight: 1, display: 'block' }} />
+                  <AnimatedNumber value={mediaCount} style={{ fontFamily: 'var(--font-mono)', fontSize: '22px', fontWeight: 500, color: 'var(--color-text)', lineHeight: 1, display: 'block' }} />
+                )}
+              </div>
+            </div>
+          </Card>
+        </Link>
+        <Link href="/list?tab=todos" className="block">
+          <Card padding="sm" shadow="sm">
+            <div className="flex flex-col gap-2.5 p-1">
+              <div className="p-2 rounded-lg w-fit" style={{ backgroundColor: '#FFF8EC' }}>
+                <Star size={14} strokeWidth={1.5} style={{ color: '#B07D2C' }} />
+              </div>
+              <div>
+                <p style={{ color: 'var(--color-subtle)', fontSize: '10px', letterSpacing: '0.03em', marginBottom: '4px' }}>やりたいこと</p>
+                {loading ? (
+                  <p style={{ fontFamily: 'var(--font-mono)', fontSize: '22px', fontWeight: 500, color: 'var(--color-text)', lineHeight: 1 }}>—</p>
+                ) : (
+                  <AnimatedNumber value={todosCount} style={{ fontFamily: 'var(--font-mono)', fontSize: '22px', fontWeight: 500, color: 'var(--color-text)', lineHeight: 1, display: 'block' }} />
                 )}
               </div>
             </div>
