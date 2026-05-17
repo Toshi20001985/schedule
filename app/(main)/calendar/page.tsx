@@ -272,6 +272,7 @@ interface StoredFlight {
 
 interface FlightDraft {
   id?: string                     // 編集時のみ
+  _localId: string                // React key用の一意ID（DBには送らない）
   flight_number: string
   airline: string
   departure_airport: string
@@ -286,6 +287,7 @@ interface FlightDraft {
 
 function emptyDraft(eventDate: string): FlightDraft {
   return {
+    _localId: `${Date.now()}-${Math.random()}`,
     flight_number: '', airline: '',
     departure_airport: '', arrival_airport: '',
     departure_time: `${eventDate}T09:00`,
@@ -611,7 +613,7 @@ function FlightDraftFormSection({
       {showForm && (
         <div className="space-y-3 mt-3">
           {drafts.map((draft, i) => (
-            <FlightDraftItem key={i} draft={draft} index={i}
+            <FlightDraftItem key={draft._localId} draft={draft} index={i}
               myName={myName} partnerName={partnerName}
               onChange={onChange} onRemove={onRemove} />
           ))}
@@ -842,6 +844,7 @@ function CalendarPageInner() {
     if (existingFlights.length > 0) {
       setFlightDrafts(existingFlights.map(f => ({
         id: f.id,
+        _localId: f.id,   // DB の id を安定キーとして使用
         flight_number:    f.flight_number    ?? '',
         airline:          f.airline          ?? '',
         departure_airport: f.departure_airport ?? '',
@@ -1187,15 +1190,6 @@ function CalendarPageInner() {
                       {event.memo && <p className="text-xs mt-1" style={{ color: '#737373' }}>{event.memo}</p>}
                       <FlightInfo event={event} myName={myName} partnerName={partnerName} />
                     </div>
-                    {/* フライト詳細 */}
-                    {(flightsByEventId[event.id] ?? []).length > 0 && (
-                      <div className="space-y-2 mt-2">
-                        {(flightsByEventId[event.id] ?? []).map(f => (
-                          <StoredFlightCard key={f.id} flight={f}
-                            userId={userId} myName={myName} partnerName={partnerName} />
-                        ))}
-                      </div>
-                    )}
                     <div className="flex gap-1.5 flex-shrink-0">
                       <button
                         onClick={() => openEditSheet(event)}
@@ -1222,6 +1216,15 @@ function CalendarPageInner() {
                       </button>
                     </div>
                   </div>
+                  {/* フライト詳細 — 全幅で下に展開 */}
+                  {(flightsByEventId[event.id] ?? []).length > 0 && (
+                    <div className="space-y-2 mt-3">
+                      {(flightsByEventId[event.id] ?? []).map(f => (
+                        <StoredFlightCard key={f.id} flight={f}
+                          userId={userId} myName={myName} partnerName={partnerName} />
+                      ))}
+                    </div>
+                  )}
                 </div>
               )
             })}
