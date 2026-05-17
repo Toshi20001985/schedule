@@ -297,9 +297,11 @@ export default function HomePage() {
   // Realtime 購読（ホームは集計データが多いため、変更時に load() を再実行）
   const reloadOnPartnerChange = useCallback(
     (isPartner: boolean, name?: string, label?: string) => {
-      if (!isPartner) return
-      haptic('light')
-      if (name && label) setToast(`${label}「${name}」が追加されました`)
+      // パートナーの変更はトースト＋ハプティック、自分の変更もカウント更新のため常に load()
+      if (isPartner) {
+        haptic('light')
+        if (name && label) setToast(`${label}「${name}」が追加されました`)
+      }
       load()
     },
     [load]

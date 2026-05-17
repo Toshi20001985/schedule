@@ -21,7 +21,7 @@ interface Options {
  * - myId でパートナーの変更かどうかを判定（isPartner）
  *
  * ⚠️ Supabase Realtime が動作するには Dashboard で
- *    Database → Replication → events / places / media テーブルを有効化が必要
+ *    Database → Replication → events / places / media / todos テーブルを有効化が必要
  */
 export function useRealtimeSync({
   table,
