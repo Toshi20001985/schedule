@@ -11,6 +11,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           minHeight: 0,
           paddingBottom: `calc(env(safe-area-inset-bottom) + 72px)`,
           paddingTop: 'env(safe-area-inset-top)',
+          overscrollBehavior: 'contain',
         }}
       >
         {children}

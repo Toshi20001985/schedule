@@ -464,6 +464,8 @@ function ListPageInner() {
       }).select().single()
       if (!error && data) {
         setPlaces(prev => [{ id: data.id, name: data.name, category: data.category, location: data.location, memo: data.memo ?? undefined, is_visited: false, owner: newOwner }, ...prev])
+      } else {
+        setPlaces(prev => [{ id: Date.now().toString(), name: newName, category: newCategory || 'その他', location: newLocation, memo: newMemo || undefined, is_visited: false, owner: newOwner }, ...prev])
       }
     } else {
       setPlaces(prev => [{ id: Date.now().toString(), name: newName, category: newCategory || 'その他', location: newLocation, memo: newMemo || undefined, is_visited: false, owner: newOwner }, ...prev])
@@ -485,6 +487,8 @@ function ListPageInner() {
       }).select().single()
       if (!error && data) {
         setTodos(prev => [{ id: data.id, title: data.title, category: data.category ?? '', memo: data.memo ?? undefined, is_done: false, owner: newOwner }, ...prev])
+      } else {
+        setTodos(prev => [{ id: Date.now().toString(), title: newTodoTitle, category: newTodoCategory, memo: newMemo || undefined, is_done: false, owner: newOwner }, ...prev])
       }
     } else {
       setTodos(prev => [{ id: Date.now().toString(), title: newTodoTitle, category: newTodoCategory, memo: newMemo || undefined, is_done: false, owner: newOwner }, ...prev])
@@ -520,6 +524,8 @@ function ListPageInner() {
       }).select().single()
       if (!error && data) {
         setMedia(prev => [{ id: data.id, title: data.title, media_type: data.media_type, memo: data.memo ?? undefined, is_done: false, owner: newOwner }, ...prev])
+      } else {
+        setMedia(prev => [{ id: Date.now().toString(), title: newMediaTitle, media_type: newMediaType, memo: newMemo || undefined, is_done: false, owner: newOwner }, ...prev])
       }
     } else {
       setMedia(prev => [{ id: Date.now().toString(), title: newMediaTitle, media_type: newMediaType, memo: newMemo || undefined, is_done: false, owner: newOwner }, ...prev])
@@ -557,6 +563,7 @@ function ListPageInner() {
   }
 
   return (
+    <>
     <PageTransition>
     <PullToRefresh onRefresh={load}>
     <Toast message={toast} onDismiss={() => setToast(null)} />
@@ -805,16 +812,6 @@ function ListPageInner() {
         </div>
       )}
 
-      {/* FAB */}
-      <button
-        onClick={() => { haptic('medium'); setShowSheet(true) }}
-        className="fixed right-4 z-30 flex items-center gap-2 px-5 py-3 active:opacity-70 transition-opacity"
-        style={{ bottom: `calc(env(safe-area-inset-bottom) + 76px)`, backgroundColor: '#1A1A1A', color: '#FFFFFF', borderRadius: '10px' }}
-      >
-        <Plus size={18} strokeWidth={2} />
-        <span className="text-sm font-medium">追加</span>
-      </button>
-
       {/* Add / Edit Sheet */}
       <BottomSheet
         open={showSheet}
@@ -940,6 +937,17 @@ function ListPageInner() {
     </div>
     </PullToRefresh>
     </PageTransition>
+
+    {/* FAB — PageTransition外に配置して opacity アニメーションの影響を受けないようにする */}
+    <button
+      onClick={() => { haptic('medium'); setShowSheet(true) }}
+      className="fixed right-4 z-30 flex items-center gap-2 px-5 py-3 active:opacity-70 transition-opacity"
+      style={{ bottom: `calc(env(safe-area-inset-bottom) + 76px)`, backgroundColor: '#1A1A1A', color: '#FFFFFF', borderRadius: '10px' }}
+    >
+      <Plus size={18} strokeWidth={2} />
+      <span className="text-sm font-medium">追加</span>
+    </button>
+    </>
   )
 }
 
