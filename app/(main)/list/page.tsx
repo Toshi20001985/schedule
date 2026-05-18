@@ -11,6 +11,7 @@ import { haptic } from '@/lib/haptics'
 import { PullToRefresh } from '@/components/PullToRefresh'
 import { SwipeableListItem } from '@/components/SwipeableListItem'
 import { useRealtimeSync } from '@/hooks/useRealtimeSync'
+import { useCollection } from '@/hooks/useCollection'
 import { Toast } from '@/components/Toast'
 import { PageTransition } from '@/components/PageTransition'
 
@@ -107,13 +108,27 @@ function ListPageInner() {
     searchParams.get('tab') === 'media'  ? 'media'  :
     searchParams.get('tab') === 'todos'  ? 'todos'  : 'places'
   )
-  const [places, setPlaces] = useState<Place[]>([])
-  const [media,  setMedia]  = useState<MediaItem[]>([])
-  const [todos,  setTodos]  = useState<Todo[]>([])
+
   const [myId, setMyId] = useState<string | null>(null)
   const [coupleId, setCoupleId] = useState<string | null>(null)
   const [myName, setMyName] = useState('わたし')
   const [partnerName, setPartnerName] = useState('パートナー')
+
+  // ── コレクション（CRUD ロジックをフックに集約） ──────────────────
+  const {
+    items: places, setItems: setPlaces,
+    addItem: addPlaceItem, updateItem: updatePlaceItem, deleteItem: deletePlaceItem,
+  } = useCollection<Place>('places', coupleId, myId)
+
+  const {
+    items: media, setItems: setMedia,
+    addItem: addMediaItem, updateItem: updateMediaItem, deleteItem: deleteMediaItem,
+  } = useCollection<MediaItem>('media', coupleId, myId)
+
+  const {
+    items: todos, setItems: setTodos,
+    addItem: addTodoItem, updateItem: updateTodoItem, deleteItem: deleteTodoItem,
+  } = useCollection<Todo>('todos', coupleId, myId)
 
   const [showSheet, setShowSheet] = useState(false)
   const [editingPlace, setEditingPlace] = useState<Place | null>(null)
@@ -254,7 +269,7 @@ function ListPageInner() {
         owner: (t.owner as Owner) ?? 'both',
       })))
     }
-  }, [])
+  }, [setPlaces, setMedia, setTodos])
 
   useEffect(() => {
     load()
@@ -336,81 +351,45 @@ function ListPageInner() {
   const activePlaces  = places.filter(p => !p.is_visited)
   const visitedPlaces = places.filter(p => p.is_visited)
 
+  // ── トグル ────────────────────────────────────────────────────────
   async function togglePlaceVisited(id: string) {
     haptic('light')
     const place = places.find(p => p.id === id)
     if (!place) return
-    const next = !place.is_visited
-    setPlaces(prev => prev.map(p => p.id === id ? { ...p, is_visited: next } : p))
-    if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
-      const { createClient } = await import('@/lib/supabase/client')
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const db = createClient() as any
-      await db.from('places').update({ is_visited: next }).eq('id', id)
-    }
+    await updatePlaceItem(id, { is_visited: !place.is_visited })
   }
 
   async function toggleMediaDone(id: string) {
     haptic('light')
     const item = media.find(m => m.id === id)
     if (!item) return
-    const next = !item.is_done
-    setMedia(prev => prev.map(m => m.id === id ? { ...m, is_done: next } : m))
-    if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
-      const { createClient } = await import('@/lib/supabase/client')
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const db = createClient() as any
-      await db.from('media').update({ is_done: next }).eq('id', id)
-    }
-  }
-
-  async function deletePlace(id: string) {
-    haptic('warning')
-    setPlaces(prev => prev.filter(p => p.id !== id))
-    if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
-      const { createClient } = await import('@/lib/supabase/client')
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const db = createClient() as any
-      await db.from('places').delete().eq('id', id)
-    }
+    await updateMediaItem(id, { is_done: !item.is_done })
   }
 
   async function toggleTodoDone(id: string) {
     haptic('light')
     const todo = todos.find(t => t.id === id)
     if (!todo) return
-    const next = !todo.is_done
-    setTodos(prev => prev.map(t => t.id === id ? { ...t, is_done: next } : t))
-    if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
-      const { createClient } = await import('@/lib/supabase/client')
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const db = createClient() as any
-      await db.from('todos').update({ is_done: next }).eq('id', id)
-    }
+    await updateTodoItem(id, { is_done: !todo.is_done })
+  }
+
+  // ── 削除 ────────────────────────────────────────────────────────
+  async function deletePlace(id: string) {
+    haptic('warning')
+    await deletePlaceItem(id)
   }
 
   async function deleteTodo(id: string) {
     haptic('warning')
-    setTodos(prev => prev.filter(t => t.id !== id))
-    if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
-      const { createClient } = await import('@/lib/supabase/client')
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const db = createClient() as any
-      await db.from('todos').delete().eq('id', id)
-    }
+    await deleteTodoItem(id)
   }
 
   async function deleteMedia(id: string) {
     haptic('warning')
-    setMedia(prev => prev.filter(m => m.id !== id))
-    if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
-      const { createClient } = await import('@/lib/supabase/client')
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const db = createClient() as any
-      await db.from('media').delete().eq('id', id)
-    }
+    await deleteMediaItem(id)
   }
 
+  // ── フォームリセット・編集開始 ──────────────────────────────────
   function resetForm() {
     setNewName(''); setNewCategory(''); setNewLocation('')
     setNewMediaTitle(''); setNewMemo(''); setNewOwner('both')
@@ -450,114 +429,64 @@ function ListPageInner() {
     setShowSheet(true)
   }
 
+  // ── 追加ハンドラ ─────────────────────────────────────────────────
   async function handleAddPlace() {
     if (!newName) return
-    if (process.env.NEXT_PUBLIC_SUPABASE_URL && myId && coupleId) {
-      const { createClient } = await import('@/lib/supabase/client')
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const db = createClient() as any
-      const { data, error } = await db.from('places').insert({
-        couple_id: coupleId, added_by: myId,
-        name: newName, category: newCategory || 'その他',
-        location: newLocation, memo: newMemo || null,
-        is_visited: false, owner: newOwner,
-      }).select().single()
-      if (!error && data) {
-        setPlaces(prev => [{ id: data.id, name: data.name, category: data.category, location: data.location, memo: data.memo ?? undefined, is_visited: false, owner: newOwner }, ...prev])
-      } else {
-        setPlaces(prev => [{ id: Date.now().toString(), name: newName, category: newCategory || 'その他', location: newLocation, memo: newMemo || undefined, is_visited: false, owner: newOwner }, ...prev])
-      }
-    } else {
-      setPlaces(prev => [{ id: Date.now().toString(), name: newName, category: newCategory || 'その他', location: newLocation, memo: newMemo || undefined, is_visited: false, owner: newOwner }, ...prev])
-    }
+    await addPlaceItem(
+      { name: newName, category: newCategory || 'その他', location: newLocation, memo: newMemo || null, is_visited: false, owner: newOwner },
+      { id: Date.now().toString(), name: newName, category: newCategory || 'その他', location: newLocation, memo: newMemo || undefined, is_visited: false, owner: newOwner },
+    )
     haptic('success')
     resetForm(); setShowSheet(false)
   }
 
   async function handleAddTodo() {
     if (!newTodoTitle) return
-    if (process.env.NEXT_PUBLIC_SUPABASE_URL && myId && coupleId) {
-      const { createClient } = await import('@/lib/supabase/client')
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const db = createClient() as any
-      const { data, error } = await db.from('todos').insert({
-        couple_id: coupleId, added_by: myId,
-        title: newTodoTitle, category: newTodoCategory || '',
-        memo: newMemo || null, is_done: false, owner: newOwner,
-      }).select().single()
-      if (!error && data) {
-        setTodos(prev => [{ id: data.id, title: data.title, category: data.category ?? '', memo: data.memo ?? undefined, is_done: false, owner: newOwner }, ...prev])
-      } else {
-        setTodos(prev => [{ id: Date.now().toString(), title: newTodoTitle, category: newTodoCategory, memo: newMemo || undefined, is_done: false, owner: newOwner }, ...prev])
-      }
-    } else {
-      setTodos(prev => [{ id: Date.now().toString(), title: newTodoTitle, category: newTodoCategory, memo: newMemo || undefined, is_done: false, owner: newOwner }, ...prev])
-    }
-    haptic('success')
-    resetForm(); setShowSheet(false)
-  }
-
-  async function handleUpdateTodo() {
-    if (!editingTodo || !newTodoTitle) return
-    const updates = { title: newTodoTitle, category: newTodoCategory, memo: newMemo || null, owner: newOwner }
-    setTodos(prev => prev.map(t => t.id === editingTodo.id ? { ...t, ...updates, memo: newMemo || undefined } : t))
-    if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
-      const { createClient } = await import('@/lib/supabase/client')
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const db = createClient() as any
-      await db.from('todos').update(updates).eq('id', editingTodo.id)
-    }
+    await addTodoItem(
+      { title: newTodoTitle, category: newTodoCategory || '', memo: newMemo || null, is_done: false, owner: newOwner },
+      { id: Date.now().toString(), title: newTodoTitle, category: newTodoCategory || '', memo: newMemo || undefined, is_done: false, owner: newOwner },
+    )
     haptic('success')
     resetForm(); setShowSheet(false)
   }
 
   async function handleAddMedia() {
     if (!newMediaTitle) return
-    if (process.env.NEXT_PUBLIC_SUPABASE_URL && myId && coupleId) {
-      const { createClient } = await import('@/lib/supabase/client')
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const db = createClient() as any
-      const { data, error } = await db.from('media').insert({
-        couple_id: coupleId, added_by: myId,
-        title: newMediaTitle, media_type: newMediaType,
-        memo: newMemo || null, is_done: false, owner: newOwner,
-      }).select().single()
-      if (!error && data) {
-        setMedia(prev => [{ id: data.id, title: data.title, media_type: data.media_type, memo: data.memo ?? undefined, is_done: false, owner: newOwner }, ...prev])
-      } else {
-        setMedia(prev => [{ id: Date.now().toString(), title: newMediaTitle, media_type: newMediaType, memo: newMemo || undefined, is_done: false, owner: newOwner }, ...prev])
-      }
-    } else {
-      setMedia(prev => [{ id: Date.now().toString(), title: newMediaTitle, media_type: newMediaType, memo: newMemo || undefined, is_done: false, owner: newOwner }, ...prev])
-    }
+    await addMediaItem(
+      { title: newMediaTitle, media_type: newMediaType, memo: newMemo || null, is_done: false, owner: newOwner },
+      { id: Date.now().toString(), title: newMediaTitle, media_type: newMediaType, memo: newMemo || undefined, is_done: false, owner: newOwner },
+    )
     haptic('success')
     resetForm(); setShowSheet(false)
   }
 
+  // ── 更新ハンドラ ─────────────────────────────────────────────────
   async function handleUpdatePlace() {
     if (!editingPlace || !newName) return
-    const updates = { name: newName, category: newCategory || 'その他', location: newLocation, memo: newMemo || null, owner: newOwner }
-    setPlaces(prev => prev.map(p => p.id === editingPlace.id ? { ...p, ...updates, memo: newMemo || undefined } : p))
-    if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
-      const { createClient } = await import('@/lib/supabase/client')
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const db = createClient() as any
-      await db.from('places').update(updates).eq('id', editingPlace.id)
-    }
+    await updatePlaceItem(editingPlace.id, {
+      name: newName, category: newCategory || 'その他',
+      location: newLocation, memo: newMemo || null, owner: newOwner,
+    })
+    haptic('success')
+    resetForm(); setShowSheet(false)
+  }
+
+  async function handleUpdateTodo() {
+    if (!editingTodo || !newTodoTitle) return
+    await updateTodoItem(editingTodo.id, {
+      title: newTodoTitle, category: newTodoCategory,
+      memo: newMemo || null, owner: newOwner,
+    })
     haptic('success')
     resetForm(); setShowSheet(false)
   }
 
   async function handleUpdateMedia() {
     if (!editingMedia || !newMediaTitle) return
-    const updates = { title: newMediaTitle, media_type: newMediaType, memo: newMemo || null, owner: newOwner }
-    setMedia(prev => prev.map(m => m.id === editingMedia.id ? { ...m, ...updates, memo: newMemo || undefined } : m))
-    if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
-      const { createClient } = await import('@/lib/supabase/client')
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const db = createClient() as any
-      await db.from('media').update(updates).eq('id', editingMedia.id)
-    }
+    await updateMediaItem(editingMedia.id, {
+      title: newMediaTitle, media_type: newMediaType,
+      memo: newMemo || null, owner: newOwner,
+    })
     haptic('success')
     resetForm(); setShowSheet(false)
   }
