@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { differenceInDays, format, addDays } from 'date-fns'
+import { format, addDays } from 'date-fns'
 import { ja } from 'date-fns/locale'
 import { MapPin, Play, Plane, CalendarDays, List, Search, Star } from 'lucide-react'
 import Link from 'next/link'
@@ -12,6 +12,8 @@ import { PullToRefresh } from '@/components/PullToRefresh'
 import { useRealtimeSync } from '@/hooks/useRealtimeSync'
 import { useToast } from '@/components/ToastProvider'
 import { useAutoRefresh } from '@/hooks/useAutoRefresh'
+import { calculateHeroState } from '@/lib/heroState'
+import type { HeroFlight } from '@/lib/heroState'
 import { haptic } from '@/lib/haptics'
 import IconCircle from '@/components/ui/IconCircle'
 import Tag from '@/components/ui/Tag'
@@ -115,6 +117,8 @@ export default function HomePage() {
   const [todosCount,  setTodosCount]  = useState<number>(0)
   const [nextVisitDate, setNextVisitDate] = useState<string | null>(null)
   const [nextFlightLine, setNextFlightLine] = useState<string | null>(null)
+  const [nextFlightData, setNextFlightData] = useState<HeroFlight | null>(null)
+  const [currentEvent, setCurrentEvent] = useState<HomeEvent | null>(null)
   const [loading, setLoading] = useState(true)
   const [coupleId, setCoupleId] = useState<string | null>(null)
   const { showToast } = useToast()
@@ -127,6 +131,8 @@ export default function HomePage() {
       setCouple({ anniversary: '2023-04-01' })
       setNextVisitDate(format(addDays(new Date(), 23), 'yyyy-MM-dd'))
       setNextFlightLine('NH123  HND 10:00 → ITM 11:15')
+      setNextFlightData(null)
+      setCurrentEvent(null)
       setEvents([
         { id: '2', title: '映画「君の名は」', date: format(addDays(new Date(), 5), 'yyyy-MM-dd'),  type: 'online' },
         { id: '3', title: '記念日',           date: format(addDays(new Date(), 30), 'yyyy-MM-dd'), type: 'anniversary' },
@@ -222,10 +228,41 @@ export default function HomePage() {
           fl.arrival_airport,
         ].filter(Boolean)
         if (parts.length > 0) setNextFlightLine(parts.join('  '))
+        // 構造化フライトデータ（departure_day 状態の判定用）
+        if (fl.departure_time) {
+          setNextFlightData({
+            departureTime: new Date(fl.departure_time),
+            departureAirport: fl.departure_airport ?? undefined,
+          })
+        } else {
+          setNextFlightData(null)
+        }
       } else {
         setNextFlightLine(null)
+        setNextFlightData(null)
       }
     }
+
+    // 現在進行中の visit/trip（開始済み・終了前）
+    const { data: currentEvData } = await db
+      .from('events')
+      .select('id, title, event_date, end_date, event_type')
+      .eq('couple_id', coupleId)
+      .in('event_type', ['visit', 'trip'])
+      .lt('event_date', today)
+      .not('end_date', 'is', null)
+      .gte('end_date', today)
+      .order('event_date', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    setCurrentEvent(currentEvData ? {
+      id: currentEvData.id,
+      title: currentEvData.title,
+      date: currentEvData.event_date,
+      end_date: currentEvData.end_date,
+      type: currentEvData.event_type,
+    } : null)
 
     // 今日以降のイベント（最大5件）
     const { data: eventsData } = await db
@@ -349,7 +386,6 @@ export default function HomePage() {
   const nextMeeting = nextVisitDate
     ? new Date(nextVisitDate.replace(/-/g, '/'))
     : null
-  const daysUntilMeeting = nextMeeting ? differenceInDays(nextMeeting, new Date()) : null
 
   const hour     = new Date().getHours()
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening'
@@ -359,9 +395,22 @@ export default function HomePage() {
   const myName      = me?.display_name      || 'わたし'
   const partnerName = partner?.display_name || 'パートナー'
 
-  // ヒーローに表示する次の会う日のイベント情報
-  const nextVisitEvent = upcomingEvents.find(e => e.type === 'visit' || e.type === 'trip')
-  const heroLabel = nextVisitEvent ? eventTypeConfig[nextVisitEvent.type].label : '会う日'
+  // ヒーロー状態を計算
+  const heroState = calculateHeroState(
+    upcomingEvents,
+    currentEvent,
+    nextFlightData,
+    couple?.anniversary ? new Date(couple.anniversary.replace(/-/g, '/')) : null,
+  )
+
+  // ヒーロー下部に表示するイベント種別ラベル（upcoming / departure_day 時）
+  const heroLabelEvent =
+    heroState.kind === 'together' || heroState.kind === 'last_day'
+      ? heroState.event
+      : upcomingEvents.find(e => e.type === 'visit' || e.type === 'trip') ?? null
+  const heroLabel = heroLabelEvent
+    ? (eventTypeConfig[heroLabelEvent.type as keyof typeof eventTypeConfig]?.label ?? '会う日')
+    : '会う日'
 
   function placeOwnerLabel(owner: 'me' | 'partner' | 'both') {
     if (owner === 'me')      return myName
@@ -390,9 +439,6 @@ export default function HomePage() {
       longPressTimer.current = null
     }
   }
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  void couple // 将来の記念日表示用に保持
 
   return (
     <PageTransition>
@@ -457,11 +503,11 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Center: countdown */}
+          {/* Center: hero state */}
           <div className="flex flex-col items-center justify-center py-6 text-center">
             {loading ? (
               <div style={{ color: '#555', fontSize: '14px' }}>—</div>
-            ) : daysUntilMeeting === null ? (
+            ) : heroState.kind === 'no_meeting' ? (
               /* 予定なし */
               <>
                 <p style={{ color: 'var(--color-hero-muted)', fontSize: '10px', letterSpacing: '0.18em', textTransform: 'uppercase', fontWeight: 500, marginBottom: '20px' }}>
@@ -477,8 +523,67 @@ export default function HomePage() {
                   カレンダーで追加する →
                 </div>
               </>
-            ) : daysUntilMeeting === 0 ? (
-              /* 当日 */
+            ) : heroState.kind === 'anniversary' ? (
+              /* 記念日 */
+              <>
+                <p style={{ color: 'var(--color-hero-muted)', fontSize: '10px', letterSpacing: '0.18em', textTransform: 'uppercase', fontWeight: 500, marginBottom: '20px' }}>
+                  Anniversary
+                </p>
+                <div className="flex items-center justify-center gap-3 mb-4">
+                  <Star size={20} strokeWidth={1.5} style={{ color: 'var(--color-hero-muted)' }} />
+                  <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: '72px', fontWeight: 400, color: 'var(--color-hero-text)', lineHeight: 1, letterSpacing: '-0.01em' }}>
+                    {heroState.months}
+                  </span>
+                  <Star size={20} strokeWidth={1.5} style={{ color: 'var(--color-hero-muted)' }} />
+                </div>
+                <p style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--color-hero-muted)', fontSize: '18px', fontWeight: 400 }}>
+                  months together
+                </p>
+              </>
+            ) : heroState.kind === 'departure_day' ? (
+              /* 出発日 */
+              <>
+                <p style={{ color: 'var(--color-me)', fontSize: '10px', letterSpacing: '0.18em', textTransform: 'uppercase', fontWeight: 500, marginBottom: '20px' }}>
+                  Departure Day
+                </p>
+                <div className="flex items-center justify-center gap-5">
+                  <Plane size={32} strokeWidth={1.5} style={{ color: 'var(--color-hero-muted)' }} />
+                  <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: '52px', fontWeight: 400, color: 'var(--color-hero-text)', lineHeight: 1, letterSpacing: '-0.01em' }}>
+                    TODAY ✈
+                  </span>
+                </div>
+                <p style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--color-hero-muted)', fontSize: '16px', fontWeight: 400, marginTop: '12px' }}>
+                  Have a safe flight
+                </p>
+              </>
+            ) : heroState.kind === 'together' ? (
+              /* 一緒にいる期間 */
+              <>
+                <p style={{ color: 'var(--color-hero-muted)', fontSize: '10px', letterSpacing: '0.18em', textTransform: 'uppercase', fontWeight: 500, marginBottom: '20px' }}>
+                  Together Now
+                </p>
+                <div className="flex items-baseline gap-2" style={{ lineHeight: 1 }}>
+                  <AnimatedNumber
+                    value={heroState.daysLeft}
+                    style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: '108px', fontWeight: 400, color: 'var(--color-hero-text)', lineHeight: 0.88, letterSpacing: '-0.03em' }}
+                  />
+                  <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--color-hero-muted)', fontSize: '28px', fontWeight: 400, letterSpacing: '-0.01em' }}>
+                    days left
+                  </span>
+                </div>
+              </>
+            ) : heroState.kind === 'last_day' ? (
+              /* 最終日 */
+              <>
+                <p style={{ color: 'var(--color-hero-muted)', fontSize: '10px', letterSpacing: '0.18em', textTransform: 'uppercase', fontWeight: 500, marginBottom: '20px' }}>
+                  See You Soon
+                </p>
+                <p style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--color-hero-text)', fontSize: '26px', fontWeight: 400, lineHeight: 1.45 }}>
+                  Today is our<br />last day
+                </p>
+              </>
+            ) : heroState.daysLeft === 0 ? (
+              /* upcoming・当日 */
               <>
                 <p style={{ color: 'var(--color-me)', fontSize: '10px', letterSpacing: '0.18em', textTransform: 'uppercase', fontWeight: 500, marginBottom: '20px' }}>
                   Next Layover
@@ -491,14 +596,14 @@ export default function HomePage() {
                 </div>
               </>
             ) : (
-              /* 通常カウントダウン */
+              /* upcoming・通常カウントダウン */
               <>
                 <p style={{ color: 'var(--color-hero-muted)', fontSize: '10px', letterSpacing: '0.18em', textTransform: 'uppercase', fontWeight: 500, marginBottom: '12px' }}>
                   Next Layover
                 </p>
                 <div className="flex items-baseline gap-2" style={{ lineHeight: 1 }}>
                   <AnimatedNumber
-                    value={daysUntilMeeting!}
+                    value={heroState.daysLeft}
                     style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: '108px', fontWeight: 400, color: 'var(--color-hero-text)', lineHeight: 0.88, letterSpacing: '-0.03em' }}
                   />
                   <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--color-hero-muted)', fontSize: '28px', fontWeight: 400, letterSpacing: '-0.01em' }}>
@@ -509,30 +614,56 @@ export default function HomePage() {
             )}
           </div>
 
-          {/* Bottom: date + type pill + flight */}
-          {nextMeeting && !loading && (
+          {/* Bottom: state-aware footer */}
+          {!loading && heroState.kind !== 'no_meeting' && (
             <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--color-hero-subtle)', fontSize: '15px' }}>
-                  {format(nextMeeting, 'M月d日(E)', { locale: ja })}
-                </span>
-                <span style={{
-                  backgroundColor: 'rgba(255,255,255,0.1)',
-                  color: 'var(--color-hero-text)',
-                  fontSize: '11px',
-                  fontWeight: 500,
-                  padding: '3px 12px',
-                  borderRadius: '100px',
-                  border: '0.5px solid rgba(255,255,255,0.15)',
-                }}>
-                  {heroLabel}
-                </span>
-              </div>
-              {nextFlightLine && (
-                <p style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-hero-muted)', fontSize: '11px', marginTop: '8px', letterSpacing: '0.04em' }}>
-                  <Plane size={11} strokeWidth={1.5} style={{ display: 'inline', marginRight: '6px', verticalAlign: 'middle' }} />
-                  {nextFlightLine}
+              {heroState.kind === 'together' && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--color-hero-subtle)', fontSize: '15px' }}>
+                    {heroState.event.title}
+                  </span>
+                  {heroState.event.end_date && (
+                    <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--color-hero-muted)', fontSize: '13px' }}>
+                      〜 {format(new Date(heroState.event.end_date.replace(/-/g, '/')), 'M月d日(E)', { locale: ja })}
+                    </span>
+                  )}
+                </div>
+              )}
+              {heroState.kind === 'last_day' && (
+                <p style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--color-hero-subtle)', fontSize: '15px' }}>
+                  {heroState.event.title}
                 </p>
+              )}
+              {heroState.kind === 'anniversary' && couple?.anniversary && (
+                <p style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--color-hero-subtle)', fontSize: '15px' }}>
+                  {format(new Date(couple.anniversary.replace(/-/g, '/')), 'yyyy年M月d日', { locale: ja })} から
+                </p>
+              )}
+              {(heroState.kind === 'upcoming' || heroState.kind === 'departure_day') && nextMeeting && (
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--color-hero-subtle)', fontSize: '15px' }}>
+                      {format(nextMeeting, 'M月d日(E)', { locale: ja })}
+                    </span>
+                    <span style={{
+                      backgroundColor: 'rgba(255,255,255,0.1)',
+                      color: 'var(--color-hero-text)',
+                      fontSize: '11px',
+                      fontWeight: 500,
+                      padding: '3px 12px',
+                      borderRadius: '100px',
+                      border: '0.5px solid rgba(255,255,255,0.15)',
+                    }}>
+                      {heroLabel}
+                    </span>
+                  </div>
+                  {nextFlightLine && (
+                    <p style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-hero-muted)', fontSize: '11px', marginTop: '8px', letterSpacing: '0.04em' }}>
+                      <Plane size={11} strokeWidth={1.5} style={{ display: 'inline', marginRight: '6px', verticalAlign: 'middle' }} />
+                      {nextFlightLine}
+                    </p>
+                  )}
+                </div>
               )}
             </div>
           )}

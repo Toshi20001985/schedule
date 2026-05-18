@@ -1046,7 +1046,36 @@ function CalendarPageInner() {
             <span className="text-xs" style={{ color: '#737373' }}>{config.label}</span>
           </div>
         ))}
+        <div className="flex items-center gap-1.5">
+          <Plane size={10} strokeWidth={1.5} style={{ color: '#737373' }} />
+          <span className="text-xs" style={{ color: '#737373' }}>フライト</span>
+        </div>
       </div>
+
+      {/* Month summary */}
+      {(() => {
+        const monthStr = format(currentMonth, 'yyyy-MM')
+        const monthEvents = events.filter(e => e.date.startsWith(monthStr) || (e.end_date ?? e.date).startsWith(monthStr))
+        const visitTripCount = monthEvents.filter(e => e.type === 'visit' || e.type === 'trip').length
+        const nextEvent = events
+          .filter(e => e.date >= format(new Date(), 'yyyy-MM-dd'))
+          .sort((a, b) => a.date.localeCompare(b.date))[0] ?? null
+        if (visitTripCount === 0 && !nextEvent) return null
+        return (
+          <div className="flex items-center gap-3 mb-3 px-1">
+            {visitTripCount > 0 && (
+              <span className="text-xs" style={{ color: '#737373' }}>
+                この月の予定: <strong style={{ color: '#1A1A1A' }}>{visitTripCount}件</strong>
+              </span>
+            )}
+            {nextEvent && nextEvent.date.startsWith(monthStr) && (
+              <span className="text-xs" style={{ color: '#737373' }}>
+                次: <strong style={{ color: '#1A1A1A' }}>{format(new Date(nextEvent.date.replace(/-/g, '/')), 'M/d(E)', { locale: ja })}</strong>
+              </span>
+            )}
+          </div>
+        )
+      })()}
 
       {/* Calendar Grid — スワイプで月切り替え */}
       {/* overflow:clip = hidden と同じ視覚クリップだが BFC を作らず
@@ -1075,6 +1104,7 @@ function CalendarPageInner() {
             const dayEvents      = eventsOnDay(day)
             const rangeEvents    = dayEvents.filter(e => e.end_date && e.end_date !== e.date)
             const singleEvents   = dayEvents.filter(e => !e.end_date || e.end_date === e.date)
+            const hasFlights     = dayEvents.some(e => (flightsByEventId[e.id]?.length ?? 0) > 0)
             const isCurrentMonth = isSameMonth(day, currentMonth)
             const isToday        = isSameDay(day, new Date())
             const isSelected     = selectedDate ? isSameDay(day, selectedDate) : false
@@ -1099,6 +1129,11 @@ function CalendarPageInner() {
                 >
                   {format(day, 'd')}
                 </span>
+                {hasFlights && (
+                  <span style={{ position: 'absolute', top: 2, right: 4, lineHeight: 1 }}>
+                    <Plane size={8} strokeWidth={1.5} style={{ color: '#A3A3A3' }} />
+                  </span>
+                )}
                 {/* Event indicators */}
                 <div className="relative w-full" style={{ height: '8px' }}>
                   {/* Range event bars */}

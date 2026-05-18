@@ -529,6 +529,67 @@ export function useAutoRefresh(load: () => void) {
 
 ---
 
+## セッション 8：ヒーローエリア動的化 + カレンダー情報密度向上
+
+### Phase C-1：ヒーローエリア動的化（`app/(main)/page.tsx`）
+
+#### 目的
+ホーム画面のヒーローカードを「あと◯日」固定表示から、状況に応じた6種類の表示に切り替える。
+
+#### 設計判断
+- ロジックを `lib/heroState.ts` に分離し、型安全な discriminated union (`HeroState`) で状態を定義
+- `en_route`（飛行中）は分レベルの精度と1分間隔の再計算が必要なため見送り
+- `departure_day`（出発日・出発前）は既存の `nextFlight` データを流用
+- `together`（一緒にいる期間）のための `currentEvent` は、`event_date < today` かつ `end_date >= today` の visit/trip を新規クエリで取得
+- 記念日チェックは月日一致（毎月ではなく、記念日後の毎年同日）
+
+#### 実装内容
+
+**新規: `lib/heroState.ts`**
+- `HeroEvent`, `HeroFlight` インタフェース
+- `HeroState` 判別共用体（`no_meeting` / `upcoming` / `departure_day` / `together` / `last_day` / `anniversary`）
+- `calculateHeroState()` 関数：優先度順（記念日 → 進行中 → 出発日 → 未来予定 → 予定なし）
+
+**変更: `app/(main)/page.tsx`**
+- `calculateHeroState` / `HeroFlight` インポート追加
+- `nextFlightData: HeroFlight | null`、`currentEvent: HomeEvent | null` state 追加
+- `load()` にフライト構造化データ保存と currentEvent クエリを追加
+- `differenceInDays` インポート削除（`daysUntilMeeting` 廃止に伴い不要）
+- `void couple` リントハック削除（`couple` を `calculateHeroState` に渡すため不要）
+- ヒーロー中央セクション: heroState.kind で6状態を切り替えるレンダリングに置換
+- ヒーロー下部セクション: 状態別フッター（together→イベント名+終了日、last_day→イベント名、anniversary→記念日から、upcoming/departure_day→既存の日付+種別ピル+フライト）
+
+#### 状態別表示
+| 状態 | 中央表示 | 下部フッター |
+|---|---|---|
+| `no_meeting` | "Let's plan our next meet" | なし |
+| `anniversary` | ★ N ★ / months together | 記念日 yyyy年M月d日 から |
+| `departure_day` | Plane + "TODAY ✈" / Have a safe flight | 日付 + 種別ピル + フライト |
+| `together` | "Together Now" / N days left | イベント名 〜 終了日 |
+| `last_day` | "See You Soon" / Today is our last day | イベント名 |
+| `upcoming` daysLeft=0 | Plane + "Today!" | 日付 + 種別ピル + フライト |
+| `upcoming` daysLeft>0 | N days（大数字） | 日付 + 種別ピル + フライト |
+
+---
+
+### Phase C-2：カレンダー情報密度向上（`app/(main)/calendar/page.tsx`）
+
+#### 目的
+カレンダーセルとレジェンドにフライト情報を可視化し、月サマリーを追加。
+
+#### 設計判断
+- 長押しプレビューは `useSwipeable`（月スワイプ）と競合するため見送り
+- フライトアイコンはセル右上に 8px の小アイコン（目立ちすぎず存在を示す程度）
+- 月サマリーはシンプルに「visit/trip 件数」と「次のイベント日」のみ（複雑な統計は不要）
+- 月サマリーは visit/trip が0件かつ次イベントがない月は非表示
+
+#### 実装内容
+- **レジェンドに ✈ フライト追加**: 既存の `eventTypeConfig` ループの後に `Plane` アイコン + "フライト" テキスト
+- **セルのフライトアイコン**: `hasFlights = dayEvents.some(e => (flightsByEventId[e.id]?.length ?? 0) > 0)` を計算し、`true` の場合に `position: absolute; top: 2; right: 4` に `Plane size={8}` を表示
+- **月サマリー**: レジェンドとカレンダーグリッドの間に IIFE で描画。当月の visit/trip 件数と、今日以降の次イベント日（当月内のみ）を表示
+
+---
+
 ## 今後の検討候補（未着手）
 
 - Supabase Realtime の todos テーブル有効化（パートナーのtodo追加をリアルタイム反映したい場合）
