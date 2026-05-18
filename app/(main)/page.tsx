@@ -11,6 +11,7 @@ import Card from '@/components/ui/Card'
 import { PullToRefresh } from '@/components/PullToRefresh'
 import { useRealtimeSync } from '@/hooks/useRealtimeSync'
 import { useToast } from '@/components/ToastProvider'
+import { useAutoRefresh } from '@/hooks/useAutoRefresh'
 import { haptic } from '@/lib/haptics'
 import IconCircle from '@/components/ui/IconCircle'
 import Tag from '@/components/ui/Tag'
@@ -293,6 +294,8 @@ export default function HomePage() {
   useEffect(() => {
     load()
   }, [load])
+
+  useAutoRefresh(load)
 
   // Realtime 購読（ホームは集計データが多いため、変更時に load() を再実行）
   const reloadOnPartnerChange = useCallback(

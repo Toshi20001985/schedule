@@ -484,6 +484,51 @@ Supabase エラー時のフォールバック構造 × 3箇所。
 
 ---
 
+## セッション 7：オンライン復帰時の自動データ再取得
+
+### 目的
+ユーザー提案「ローカルキャッシュとサーバーデータの整合性を保つ機構」の実現。
+
+### 設計判断（提案の大部分を見送った理由）
+提案の `integrityChecker.ts` / `useIntegrityCheck.ts` は以下を前提としていたが、いずれも存在しない。
+- `import { db } from '@/lib/supabase'`（静的シングルトン）
+- `useQueryClient()` / `queryClient.getQueryData()`（TanStack Query。セッション4で見送り）
+- `mutationQueue`（セッション6でオプションBとしてスキップ）
+- 永続化された「ローカルキャッシュ」（現構成では各ページの `useState` で管理、ページ離脱で消える）
+
+現アーキテクチャでは「ローカルにあってサーバーにない」データが長期残り続ける仕組みがないため、本格的な整合性チェックの必要がない。実際に起きうる唯一の問題は「オフライン中にパートナーが行った操作を、Realtime が途切れていたため見逃す」ケースのみ。これは `load()` 再実行で解決できる。
+
+### 実装内容
+
+**新規: `hooks/useAutoRefresh.ts`**
+```typescript
+export function useAutoRefresh(load: () => void) {
+  const isOnline = useOnlineStatus()
+  const prevOnlineRef = useRef(isOnline)
+
+  useEffect(() => {
+    // offline → online の遷移のみ検知（初回マウント・online → offline は無視）
+    if (isOnline && !prevOnlineRef.current) {
+      load()
+    }
+    prevOnlineRef.current = isOnline
+  }, [isOnline, load])
+}
+```
+
+**変更: 3ページ（home / calendar / list）**
+- `import { useAutoRefresh } from '@/hooks/useAutoRefresh'` を追加
+- 既存の `useEffect(() => { load() }, [load])` の直後に `useAutoRefresh(load)` を1行追加
+
+### 動作
+| 状況 | 挙動 |
+|---|---|
+| 通常起動（オンライン） | 既存の `useEffect` で `load()` が実行され、`prevOnlineRef = true` のままなので `useAutoRefresh` は何もしない |
+| オフラインで起動 | `useOnlineStatus` が `false` を設定 → `prevOnlineRef = false`。`useAutoRefresh` は `load()` を呼ばない（Supabase に繋がらないため無意味） |
+| オンライン復帰 | `isOnline: false → true`。`prevOnlineRef = false` なので条件が成立 → `load()` 自動実行 |
+
+---
+
 ## 今後の検討候補（未着手）
 
 - Supabase Realtime の todos テーブル有効化（パートナーのtodo追加をリアルタイム反映したい場合）

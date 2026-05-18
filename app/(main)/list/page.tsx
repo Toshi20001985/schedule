@@ -13,6 +13,7 @@ import { SwipeableListItem } from '@/components/SwipeableListItem'
 import { useRealtimeSync } from '@/hooks/useRealtimeSync'
 import { useCollection } from '@/hooks/useCollection'
 import { useToast } from '@/components/ToastProvider'
+import { useAutoRefresh } from '@/hooks/useAutoRefresh'
 import { PageTransition } from '@/components/PageTransition'
 
 type Owner = 'me' | 'partner' | 'both'
@@ -274,6 +275,8 @@ function ListPageInner() {
   useEffect(() => {
     load()
   }, [load])
+
+  useAutoRefresh(load)
 
   // ハイライトを一定時間後にクリア
   useEffect(() => {

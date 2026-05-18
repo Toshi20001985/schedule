@@ -18,6 +18,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useSwipeable } from 'react-swipeable'
 import { useRealtimeSync } from '@/hooks/useRealtimeSync'
 import { useToast } from '@/components/ToastProvider'
+import { useAutoRefresh } from '@/hooks/useAutoRefresh'
 import { PageTransition } from '@/components/PageTransition'
 
 const eventTypeConfig = {
@@ -740,6 +741,8 @@ function CalendarPageInner() {
   useEffect(() => {
     load()
   }, [load])
+
+  useAutoRefresh(load)
 
   // ハイライトを一定時間後にクリア
   useEffect(() => {
