@@ -1055,12 +1055,13 @@ function CalendarPageInner() {
       {/* Month summary */}
       {(() => {
         const monthStr = format(currentMonth, 'yyyy-MM')
+        const todayStr = format(new Date(), 'yyyy-MM-dd')
         const monthEvents = events.filter(e => e.date.startsWith(monthStr) || (e.end_date ?? e.date).startsWith(monthStr))
         const visitTripCount = monthEvents.filter(e => e.type === 'visit' || e.type === 'trip').length
-        const nextEvent = events
-          .filter(e => e.date >= format(new Date(), 'yyyy-MM-dd'))
+        const nextVisitTrip = events
+          .filter(e => (e.type === 'visit' || e.type === 'trip') && e.date >= todayStr && e.date.startsWith(monthStr))
           .sort((a, b) => a.date.localeCompare(b.date))[0] ?? null
-        if (visitTripCount === 0 && !nextEvent) return null
+        if (visitTripCount === 0 && !nextVisitTrip) return null
         return (
           <div className="flex items-center gap-3 mb-3 px-1">
             {visitTripCount > 0 && (
@@ -1068,9 +1069,9 @@ function CalendarPageInner() {
                 この月の予定: <strong style={{ color: '#1A1A1A' }}>{visitTripCount}件</strong>
               </span>
             )}
-            {nextEvent && nextEvent.date.startsWith(monthStr) && (
+            {nextVisitTrip && (
               <span className="text-xs" style={{ color: '#737373' }}>
-                次: <strong style={{ color: '#1A1A1A' }}>{format(new Date(nextEvent.date.replace(/-/g, '/')), 'M/d(E)', { locale: ja })}</strong>
+                次: <strong style={{ color: '#1A1A1A' }}>{format(new Date(nextVisitTrip.date.replace(/-/g, '/')), 'M/d(E)', { locale: ja })}</strong>
               </span>
             )}
           </div>
