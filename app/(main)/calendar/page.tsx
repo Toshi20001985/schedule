@@ -17,7 +17,7 @@ import { PullToRefresh } from '@/components/PullToRefresh'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useSwipeable } from 'react-swipeable'
 import { useRealtimeSync } from '@/hooks/useRealtimeSync'
-import { Toast } from '@/components/Toast'
+import { useToast } from '@/components/ToastProvider'
 import { PageTransition } from '@/components/PageTransition'
 
 const eventTypeConfig = {
@@ -650,7 +650,7 @@ function CalendarPageInner() {
   const [partnerName, setPartnerName] = useState('パートナー')
   const [editingEvent, setEditingEvent] = useState<CalEvent | null>(null)
   const [highlightedId, setHighlightedId] = useState<string | null>(null)
-  const [toast, setToast] = useState<string | null>(null)
+  const { showToast } = useToast()
 
   // フライト
   const [partnerId, setPartnerId] = useState<string | null>(null)
@@ -762,7 +762,7 @@ function CalendarPageInner() {
       if (isPartner) {
         haptic('light')
         setHighlightedId(e.id)
-        setToast(`「${e.title}」が追加されました`)
+        showToast(`「${e.title}」が追加されました`)
       }
     },
     onUpdate: (rec, isPartner) => {
@@ -1012,7 +1012,6 @@ function CalendarPageInner() {
   return (
     <PageTransition>
     <PullToRefresh onRefresh={load}>
-    <Toast message={toast} onDismiss={() => setToast(null)} />
     <div className="px-4 pt-6 max-w-lg mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-5">

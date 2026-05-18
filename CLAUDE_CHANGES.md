@@ -352,6 +352,84 @@ Supabase エラー時のフォールバック構造 × 3箇所。
 
 ---
 
+## セッション 4：TanStack Query 導入の検討 → 見送り
+
+### 検討内容
+全画面のデータ層を TanStack Query (React Query) で統一する提案。
+
+### 見送り理由
+以下の技術的問題と費用対効果の観点から、現時点では導入しないことを決定。
+
+1. **`import { db } from '@/lib/supabase'` が存在しない** — 実際のコードは Next.js App Router の Cookie 管理のため `createClient()` を毎回動的 import する設計。静的シングルトンへの書き換えには別途検討が必要。
+2. **Realtime との相性が悪い** — 提案の `invalidateQueries` では Realtime イベントのたびにテーブル全件再フェッチが発生し、現在の直接 state 更新（ネットワーク 0 回）より UX が悪化する。`queryClient.setQueryData` で直接パッチすれば解決するが、その場合は `useCollection` と構造が同じになる。
+3. **現アプリ規模では費用対効果が低い** — 1 画面 1 データセット構造のため、ページ間キャッシュ共有のメリットは限定的。Realtime Sync で既にリアルタイム反映が実現されている。
+4. **変更規模が大きい** — 全ページ・全フックを書き換えるリスクに対し、得られる恩恵が少ない。
+
+### 現状維持の根拠
+`useCollection` フック（セッション 3 で導入）+ Supabase Realtime の直接 state 更新という構成が、このアプリの要件（リアルタイム性・シンプルさ・小規模）に適している。
+
+---
+
+## セッション 5：グローバルエラーハンドリング機構の導入
+
+### 目的
+各ページに分散していたエラー表示（`try-catch` + ローカル `setToast`）を廃止し、
+統一されたエラー分類・表示の仕組みをアプリ全体に導入する。
+
+### 新規作成ファイル
+
+**`lib/errors.ts`**
+- `AppError` クラス（`code: ErrorCode` + `cause` 保持）
+- `normalizeError(error: unknown): AppError` — Supabase の `{ data, error }` オブジェクト・Error インスタンス・不明値をすべて AppError に変換
+  - 401 / JWT / session expired → `AUTH_REQUIRED`
+  - 403 / RLS / permission → `PERMISSION_DENIED`
+  - 404 / not found → `NOT_FOUND`
+  - fetch / network → `NETWORK_ERROR`
+  - 5xx → `SERVER_ERROR`
+- `getUserMessage(error: AppError): string` — ErrorCode → 日本語ユーザーメッセージ
+
+**`components/ToastProvider.tsx`**
+- Context ベースのグローバルトーストプロバイダー
+- `ToastVariant: 'default' | 'success' | 'error' | 'warning'`
+- `showToast(message, { variant? })` で呼び出し
+- framer-motion の AnimatePresence で複数トーストをスタック表示（3秒で自動消去）
+- `position: fixed` をルートレイアウト直下に配置 → opacity アニメーション問題を回避
+- `top: calc(env(safe-area-inset-top) + 12px)` で既存 Toast.tsx と同一ポジション
+
+**`hooks/useErrorHandler.ts`**
+- `useErrorHandler()` フック — `(error: unknown) => void` を返す
+- `AUTH_REQUIRED` → error トースト + `/auth/login` へリダイレクト
+- `NETWORK_ERROR` → warning トースト
+- その他 → error トースト
+- 開発時のみ `console.error` でデバッグ出力
+
+**`app/error.tsx`**
+- Next.js App Router のルートエラー境界
+- アプリのデザイン言語（`#FAF5EE` 背景、`#1A1A1A` ボタン）に統一
+- 「問題が発生しました」+ 再試行ボタン
+
+### 変更ファイル
+
+**`app/layout.tsx`**
+- `<ToastProvider>` でルート全体をラップ
+- クライアントコンポーネントを Server Component の子として配置（Next.js App Router の仕様上安全）
+
+**`hooks/useCollection.ts`**
+- `useToast()` を追加
+- `addItem` でSupabase insert に失敗した場合、`showToast('保存できませんでした', { variant: 'error' })` を表示
+
+**`app/(main)/page.tsx` / `app/(main)/calendar/page.tsx` / `app/(main)/list/page.tsx`**
+- `import { Toast } from '@/components/Toast'` を `import { useToast } from '@/components/ToastProvider'` に置き換え
+- `const [toast, setToast] = useState<string | null>(null)` を削除
+- `const { showToast } = useToast()` を追加
+- `setToast('...')` → `showToast('...')` に置き換え
+- `<Toast message={toast} onDismiss={...} />` の JSX を削除
+
+### 旧 `components/Toast.tsx` について
+既存の `Toast.tsx` は残存（他箇所で参照がある可能性）。ただし3ページでの使用はすべて `useToast()` に移行済み。
+
+---
+
 ## 今後の検討候補（未着手）
 
 - Supabase Realtime の todos テーブル有効化（パートナーのtodo追加をリアルタイム反映したい場合）

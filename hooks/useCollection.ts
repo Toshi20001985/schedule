@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback } from 'react'
+import { useToast } from '@/components/ToastProvider'
 
 type ListTable = 'places' | 'media' | 'todos'
 
@@ -30,6 +31,7 @@ export function useCollection<T extends { id: string }>(
   myId: string | null,
 ): UseCollectionReturn<T> {
   const [items, setItems] = useState<T[]>([])
+  const { showToast } = useToast()
 
   /**
    * Supabase への insert + ローカル state 追加。
@@ -53,6 +55,8 @@ export function useCollection<T extends { id: string }>(
         setItems(prev => [{ ...localItem, id: data.id as string } as T, ...prev])
         return
       }
+      // Supabase エラー: ローカルに追加してUIを維持し、エラーを通知
+      showToast('保存できませんでした', { variant: 'error' })
     }
     // Supabase 未設定 or エラー: temp id のローカルアイテムを追加してUIを維持
     setItems(prev => [localItem, ...prev])

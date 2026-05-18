@@ -12,7 +12,7 @@ import { PullToRefresh } from '@/components/PullToRefresh'
 import { SwipeableListItem } from '@/components/SwipeableListItem'
 import { useRealtimeSync } from '@/hooks/useRealtimeSync'
 import { useCollection } from '@/hooks/useCollection'
-import { Toast } from '@/components/Toast'
+import { useToast } from '@/components/ToastProvider'
 import { PageTransition } from '@/components/PageTransition'
 
 type Owner = 'me' | 'partner' | 'both'
@@ -144,7 +144,7 @@ function ListPageInner() {
   const [newMemo, setNewMemo] = useState('')
   const [newOwner, setNewOwner] = useState<Owner>('both')
   const [highlightedId, setHighlightedId] = useState<string | null>(null)
-  const [toast, setToast] = useState<string | null>(null)
+  const { showToast } = useToast()
 
   // owner ラベルを名前から生成
   const ownerOptions: { value: Owner; label: string; bg: string; color: string }[] = [
@@ -293,7 +293,7 @@ function ListPageInner() {
       if (isPartner) {
         haptic('light')
         setHighlightedId(p.id)
-        setToast(`「${p.name}」が追加されました`)
+        showToast(`「${p.name}」が追加されました`)
       }
     },
     onUpdate: (rec, isPartner) => {
@@ -315,7 +315,7 @@ function ListPageInner() {
       if (isPartner) {
         haptic('light')
         setHighlightedId(t.id)
-        setToast(`「${t.title}」が追加されました`)
+        showToast(`「${t.title}」が追加されました`)
       }
     },
     onUpdate: (rec, isPartner) => {
@@ -337,7 +337,7 @@ function ListPageInner() {
       if (isPartner) {
         haptic('light')
         setHighlightedId(m.id)
-        setToast(`「${m.title}」が追加されました`)
+        showToast(`「${m.title}」が追加されました`)
       }
     },
     onUpdate: (rec, isPartner) => {
@@ -495,7 +495,6 @@ function ListPageInner() {
     <>
     <PageTransition>
     <PullToRefresh onRefresh={load}>
-    <Toast message={toast} onDismiss={() => setToast(null)} />
     <div className="px-4 pt-6 max-w-lg mx-auto">
       <h1 className="text-lg font-semibold mb-5" style={{ color: '#1A1A1A' }}>リスト</h1>
 

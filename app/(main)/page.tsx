@@ -10,7 +10,7 @@ import { motion, useReducedMotion } from 'framer-motion'
 import Card from '@/components/ui/Card'
 import { PullToRefresh } from '@/components/PullToRefresh'
 import { useRealtimeSync } from '@/hooks/useRealtimeSync'
-import { Toast } from '@/components/Toast'
+import { useToast } from '@/components/ToastProvider'
 import { haptic } from '@/lib/haptics'
 import IconCircle from '@/components/ui/IconCircle'
 import Tag from '@/components/ui/Tag'
@@ -116,7 +116,7 @@ export default function HomePage() {
   const [nextFlightLine, setNextFlightLine] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [coupleId, setCoupleId] = useState<string | null>(null)
-  const [toast, setToast] = useState<string | null>(null)
+  const { showToast } = useToast()
 
   const load = useCallback(async () => {
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
@@ -300,11 +300,11 @@ export default function HomePage() {
       // パートナーの変更はトースト＋ハプティック、自分の変更もカウント更新のため常に load()
       if (isPartner) {
         haptic('light')
-        if (name && label) setToast(`${label}「${name}」が追加されました`)
+        if (name && label) showToast(`${label}「${name}」が追加されました`)
       }
       load()
     },
-    [load]
+    [load, showToast]
   )
 
   useRealtimeSync({
@@ -394,7 +394,6 @@ export default function HomePage() {
   return (
     <PageTransition>
     <PullToRefresh onRefresh={load}>
-    <Toast message={toast} onDismiss={() => setToast(null)} />
     <motion.div
       className="px-5 pt-6 pb-6 max-w-lg mx-auto space-y-6"
       variants={reduced ? undefined : staggerContainer}
