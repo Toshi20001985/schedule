@@ -430,6 +430,60 @@ Supabase エラー時のフォールバック構造 × 3箇所。
 
 ---
 
+## セッション 6：オフライン対応（検知 + バナー表示 + SW 改善）
+
+### 目的
+飛行機・地下鉄・海外ローミングなどネットワーク不安定時でもアプリが使えるよう改善。
+
+### 検討・見送りの経緯
+ユーザー提案には TanStack Query を使った Steps 3/4/5/6（persistQueryClient、mutationQueue、useAutoSync、useMutation）が含まれていたが、以下の理由でセッション4の決定（TanStack Query 見送り）を維持し、Steps 1/2/7 のみ実装した。
+- TanStack Query は package.json に存在しない（セッション4で導入見送りを決定済み）
+- Step 4 の `processQueue` が使う `db` シングルトンはこのコードベースに存在しない
+- `public/sw.js` はすでに存在しており next-pwa 導入は不要
+
+### 新規作成ファイル
+
+**`hooks/useOnlineStatus.ts`**
+- `navigator.onLine` の初期値取得 + `online/offline` イベント購読
+- SSR では `true` を返す（`useEffect` 前はサーバー側とみなす）
+
+**`components/OfflineBanner.tsx`**
+- `useOnlineStatus()` でオフライン時のみ framer-motion で上からスライドインするバナー
+- スタイルは既存デザイン言語（`#1A1A1A` 背景 / `#FFFFFF` テキスト）
+- `paddingTop: calc(env(safe-area-inset-top) + 8px)` で iOS セーフエリア対応
+- `z-[60]`（ToastProvider の `z-50` より上）で確実に前面表示
+- `position: fixed` のため **ルートレイアウト直下（`<ToastProvider>` 内の先頭）** に配置
+  → `opacity` アニメーション中の祖先（`PageTransition` 等）の外になるため透明化を回避（CLAUDE_CHANGES.md の既知問題）
+
+### 変更ファイル
+
+**`app/layout.tsx`**
+- `OfflineBanner` を `import` して `<ToastProvider>` 内の先頭に挿入
+
+**`public/sw.js`**（`layover-v1` → `layover-v2`）
+- キャッシュを2種類に分離
+  - `layover-v2`（ナビゲーション・その他）: ネットワークファースト、失敗時にキャッシュへフォールバック
+  - `layover-static-v2`（`/_next/static/` のJS・CSSchunk）: キャッシュファースト
+- Next.js の静的チャンクはファイル名にコンテンツハッシュがあるため、キャッシュファーストが安全かつ高効率
+- Supabase API・`/api/` は引き続き SW を素通り（キャッシュしない）
+- activate 時に `layover-v1` 含む旧キャッシュを自動削除
+
+### 動作
+
+| 状況 | 挙動 |
+|---|---|
+| オフライン検知 | バナーが画面上部にスライドイン表示 |
+| オンライン復帰 | バナーがスライドアウトで消える |
+| オフラインでアプリ起動 | SW のキャッシュから JS・CSS を配信、UI が表示される |
+| オフラインでページ遷移 | SW がキャッシュ済みナビゲーションを返す、なければ `/` へフォールバック |
+| Supabase API | オフライン中はエラー。`useErrorHandler` の `NETWORK_ERROR` で warning トーストが出る（セッション5の機構を活用） |
+
+### 見送った機能（将来の検討候補）
+- ミューテーションキュー（オフライン中の追加操作を LocalStorage に蓄積してオンライン復帰後に同期）
+  → `useCollection` の `addItem` に統合する形なら TanStack Query 不要で実装可能
+
+---
+
 ## 今後の検討候補（未着手）
 
 - Supabase Realtime の todos テーブル有効化（パートナーのtodo追加をリアルタイム反映したい場合）

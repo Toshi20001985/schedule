@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import { ToastProvider } from '@/components/ToastProvider'
+import { OfflineBanner } from '@/components/OfflineBanner'
 
 export const metadata: Metadata = {
   title: 'Layover',
@@ -44,7 +45,10 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
       <body className="h-full antialiased">
-        <ToastProvider>{children}</ToastProvider>
+        <ToastProvider>
+          <OfflineBanner />
+          {children}
+        </ToastProvider>
       </body>
     </html>
   )

@@ -1,58 +1,99 @@
 // Service Worker for Layover PWA
-const CACHE_NAME = 'layover-v1'
+// v2: /_next/static/ の JS・CSS チャンクをキャッシュファーストで保持
+const CACHE_NAME    = 'layover-v2'
+const STATIC_CACHE  = 'layover-static-v2'
 
-const STATIC_CACHE = [
+const PRECACHE_URLS = [
   '/',
   '/manifest.json',
 ]
 
+// ────────────────────────────────────────────────────────────
+// Install — プリキャッシュ
+// ────────────────────────────────────────────────────────────
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_CACHE)
-    })
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE_URLS))
   )
   self.skipWaiting()
 })
 
+// ────────────────────────────────────────────────────────────
+// Activate — 古いキャッシュを削除
+// ────────────────────────────────────────────────────────────
 self.addEventListener('activate', (event) => {
+  const currentCaches = [CACHE_NAME, STATIC_CACHE]
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
+    caches.keys().then((cacheNames) =>
+      Promise.all(
         cacheNames
-          .filter((name) => name !== CACHE_NAME)
+          .filter((name) => !currentCaches.includes(name))
           .map((name) => caches.delete(name))
       )
-    })
+    )
   )
   self.clients.claim()
 })
 
+// ────────────────────────────────────────────────────────────
+// Fetch
+// ────────────────────────────────────────────────────────────
 self.addEventListener('fetch', (event) => {
-  // Network first, then cache for API calls
-  if (event.request.url.includes('/api/') || event.request.url.includes('supabase')) {
+  const { request } = event
+  const url = new URL(request.url)
+
+  // Supabase API・認証エンドポイントは SW を素通り（キャッシュしない）
+  if (
+    url.hostname.includes('supabase') ||
+    url.pathname.startsWith('/api/')
+  ) {
     return
   }
 
+  // /_next/static/ の JS・CSS チャンク → キャッシュファースト
+  // Next.js はファイル名にコンテンツハッシュを付与するため、
+  // 一度キャッシュしたファイルは永遠に使い回せる（内容が変わればURLも変わる）
+  if (url.pathname.startsWith('/_next/static/')) {
+    event.respondWith(
+      caches.open(STATIC_CACHE).then(async (cache) => {
+        const cached = await cache.match(request)
+        if (cached) return cached
+
+        try {
+          const response = await fetch(request)
+          if (response.ok) cache.put(request, response.clone())
+          return response
+        } catch {
+          // オフラインかつ未キャッシュ → 503 を返してブラウザに制御を戻す
+          return new Response('Service Unavailable', { status: 503 })
+        }
+      })
+    )
+    return
+  }
+
+  // ナビゲーション・その他 → ネットワークファースト、失敗時にキャッシュへフォールバック
   event.respondWith(
-    fetch(event.request)
+    fetch(request)
       .then((response) => {
         if (response.ok) {
-          const responseClone = response.clone()
           caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseClone)
+            cache.put(request, response.clone())
           })
         }
         return response
       })
-      .catch(() => {
-        return caches.match(event.request).then((cachedResponse) => {
-          if (cachedResponse) return cachedResponse
-          // Offline fallback
-          if (event.request.mode === 'navigate') {
-            return caches.match('/')
-          }
-        })
+      .catch(async () => {
+        const cached = await caches.match(request)
+        if (cached) return cached
+
+        // ナビゲーションのオフラインフォールバック → トップページ（キャッシュ済み）
+        if (request.mode === 'navigate') {
+          return caches.match('/') ?? new Response('Offline', { status: 503 })
+        }
+
+        // その他（画像・フォント等）がオフライン・未キャッシュ → 503 を返す
+        return new Response('Service Unavailable', { status: 503 })
       })
   )
 })
