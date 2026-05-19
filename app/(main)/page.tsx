@@ -767,6 +767,13 @@ export default function HomePage() {
         </Link>
       </motion.div>
 
+      {/* ── インサイトリンク ───────────────────────────────── */}
+      <motion.div variants={reduced ? undefined : staggerItem} className="flex justify-end -mt-3">
+        <Link href="/insights" style={{ color: 'var(--color-subtle)', fontSize: '12px' }}>
+          インサイト →
+        </Link>
+      </motion.div>
+
       {/* ── Upcoming events ────────────────────────────────── */}
       {(loading || upcomingEvents.length > 0) && (
         <motion.div variants={reduced ? undefined : staggerItem}>

@@ -692,6 +692,47 @@ useEffect(() => { setCollapsed(new Set()) }, [tab])
 
 ---
 
+## セッション 11：インサイトページ新規追加
+
+### 目的
+新規 `/insights` ページを追加し、ふたりの活動統計（行きたい場所達成率・観た映画リスト）を可視化する。
+
+### 新規作成ファイル
+
+**`app/(main)/insights/page.tsx`**
+- `'use client'` + `<Suspense>` + `<PageTransition>` + `<PullToRefresh>` + `useAutoRefresh` の標準パターン
+- Supabase URL がない場合はモックデータを使用（開発環境対応）
+- Supabase 接続時は `places` と `media` テーブルから couple_id で絞り込んで取得
+
+**行きたい場所達成率カード（Places Completion）**
+- 全体達成率（%）を大数字で表示
+- framer-motion で右方向にアニメーションするプログレスバー（グラデーション）
+- カテゴリ別内訳: Map で集計 → 件数多い順ソート → 小バーで訪問率を表示
+- 空状態: "まだ場所が登録されていません" + `/list` へのリンク
+
+**観た映画カード（Movies Together）**
+- `media_type === 'movie'` かつ `is_done === true` の件数・リストを表示
+- 最大10件を番号付きリストで表示、10件超は `/list?tab=media` へのリンク
+- 未観賞のみの場合: "まだ一緒に観た映画はありません"
+- 空状態: "まだ映画が登録されていません" + `/list?tab=media` へのリンク
+- ポスタープレースホルダー（Film アイコン）で統一
+
+**スケルトン・ローディング**
+- 各カードにスケルトン（`.skeleton` クラス）表示あり
+
+### 変更ファイル
+
+**`app/(main)/page.tsx`**
+- Stats row（3枚カード）の下に小さな「インサイト →」リンクを追加（`/insights` へ遷移）
+
+### 設計判断
+- `usePlaces` / `useMedia` フックは存在しないため、他のページと同様に直接 Supabase フェッチ
+- `m.watched_at` は存在しないため、`is_done === true` で観賞済みを判定
+- 画像URL（`image_url`）は存在しないため、常に Film アイコンのプレースホルダーを使用
+- BottomNav は5タブ制限のため、ホーム画面からのテキストリンクで遷移
+
+---
+
 ## 今後の検討候補（未着手）
 
 - Supabase Realtime の todos テーブル有効化（パートナーのtodo追加をリアルタイム反映したい場合）
