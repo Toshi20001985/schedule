@@ -733,6 +733,76 @@ useEffect(() => { setCollapsed(new Set()) }, [tab])
 
 ---
 
+## セッション 12：地図ページ新規追加（ふたりの軌跡マップ）
+
+### 目的
+places テーブルの場所を地図上にピン表示し、ふたりの行きたい場所・訪れた場所を可視化する。
+
+### 設計判断
+
+**地図ライブラリ**
+- Leaflet + react-leaflet（完全無料・OSS）を採用
+- タイルは Carto Light（OpenStreetMap データ、無料）
+- Leaflet は `window` 必須のため、`dynamic(() => import(...), { ssr: false })` でラップ
+- Leaflet デフォルトマーカーは webpack/Turbopack でアイコン画像が壊れるため `L.divIcon` で独自マーカー
+
+**ナビゲーション**
+- BottomNav は5タブ満杯のため `/list` ページの「行きたい場所」タブヘッダーに「地図で見る →」リンクを追加
+
+**ジオコーディング**
+- Nominatim API（OpenStreetMap の無料ジオコーディングサービス）
+- 場所追加時に自動で座標取得（失敗しても場所の追加は続行）
+- `handleAddPlace` は `geocoding` state で全体をガード（ジオコーディング + DB insert の間ボタンを disabled）
+- 設定画面に「座標データを更新する」ボタンで既存場所の一括バックフィル（1.1秒待機 / リクエスト）
+
+**マップページの高さ管理**
+- ページコンテナ: `height: calc(100dvh - safe-area-top - safe-area-bottom - 72px)`（BottomNav 分）
+- ヘッダー: 48px（flex-shrink: 0）
+- マップエリア: `flex: 1; min-height: 0` → PlacesMap に `height="100%"` を渡す
+
+### 新規作成ファイル
+
+**`supabase/migrations/008_add_place_coords.sql`**
+```sql
+ALTER TABLE public.places ADD COLUMN IF NOT EXISTS latitude  DOUBLE PRECISION;
+ALTER TABLE public.places ADD COLUMN IF NOT EXISTS longitude DOUBLE PRECISION;
+```
+
+**`lib/geocoding.ts`**
+- Nominatim API で地名→緯度経度変換
+- 失敗時は `null` を返す（例外を握りつぶす）
+
+**`components/PlacesMap.tsx`**
+- `'use client'`、Leaflet CSS import
+- `PlacePin` 型を export（map/page.tsx と共有）
+- 訪問済み: `#4A7C59`（緑）、行きたい: `#6D5BD0`（紫）の divIcon
+- Popup: 場所名・カテゴリ・ステータス
+- 中心: 場所の重心、データなし時は日本中央（36.2048, 138.2529）
+
+**`app/(main)/map/page.tsx`**
+- `'use client'` + `<Suspense>` パターン
+- PlacesMap を `dynamic({ ssr: false })` でロード
+- フィルターピル（すべて / 訪問済み / 行きたい）: `position: absolute` on `z-index: 1000`
+- 凡例: `position: absolute` on `z-index: 1000`
+- 空状態: 座標なし場所のみの場合にリストへのリンク表示
+
+### 変更ファイル
+
+**`app/(main)/list/page.tsx`**
+- `Place` 型に `latitude?: number; longitude?: number` 追加
+- `load()` の `.select()` に `latitude, longitude` 追加
+- `toPlace()` Realtime マッパーに lat/lon 追加
+- `handleAddPlace`: ジオコーディング → DB insert を `geocoding` state でラップ（finally で必ず false に戻す）
+- 場所タブ冒頭に「地図で見る →」リンク追加
+- `import Link from 'next/link'` 追加
+
+**`app/(main)/settings/page.tsx`**
+- `MapPin` アイコン追加
+- `handleBackfill` 関数: 座標のない場所を全取得 → Nominatim でジオコーディング → DB 更新
+- 「地図データ」カード: バックフィルボタン + 進捗表示（coupleId がある場合のみ表示）
+
+---
+
 ## 今後の検討候補（未着手）
 
 - Supabase Realtime の todos テーブル有効化（パートナーのtodo追加をリアルタイム反映したい場合）

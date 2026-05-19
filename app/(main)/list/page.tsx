@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
+import Link from 'next/link'
 import { MapPin, Play, Check, Plus, Film, Music, Book, Tv, Trash2, Pencil, Star, ChevronDown } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
@@ -26,6 +27,8 @@ interface Place {
   memo?: string
   is_visited: boolean
   owner: Owner
+  latitude?: number
+  longitude?: number
 }
 
 interface MediaItem {
@@ -76,6 +79,8 @@ function toPlace(r: Record<string, unknown>): Place {
     memo:      (r.memo       as string | null) ?? undefined,
     is_visited: r.is_visited as boolean,
     owner:     (r.owner      as Owner) ?? 'me',
+    latitude:  (r.latitude   as number | null) ?? undefined,
+    longitude: (r.longitude  as number | null) ?? undefined,
   }
 }
 
@@ -145,6 +150,7 @@ function ListPageInner() {
   const [newMemo, setNewMemo] = useState('')
   const [newOwner, setNewOwner] = useState<Owner>('both')
   const [highlightedId, setHighlightedId] = useState<string | null>(null)
+  const [geocoding,     setGeocoding]     = useState(false)
   const { showToast } = useToast()
 
   type GroupBy = 'none' | 'category' | 'addedBy'
@@ -261,7 +267,7 @@ function ListPageInner() {
 
     const [{ data: placesData }, { data: mediaData }, { data: todosData }] = await Promise.all([
       db.from('places')
-        .select('id, name, category, location, memo, is_visited, owner')
+        .select('id, name, category, location, memo, is_visited, owner, latitude, longitude')
         .eq('couple_id', cId)
         .order('created_at', { ascending: false }),
       db.from('media')
@@ -278,6 +284,7 @@ function ListPageInner() {
       setPlaces(placesData.map((p: {
         id: string; name: string; category: string; location: string
         memo?: string; is_visited: boolean; owner?: Owner
+        latitude?: number | null; longitude?: number | null
       }) => ({
         id: p.id, name: p.name,
         category: p.category ?? 'その他',
@@ -285,6 +292,8 @@ function ListPageInner() {
         memo: p.memo ?? undefined,
         is_visited: p.is_visited,
         owner: (p.owner as Owner) ?? 'me',
+        latitude:  p.latitude  ?? undefined,
+        longitude: p.longitude ?? undefined,
       })))
     }
     if (mediaData) {
@@ -486,12 +495,22 @@ function ListPageInner() {
   // ── 追加ハンドラ ─────────────────────────────────────────────────
   async function handleAddPlace() {
     if (!newName) return
-    await addPlaceItem(
-      { name: newName, category: newCategory || 'その他', location: newLocation, memo: newMemo || null, is_visited: false, owner: newOwner },
-      { id: Date.now().toString(), name: newName, category: newCategory || 'その他', location: newLocation, memo: newMemo || undefined, is_visited: false, owner: newOwner },
-    )
-    haptic('success')
-    resetForm(); setShowSheet(false)
+    // geocoding state で追加完了まで全体をガード（ボタン二重タップ防止）
+    setGeocoding(true)
+    try {
+      // 地名→座標変換（失敗しても場所の追加は続行）
+      const { geocode } = await import('@/lib/geocoding')
+      const query = [newName, newLocation].filter(Boolean).join(' ')
+      const coords = await geocode(query)
+      await addPlaceItem(
+        { name: newName, category: newCategory || 'その他', location: newLocation, memo: newMemo || null, is_visited: false, owner: newOwner, latitude: coords?.lat ?? null, longitude: coords?.lon ?? null },
+        { id: Date.now().toString(), name: newName, category: newCategory || 'その他', location: newLocation, memo: newMemo || undefined, is_visited: false, owner: newOwner, latitude: coords?.lat, longitude: coords?.lon },
+      )
+      haptic('success')
+      resetForm(); setShowSheet(false)
+    } finally {
+      setGeocoding(false)
+    }
   }
 
   async function handleAddTodo() {
@@ -602,6 +621,13 @@ function ListPageInner() {
       {/* Places Tab */}
       {tab === 'places' && (
         <div className="space-y-2.5">
+          {/* 地図ページへのリンク */}
+          <div className="flex justify-end">
+            <Link href="/map" style={{ color: '#6D5BD0', fontSize: '12px' }}>
+              地図で見る →
+            </Link>
+          </div>
+
           {groupBy === 'none' ? (
             <>
               <p className="text-xs px-1" style={{ color: '#A3A3A3' }}>未訪問 {activePlaces.length}件</p>
@@ -1057,7 +1083,9 @@ function ListPageInner() {
             </div>
             {editingPlace
               ? <Button fullWidth onClick={handleUpdatePlace} disabled={!newName}>更新する</Button>
-              : <Button fullWidth onClick={handleAddPlace}    disabled={!newName}>追加する</Button>
+              : <Button fullWidth onClick={handleAddPlace}    disabled={!newName || geocoding}>
+                  {geocoding ? '追加中...' : '追加する'}
+                </Button>
             }
           </div>
         ) : (

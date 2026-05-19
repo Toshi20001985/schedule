@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Copy, Check, LogOut, Calendar, User, Link2, ChevronRight, Vibrate } from 'lucide-react'
+import { Copy, Check, LogOut, Calendar, User, Link2, ChevronRight, Vibrate, MapPin } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import IconCircle from '@/components/ui/IconCircle'
@@ -41,6 +41,9 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
   const [loading, setLoading] = useState(true)
+  const [backfilling,       setBackfilling]       = useState(false)
+  const [backfillProgress,  setBackfillProgress]  = useState<{ done: number; total: number } | null>(null)
+  const [backfillMessage,   setBackfillMessage]   = useState('')
   const [hapticsEnabled, setHapticsEnabled] = useState(true)
   const savedTimerRef  = useRef<ReturnType<typeof setTimeout> | null>(null)
   const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -181,6 +184,62 @@ export default function SettingsPage() {
     copiedTimerRef.current = setTimeout(() => setCopied(false), 2000)
   }
 
+  async function handleBackfill() {
+    if (!coupleId || backfilling) return
+    setBackfilling(true)
+    setBackfillMessage('')
+
+    try {
+      if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+        setBackfillMessage('デモ環境では利用できません')
+        return
+      }
+      const { createClient } = await import('@/lib/supabase/client')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const db = createClient() as any
+
+      // 座標のない場所を取得
+      const { data: places } = await db
+        .from('places')
+        .select('id, name, location')
+        .eq('couple_id', coupleId)
+        .or('latitude.is.null,longitude.is.null')
+
+      if (!places || places.length === 0) {
+        setBackfillMessage('更新が必要な場所はありませんでした')
+        return
+      }
+
+      setBackfillProgress({ done: 0, total: places.length })
+
+      const { geocode } = await import('@/lib/geocoding')
+      let updated = 0
+
+      for (let i = 0; i < places.length; i++) {
+        const place = places[i]
+        const query = [place.name, place.location].filter(Boolean).join(' ')
+        const coords = await geocode(query)
+        if (coords) {
+          await db
+            .from('places')
+            .update({ latitude: coords.lat, longitude: coords.lon })
+            .eq('id', place.id)
+          updated++
+        }
+        setBackfillProgress({ done: i + 1, total: places.length })
+        // Nominatim レート制限: 1リクエスト/秒
+        if (i < places.length - 1) {
+          await new Promise(r => setTimeout(r, 1100))
+        }
+      }
+
+      setBackfillMessage(`${updated} 件の座標を更新しました`)
+    } finally {
+      setBackfilling(false)
+      setBackfillProgress(null)
+    }
+  }
+
   async function handleLogout() {
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL) { router.push('/auth/login'); return }
     const { createClient } = await import('@/lib/supabase/client')
@@ -311,6 +370,35 @@ export default function SettingsPage() {
           <p className="text-xs text-center" style={{ color: '#4A7C59' }}>✓ パートナーと繋がっています</p>
         )}
       </Card>
+
+      {/* Map Data */}
+      {coupleId && (
+        <Card>
+          <h2 className="text-xs font-medium uppercase tracking-widest mb-3 flex items-center gap-2" style={{ color: '#A3A3A3' }}>
+            <MapPin size={13} strokeWidth={1.5} /> 地図データ
+          </h2>
+          <p className="text-xs mb-3" style={{ color: '#737373' }}>
+            場所に座標情報がない場合、地図に表示されません。
+            ボタンをタップすると既存の場所の座標を一括取得します。
+          </p>
+          {backfillProgress && (
+            <p className="text-xs mb-2" style={{ color: '#737373' }}>
+              取得中... {backfillProgress.done} / {backfillProgress.total} 件
+            </p>
+          )}
+          {backfillMessage && (
+            <p className="text-xs mb-2" style={{ color: '#4A7C59' }}>{backfillMessage}</p>
+          )}
+          <button
+            onClick={handleBackfill}
+            disabled={backfilling || !coupleId}
+            className="w-full py-2.5 text-sm font-medium transition-opacity disabled:opacity-40"
+            style={{ backgroundColor: '#F5F5F3', color: '#1A1A1A', borderRadius: '10px' }}
+          >
+            {backfilling ? '取得中...' : '座標データを更新する'}
+          </button>
+        </Card>
+      )}
 
       {/* App Settings */}
       <Card padding="none">
