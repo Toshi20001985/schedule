@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback, useRef, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval,
-  startOfWeek, endOfWeek, isSameMonth, isSameDay, addMonths, subMonths
+  startOfWeek, endOfWeek, isSameMonth, isSameDay, addMonths, subMonths,
+  differenceInDays,
 } from 'date-fns'
 import { ja } from 'date-fns/locale'
 import { ChevronLeft, ChevronRight, Plus, Trash2, Plane, Pencil, X, CalendarDays } from 'lucide-react'
@@ -1056,22 +1057,39 @@ function CalendarPageInner() {
       {(() => {
         const monthStr = format(currentMonth, 'yyyy-MM')
         const todayStr = format(new Date(), 'yyyy-MM-dd')
+        const today0   = new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate())
         const monthEvents = events.filter(e => e.date.startsWith(monthStr) || (e.end_date ?? e.date).startsWith(monthStr))
         const visitTripCount = monthEvents.filter(e => e.type === 'visit' || e.type === 'trip').length
         const nextVisitTrip = events
           .filter(e => (e.type === 'visit' || e.type === 'trip') && e.date >= todayStr && e.date.startsWith(monthStr))
           .sort((a, b) => a.date.localeCompare(b.date))[0] ?? null
         if (visitTripCount === 0 && !nextVisitTrip) return null
+
+        const nextStart = nextVisitTrip ? parseDateStr(nextVisitTrip.date) : null
+        const nextEnd   = nextVisitTrip?.end_date && nextVisitTrip.end_date !== nextVisitTrip.date
+          ? parseDateStr(nextVisitTrip.end_date) : null
+        const daysLeft  = nextStart ? differenceInDays(nextStart, today0) : null
+
         return (
-          <div className="flex items-center gap-3 mb-3 px-1">
+          <div className="flex items-center gap-x-3 gap-y-1 flex-wrap mb-3 px-1">
             {visitTripCount > 0 && (
               <span className="text-xs" style={{ color: '#737373' }}>
-                この月の予定: <strong style={{ color: '#1A1A1A' }}>{visitTripCount}件</strong>
+                この月: <strong style={{ color: '#1A1A1A' }}>{visitTripCount}件の会う日</strong>
               </span>
             )}
-            {nextVisitTrip && (
+            {nextVisitTrip && nextStart && (
               <span className="text-xs" style={{ color: '#737373' }}>
-                次: <strong style={{ color: '#1A1A1A' }}>{format(new Date(nextVisitTrip.date.replace(/-/g, '/')), 'M/d(E)', { locale: ja })}</strong>
+                {'次: '}
+                <strong style={{ color: '#1A1A1A' }}>
+                  {format(nextStart, 'M/d(E)', { locale: ja })}
+                  {nextEnd && ` 〜 ${format(nextEnd, 'M/d(E)', { locale: ja })}`}
+                </strong>
+                {daysLeft !== null && daysLeft > 0 && (
+                  <span style={{ color: '#A3A3A3' }}>{` · あと${daysLeft}日`}</span>
+                )}
+                {daysLeft === 0 && (
+                  <span style={{ color: '#6D5BD0' }}>{' · 今日'}</span>
+                )}
               </span>
             )}
           </div>
@@ -1106,9 +1124,13 @@ function CalendarPageInner() {
             const rangeEvents    = dayEvents.filter(e => e.end_date && e.end_date !== e.date)
             const singleEvents   = dayEvents.filter(e => !e.end_date || e.end_date === e.date)
             const hasFlights     = dayEvents.some(e => (flightsByEventId[e.id]?.length ?? 0) > 0)
+            const hasAnniversary = dayEvents.some(e => e.type === 'anniversary')
             const isCurrentMonth = isSameMonth(day, currentMonth)
             const isToday        = isSameDay(day, new Date())
             const isSelected     = selectedDate ? isSameDay(day, selectedDate) : false
+            // 範囲帯：visit/trip の複数日イベントのうち最初の1件
+            const primaryRange   = rangeEvents.find(e => e.type === 'visit' || e.type === 'trip') ?? null
+            const rangePos       = primaryRange ? getRangePos(primaryRange, dayStr) : null
             return (
               <button
                 key={day.toISOString()}
@@ -1120,6 +1142,24 @@ function CalendarPageInner() {
                   overflow: 'visible',
                 }}
               >
+                {/* 範囲帯背景（visit/trip の複数日イベント） */}
+                {primaryRange && rangePos && rangePos !== 'single' && !isSelected && (
+                  <div
+                    aria-hidden
+                    style={{
+                      position: 'absolute',
+                      top: 0, bottom: 0,
+                      left:  rangePos === 'start' ? '50%' : 0,
+                      right: rangePos === 'end'   ? '50%' : 0,
+                      backgroundColor: eventTypeConfig[primaryRange.type].dot,
+                      opacity: 0.13,
+                      borderRadius:
+                        rangePos === 'start' ? '8px 0 0 8px' :
+                        rangePos === 'end'   ? '0 8px 8px 0' : 0,
+                      pointerEvents: 'none',
+                    }}
+                  />
+                )}
                 <span
                   className="w-7 h-7 rounded-full flex items-center justify-center text-sm mb-0.5"
                   style={{
@@ -1130,9 +1170,16 @@ function CalendarPageInner() {
                 >
                   {format(day, 'd')}
                 </span>
+                {/* フライトアイコン（右上） */}
                 {hasFlights && (
                   <span style={{ position: 'absolute', top: 2, right: 4, lineHeight: 1 }}>
                     <Plane size={8} strokeWidth={1.5} style={{ color: '#A3A3A3' }} />
+                  </span>
+                )}
+                {/* 記念日スター（左上） */}
+                {hasAnniversary && (
+                  <span aria-hidden style={{ position: 'absolute', top: 2, left: 3, fontSize: '7px', lineHeight: 1, color: '#C4963A' }}>
+                    ★
                   </span>
                 )}
                 {/* Event indicators */}

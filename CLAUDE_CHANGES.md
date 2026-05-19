@@ -590,6 +590,47 @@ export function useAutoRefresh(load: () => void) {
 
 ---
 
+## セッション 9：カレンダー日付セルの情報密度向上（続き）
+
+### 目的
+各日付セルに「会う期間の帯」「記念日スター」を追加し、月サマリーをより詳細な表示に改善する。
+
+### 設計判断
+- **範囲帯の背景** — `position: absolute` の div を button の最初の子に配置。`top: 0 / bottom: 0` でセル全高を覆い、`start` は右半分・`mid` は全幅・`end` は左半分にする。セル選択中（`isSelected`）は選択ハイライト優先のため非表示。visit/trip のみ対象（online / anniversary / personal の複数日イベントには不適用）
+- **記念日スター** — Unicode `★` をセル左上に絶対配置。`top: 2, left: 3`。フライトアイコン（右上）と重ならないよう反対側に配置
+- **月サマリー文言** — 「次の会う日」に終了日と「あとN日」を追加。今日の場合は紫色で「今日」表示。`differenceInDays(nextStart, today0)` で計算（`today0` = 時刻なしの今日）
+- **長押しプレビュー** — `useSwipeable`（月スワイプ）が touchイベントを横取りするため今回も見送り
+
+### 実装内容（`app/(main)/calendar/page.tsx`）
+
+**date-fns import 追加**
+- `differenceInDays` を追加（月サマリーの「あとN日」計算用）
+
+**月サマリー改善**
+- 表示: `この月: N件の会う日 | 次: M/d(E) 〜 M/d(E) · あとN日`
+- 終了日がある場合は `〜 M/d(E)` を追記
+- `daysLeft > 0` → `· あとN日`（グレー）
+- `daysLeft === 0` → `· 今日`（紫 `#6D5BD0`）
+- `parseDateStr()` を使って日付を正規化（iOS Safari の `new Date('YYYY-MM-DD')` UTC解釈対策）
+
+**セル — 範囲帯背景**
+- `const primaryRange` : rangeEvents の中から visit/trip の最初の1件を取得
+- `const rangePos` : `getRangePos()` で start/mid/end を判定
+- `!isSelected && primaryRange && rangePos !== 'single'` の場合のみ描画
+- 不透明度 0.13、`borderRadius` は start→左丸、end→右丸、mid→なし
+
+**セル — 記念日スター**
+- `const hasAnniversary` : `dayEvents.some(e => e.type === 'anniversary')`
+- `★` テキスト（7px, `#C4963A` = 金色）をセル左上 `top: 2, left: 3` に絶対配置
+- `aria-hidden` 付与（スクリーンリーダー向け）
+
+### 影響確認
+- 既存のレンジバー（セル下部の横線）はそのまま残存。帯背景と二重に表示されるが情報が重複するだけで視覚的に問題なし
+- 選択状態（`isSelected`）のセルでは帯背景を非表示にするため、選択ハイライトが帯に埋もれない
+- フライトアイコン（右上）と記念日スター（左上）は配置が分かれており衝突なし
+
+---
+
 ## 今後の検討候補（未着手）
 
 - Supabase Realtime の todos テーブル有効化（パートナーのtodo追加をリアルタイム反映したい場合）
