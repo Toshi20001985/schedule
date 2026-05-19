@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { MapPin, Play, Check, Plus, Film, Music, Book, Tv, Trash2, Pencil, Star } from 'lucide-react'
+import { MapPin, Play, Check, Plus, Film, Music, Book, Tv, Trash2, Pencil, Star, ChevronDown } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Tag from '@/components/ui/Tag'
@@ -147,6 +147,16 @@ function ListPageInner() {
   const [highlightedId, setHighlightedId] = useState<string | null>(null)
   const { showToast } = useToast()
 
+  type GroupBy = 'none' | 'category' | 'addedBy'
+  const [groupBy, setGroupBy] = useState<GroupBy>(() => {
+    try {
+      const s = localStorage.getItem('listGroupBy')
+      if (s === 'category' || s === 'addedBy') return s
+    } catch {}
+    return 'none'
+  })
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
+
   // owner ラベルを名前から生成
   const ownerOptions: { value: Owner; label: string; bg: string; color: string }[] = [
     { value: 'me',      label: myName,      bg: '#EEECF9', color: '#6D5BD0' },
@@ -158,6 +168,37 @@ function ListPageInner() {
     if (owner === 'me')      return myName
     if (owner === 'partner') return partnerName
     return 'ふたり'
+  }
+
+  function toggleCollapsed(key: string) {
+    setCollapsed(prev => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
+  function computeGroups<T extends { owner: Owner }>(
+    items: T[],
+    getCategoryKey: (item: T) => string,
+  ): Array<{ key: string; label: string; items: T[] }> {
+    const map = new Map<string, T[]>()
+    for (const item of items) {
+      const key = groupBy === 'category' ? getCategoryKey(item) : item.owner
+      if (!map.has(key)) map.set(key, [])
+      map.get(key)!.push(item)
+    }
+    let entries = Array.from(map.entries())
+    if (groupBy === 'addedBy') {
+      const ownerOrder: Record<string, number> = { me: 0, partner: 1, both: 2 }
+      entries.sort((a, b) => (ownerOrder[a[0]] ?? 99) - (ownerOrder[b[0]] ?? 99))
+    }
+    return entries.map(([key, grpItems]) => ({
+      key,
+      label: groupBy === 'addedBy' ? ownerLabel(key as Owner) : key,
+      items: grpItems,
+    }))
   }
 
   const load = useCallback(async () => {
@@ -284,6 +325,16 @@ function ListPageInner() {
     const t = setTimeout(() => setHighlightedId(null), 1500)
     return () => clearTimeout(t)
   }, [highlightedId])
+
+  // グループ設定を localStorage に永続化
+  useEffect(() => {
+    try { localStorage.setItem('listGroupBy', groupBy) } catch {}
+  }, [groupBy])
+
+  // タブ切り替え時に折りたたみ状態をリセット
+  useEffect(() => {
+    setCollapsed(new Set())
+  }, [tab])
 
   // Realtime 購読 — places
   useRealtimeSync({
@@ -526,77 +577,149 @@ function ListPageInner() {
         ))}
       </div>
 
+      {/* Group-by selector */}
+      <div className="flex gap-1.5 mb-4">
+        {([
+          { key: 'none',     label: 'すべて' },
+          { key: 'category', label: 'カテゴリ' },
+          { key: 'addedBy',  label: '追加者' },
+        ] as const).map(({ key, label }) => (
+          <button
+            key={key}
+            onClick={() => { haptic('light'); setGroupBy(key); setCollapsed(new Set()) }}
+            className="text-xs px-3 py-1.5 font-medium transition-all active:opacity-60"
+            style={{
+              backgroundColor: groupBy === key ? '#1A1A1A' : '#F5F5F3',
+              color: groupBy === key ? '#FFFFFF' : '#737373',
+              borderRadius: '8px',
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       {/* Places Tab */}
       {tab === 'places' && (
         <div className="space-y-2.5">
-          <p className="text-xs px-1" style={{ color: '#A3A3A3' }}>未訪問 {activePlaces.length}件</p>
-          {activePlaces.length === 0 && (
-            <div className="flex flex-col items-center py-16 gap-3">
-              <MapPin size={28} strokeWidth={1.5} style={{ color: '#D4D4D4' }} />
-              <p className="font-serif italic" style={{ color: '#A3A3A3', fontSize: '15px' }}>行きたい場所を追加しよう</p>
-            </div>
-          )}
-          {activePlaces.map(place => (
-            <SwipeableListItem key={place.id} onEdit={() => openEditPlace(place)} onDelete={() => deletePlace(place.id)}>
-            <Card padding="md" style={{ boxShadow: place.id === highlightedId ? '0 0 0 2px #6D5BD0' : undefined }}>
-              <div className="flex items-start gap-3">
-                <button
-                  onClick={() => togglePlaceVisited(place.id)}
-                  className="w-5 h-5 rounded border flex-shrink-0 mt-0.5 flex items-center justify-center"
-                  style={{ borderColor: '#E5E5E5', borderWidth: '0.5px' }}
-                />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap mb-1">
-                    <span className="text-sm font-medium" style={{ color: '#1A1A1A' }}>{place.name}</span>
-                    <Tag label={ownerLabel(place.owner)} owner={place.owner} />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs px-2 py-0.5" style={{ backgroundColor: '#F5F5F3', color: '#737373', borderRadius: '6px' }}>{place.category}</span>
-                    {place.location && (
-                      <span className="text-xs flex items-center gap-0.5" style={{ color: '#A3A3A3' }}>
-                        <MapPin size={10} strokeWidth={1.5} /> {place.location}
-                      </span>
-                    )}
-                  </div>
-                  {place.memo && <p className="text-xs mt-1.5" style={{ color: '#737373' }}>{place.memo}</p>}
-                </div>
-                <div className="flex gap-1 flex-shrink-0">
-                  <button onClick={() => openEditPlace(place)} className="p-1.5 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}>
-                    <Pencil size={14} strokeWidth={1.5} />
-                  </button>
-                  <button onClick={() => deletePlace(place.id)} className="p-1.5 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}>
-                    <Trash2 size={15} strokeWidth={1.5} />
-                  </button>
-                </div>
-              </div>
-            </Card>
-            </SwipeableListItem>
-          ))}
-
-          {visitedPlaces.length > 0 && (
+          {groupBy === 'none' ? (
             <>
-              <p className="text-xs px-1 mt-4" style={{ color: '#A3A3A3' }}>訪問済み {visitedPlaces.length}件</p>
-              {visitedPlaces.map(place => (
+              <p className="text-xs px-1" style={{ color: '#A3A3A3' }}>未訪問 {activePlaces.length}件</p>
+              {activePlaces.length === 0 && (
+                <div className="flex flex-col items-center py-16 gap-3">
+                  <MapPin size={28} strokeWidth={1.5} style={{ color: '#D4D4D4' }} />
+                  <p className="font-serif italic" style={{ color: '#A3A3A3', fontSize: '15px' }}>行きたい場所を追加しよう</p>
+                </div>
+              )}
+              {activePlaces.map(place => (
                 <SwipeableListItem key={place.id} onEdit={() => openEditPlace(place)} onDelete={() => deletePlace(place.id)}>
-                <Card padding="md" style={{ opacity: 0.5 }}>
-                  <div className="flex items-center gap-3">
-                    <button onClick={() => togglePlaceVisited(place.id)} className="w-5 h-5 rounded flex-shrink-0 flex items-center justify-center" style={{ backgroundColor: '#F0F7F0' }}>
-                      <Check size={12} strokeWidth={1.5} style={{ color: '#4A7C59' }} />
-                    </button>
-                    <span className="flex-1 text-sm line-through" style={{ color: '#737373' }}>{place.name}</span>
+                <Card padding="md" style={{ boxShadow: place.id === highlightedId ? '0 0 0 2px #6D5BD0' : undefined }}>
+                  <div className="flex items-start gap-3">
+                    <button onClick={() => togglePlaceVisited(place.id)} className="w-5 h-5 rounded border flex-shrink-0 mt-0.5 flex items-center justify-center" style={{ borderColor: '#E5E5E5', borderWidth: '0.5px' }} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap mb-1">
+                        <span className="text-sm font-medium" style={{ color: '#1A1A1A' }}>{place.name}</span>
+                        <Tag label={ownerLabel(place.owner)} owner={place.owner} />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs px-2 py-0.5" style={{ backgroundColor: '#F5F5F3', color: '#737373', borderRadius: '6px' }}>{place.category}</span>
+                        {place.location && <span className="text-xs flex items-center gap-0.5" style={{ color: '#A3A3A3' }}><MapPin size={10} strokeWidth={1.5} /> {place.location}</span>}
+                      </div>
+                      {place.memo && <p className="text-xs mt-1.5" style={{ color: '#737373' }}>{place.memo}</p>}
+                    </div>
                     <div className="flex gap-1 flex-shrink-0">
-                      <button onClick={() => openEditPlace(place)} className="p-1.5 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}>
-                        <Pencil size={14} strokeWidth={1.5} />
-                      </button>
-                      <button onClick={() => deletePlace(place.id)} className="p-1.5 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}>
-                        <Trash2 size={15} strokeWidth={1.5} />
-                      </button>
+                      <button onClick={() => openEditPlace(place)} className="p-1.5 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Pencil size={14} strokeWidth={1.5} /></button>
+                      <button onClick={() => deletePlace(place.id)} className="p-1.5 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Trash2 size={15} strokeWidth={1.5} /></button>
                     </div>
                   </div>
                 </Card>
                 </SwipeableListItem>
               ))}
+              {visitedPlaces.length > 0 && (
+                <>
+                  <p className="text-xs px-1 mt-4" style={{ color: '#A3A3A3' }}>訪問済み {visitedPlaces.length}件</p>
+                  {visitedPlaces.map(place => (
+                    <SwipeableListItem key={place.id} onEdit={() => openEditPlace(place)} onDelete={() => deletePlace(place.id)}>
+                    <Card padding="md" style={{ opacity: 0.5 }}>
+                      <div className="flex items-center gap-3">
+                        <button onClick={() => togglePlaceVisited(place.id)} className="w-5 h-5 rounded flex-shrink-0 flex items-center justify-center" style={{ backgroundColor: '#F0F7F0' }}>
+                          <Check size={12} strokeWidth={1.5} style={{ color: '#4A7C59' }} />
+                        </button>
+                        <span className="flex-1 text-sm line-through" style={{ color: '#737373' }}>{place.name}</span>
+                        <div className="flex gap-1 flex-shrink-0">
+                          <button onClick={() => openEditPlace(place)} className="p-1.5 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Pencil size={14} strokeWidth={1.5} /></button>
+                          <button onClick={() => deletePlace(place.id)} className="p-1.5 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Trash2 size={15} strokeWidth={1.5} /></button>
+                        </div>
+                      </div>
+                    </Card>
+                    </SwipeableListItem>
+                  ))}
+                </>
+              )}
             </>
+          ) : places.length === 0 ? (
+            <div className="flex flex-col items-center py-16 gap-3">
+              <MapPin size={28} strokeWidth={1.5} style={{ color: '#D4D4D4' }} />
+              <p className="font-serif italic" style={{ color: '#A3A3A3', fontSize: '15px' }}>行きたい場所を追加しよう</p>
+            </div>
+          ) : (
+            <div className="space-y-5">
+              {computeGroups(places, p => p.category || 'その他').map(group => (
+                <section key={group.key}>
+                  <button
+                    className="w-full flex items-center justify-between px-1 mb-2 active:opacity-60 transition-opacity"
+                    onClick={() => toggleCollapsed(group.key)}
+                  >
+                    <span className="text-xs font-medium uppercase" style={{ color: '#A3A3A3', letterSpacing: '0.08em' }}>{group.label}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs" style={{ color: '#C5C5C5' }}>{group.items.length}</span>
+                      <ChevronDown size={12} style={{ color: '#A3A3A3', transform: collapsed.has(group.key) ? 'rotate(-90deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }} />
+                    </div>
+                  </button>
+                  {!collapsed.has(group.key) && (
+                    <div className="space-y-2">
+                      {group.items.map(place => (
+                        <SwipeableListItem key={place.id} onEdit={() => openEditPlace(place)} onDelete={() => deletePlace(place.id)}>
+                        <Card padding="md" style={{ opacity: place.is_visited ? 0.5 : 1, boxShadow: !place.is_visited && place.id === highlightedId ? '0 0 0 2px #6D5BD0' : undefined }}>
+                          {place.is_visited ? (
+                            <div className="flex items-center gap-3">
+                              <button onClick={() => togglePlaceVisited(place.id)} className="w-5 h-5 rounded flex-shrink-0 flex items-center justify-center" style={{ backgroundColor: '#F0F7F0' }}>
+                                <Check size={12} strokeWidth={1.5} style={{ color: '#4A7C59' }} />
+                              </button>
+                              <span className="flex-1 text-sm line-through" style={{ color: '#737373' }}>{place.name}</span>
+                              <div className="flex gap-1 flex-shrink-0">
+                                <button onClick={() => openEditPlace(place)} className="p-1.5 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Pencil size={14} strokeWidth={1.5} /></button>
+                                <button onClick={() => deletePlace(place.id)} className="p-1.5 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Trash2 size={15} strokeWidth={1.5} /></button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-start gap-3">
+                              <button onClick={() => togglePlaceVisited(place.id)} className="w-5 h-5 rounded border flex-shrink-0 mt-0.5 flex items-center justify-center" style={{ borderColor: '#E5E5E5', borderWidth: '0.5px' }} />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap mb-1">
+                                  <span className="text-sm font-medium" style={{ color: '#1A1A1A' }}>{place.name}</span>
+                                  <Tag label={ownerLabel(place.owner)} owner={place.owner} />
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs px-2 py-0.5" style={{ backgroundColor: '#F5F5F3', color: '#737373', borderRadius: '6px' }}>{place.category}</span>
+                                  {place.location && <span className="text-xs flex items-center gap-0.5" style={{ color: '#A3A3A3' }}><MapPin size={10} strokeWidth={1.5} /> {place.location}</span>}
+                                </div>
+                                {place.memo && <p className="text-xs mt-1.5" style={{ color: '#737373' }}>{place.memo}</p>}
+                              </div>
+                              <div className="flex gap-1 flex-shrink-0">
+                                <button onClick={() => openEditPlace(place)} className="p-1.5 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Pencil size={14} strokeWidth={1.5} /></button>
+                                <button onClick={() => deletePlace(place.id)} className="p-1.5 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Trash2 size={15} strokeWidth={1.5} /></button>
+                              </div>
+                            </div>
+                          )}
+                        </Card>
+                        </SwipeableListItem>
+                      ))}
+                    </div>
+                  )}
+                </section>
+              ))}
+            </div>
           )}
         </div>
       )}
@@ -604,71 +727,138 @@ function ListPageInner() {
       {/* Media Tab */}
       {tab === 'media' && (
         <div className="space-y-2.5">
-          <p className="text-xs px-1" style={{ color: '#A3A3A3' }}>未完了 {media.filter(m => !m.is_done).length}件</p>
-          {media.filter(m => !m.is_done).length === 0 && (
-            <div className="flex flex-col items-center py-16 gap-3">
-              <Play size={28} strokeWidth={1.5} style={{ color: '#D4D4D4' }} />
-              <p className="font-serif italic" style={{ color: '#A3A3A3', fontSize: '15px' }}>観たい・聴きたいを追加しよう</p>
-            </div>
-          )}
-          {media.filter(m => !m.is_done).map(item => {
-            const config = mediaTypeConfig[item.media_type]
-            const Icon = config.icon
-            return (
-              <SwipeableListItem key={item.id} onEdit={() => openEditMedia(item)} onDelete={() => deleteMedia(item.id)}>
-              <Card padding="md" style={{ boxShadow: item.id === highlightedId ? '0 0 0 2px #6D5BD0' : undefined }}>
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: config.bg }}>
-                    <Icon size={15} strokeWidth={1.5} style={{ color: config.color }} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap mb-1">
-                      <span className="text-sm font-medium" style={{ color: '#1A1A1A' }}>{item.title}</span>
-                      <Tag label={ownerLabel(item.owner)} owner={item.owner} />
-                    </div>
-                    <span className="text-xs px-2 py-0.5" style={{ backgroundColor: config.bg, color: config.color, borderRadius: '6px' }}>{config.label}</span>
-                    {item.memo && <p className="text-xs mt-1" style={{ color: '#737373' }}>{item.memo}</p>}
-                  </div>
-                  <div className="flex flex-col items-center gap-1 flex-shrink-0">
-                    <button onClick={() => toggleMediaDone(item.id)} className="w-5 h-5 rounded border flex items-center justify-center" style={{ borderColor: '#E5E5E5', borderWidth: '0.5px' }} />
-                    <div className="flex gap-0.5">
-                      <button onClick={() => openEditMedia(item)} className="p-1 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}>
-                        <Pencil size={13} />
-                      </button>
-                      <button onClick={() => deleteMedia(item.id)} className="p-1 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}>
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-              </SwipeableListItem>
-            )
-          })}
-
-          {media.filter(m => m.is_done).length > 0 && (
+          {groupBy === 'none' ? (
             <>
-              <p className="text-xs px-1 mt-4" style={{ color: '#A3A3A3' }}>完了 {media.filter(m => m.is_done).length}件</p>
-              {media.filter(m => m.is_done).map(item => {
+              <p className="text-xs px-1" style={{ color: '#A3A3A3' }}>未完了 {media.filter(m => !m.is_done).length}件</p>
+              {media.filter(m => !m.is_done).length === 0 && (
+                <div className="flex flex-col items-center py-16 gap-3">
+                  <Play size={28} strokeWidth={1.5} style={{ color: '#D4D4D4' }} />
+                  <p className="font-serif italic" style={{ color: '#A3A3A3', fontSize: '15px' }}>観たい・聴きたいを追加しよう</p>
+                </div>
+              )}
+              {media.filter(m => !m.is_done).map(item => {
                 const config = mediaTypeConfig[item.media_type]
                 const Icon = config.icon
                 return (
                   <SwipeableListItem key={item.id} onEdit={() => openEditMedia(item)} onDelete={() => deleteMedia(item.id)}>
-                  <Card padding="md" style={{ opacity: 0.5 }}>
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#F5F5F3' }}>
-                        <Icon size={15} strokeWidth={1.5} style={{ color: '#A3A3A3' }} />
+                  <Card padding="md" style={{ boxShadow: item.id === highlightedId ? '0 0 0 2px #6D5BD0' : undefined }}>
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: config.bg }}>
+                        <Icon size={15} strokeWidth={1.5} style={{ color: config.color }} />
                       </div>
-                      <span className="flex-1 text-sm line-through" style={{ color: '#737373' }}>{item.title}</span>
-                      <button onClick={() => toggleMediaDone(item.id)} className="p-1"><Check size={16} strokeWidth={1.5} style={{ color: '#4A7C59' }} /></button>
-                      <button onClick={() => openEditMedia(item)} className="p-1 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Pencil size={13} strokeWidth={1.5} /></button>
-                      <button onClick={() => deleteMedia(item.id)} className="p-1 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Trash2 size={15} strokeWidth={1.5} /></button>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                          <span className="text-sm font-medium" style={{ color: '#1A1A1A' }}>{item.title}</span>
+                          <Tag label={ownerLabel(item.owner)} owner={item.owner} />
+                        </div>
+                        <span className="text-xs px-2 py-0.5" style={{ backgroundColor: config.bg, color: config.color, borderRadius: '6px' }}>{config.label}</span>
+                        {item.memo && <p className="text-xs mt-1" style={{ color: '#737373' }}>{item.memo}</p>}
+                      </div>
+                      <div className="flex flex-col items-center gap-1 flex-shrink-0">
+                        <button onClick={() => toggleMediaDone(item.id)} className="w-5 h-5 rounded border flex items-center justify-center" style={{ borderColor: '#E5E5E5', borderWidth: '0.5px' }} />
+                        <div className="flex gap-0.5">
+                          <button onClick={() => openEditMedia(item)} className="p-1 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Pencil size={13} /></button>
+                          <button onClick={() => deleteMedia(item.id)} className="p-1 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Trash2 size={14} /></button>
+                        </div>
+                      </div>
                     </div>
                   </Card>
                   </SwipeableListItem>
                 )
               })}
+              {media.filter(m => m.is_done).length > 0 && (
+                <>
+                  <p className="text-xs px-1 mt-4" style={{ color: '#A3A3A3' }}>完了 {media.filter(m => m.is_done).length}件</p>
+                  {media.filter(m => m.is_done).map(item => {
+                    const config = mediaTypeConfig[item.media_type]
+                    const Icon = config.icon
+                    return (
+                      <SwipeableListItem key={item.id} onEdit={() => openEditMedia(item)} onDelete={() => deleteMedia(item.id)}>
+                      <Card padding="md" style={{ opacity: 0.5 }}>
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#F5F5F3' }}>
+                            <Icon size={15} strokeWidth={1.5} style={{ color: '#A3A3A3' }} />
+                          </div>
+                          <span className="flex-1 text-sm line-through" style={{ color: '#737373' }}>{item.title}</span>
+                          <button onClick={() => toggleMediaDone(item.id)} className="p-1"><Check size={16} strokeWidth={1.5} style={{ color: '#4A7C59' }} /></button>
+                          <button onClick={() => openEditMedia(item)} className="p-1 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Pencil size={13} strokeWidth={1.5} /></button>
+                          <button onClick={() => deleteMedia(item.id)} className="p-1 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Trash2 size={15} strokeWidth={1.5} /></button>
+                        </div>
+                      </Card>
+                      </SwipeableListItem>
+                    )
+                  })}
+                </>
+              )}
             </>
+          ) : media.length === 0 ? (
+            <div className="flex flex-col items-center py-16 gap-3">
+              <Play size={28} strokeWidth={1.5} style={{ color: '#D4D4D4' }} />
+              <p className="font-serif italic" style={{ color: '#A3A3A3', fontSize: '15px' }}>観たい・聴きたいを追加しよう</p>
+            </div>
+          ) : (
+            <div className="space-y-5">
+              {computeGroups(media, m => mediaTypeConfig[m.media_type].label).map(group => (
+                <section key={group.key}>
+                  <button
+                    className="w-full flex items-center justify-between px-1 mb-2 active:opacity-60 transition-opacity"
+                    onClick={() => toggleCollapsed(group.key)}
+                  >
+                    <span className="text-xs font-medium uppercase" style={{ color: '#A3A3A3', letterSpacing: '0.08em' }}>{group.label}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs" style={{ color: '#C5C5C5' }}>{group.items.length}</span>
+                      <ChevronDown size={12} style={{ color: '#A3A3A3', transform: collapsed.has(group.key) ? 'rotate(-90deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }} />
+                    </div>
+                  </button>
+                  {!collapsed.has(group.key) && (
+                    <div className="space-y-2">
+                      {group.items.map(item => {
+                        const config = mediaTypeConfig[item.media_type]
+                        const Icon = config.icon
+                        return (
+                          <SwipeableListItem key={item.id} onEdit={() => openEditMedia(item)} onDelete={() => deleteMedia(item.id)}>
+                          <Card padding="md" style={{ opacity: item.is_done ? 0.5 : 1, boxShadow: !item.is_done && item.id === highlightedId ? '0 0 0 2px #6D5BD0' : undefined }}>
+                            {item.is_done ? (
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#F5F5F3' }}>
+                                  <Icon size={15} strokeWidth={1.5} style={{ color: '#A3A3A3' }} />
+                                </div>
+                                <span className="flex-1 text-sm line-through" style={{ color: '#737373' }}>{item.title}</span>
+                                <button onClick={() => toggleMediaDone(item.id)} className="p-1"><Check size={16} strokeWidth={1.5} style={{ color: '#4A7C59' }} /></button>
+                                <button onClick={() => openEditMedia(item)} className="p-1 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Pencil size={13} strokeWidth={1.5} /></button>
+                                <button onClick={() => deleteMedia(item.id)} className="p-1 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Trash2 size={15} strokeWidth={1.5} /></button>
+                              </div>
+                            ) : (
+                              <div className="flex items-start gap-3">
+                                <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: config.bg }}>
+                                  <Icon size={15} strokeWidth={1.5} style={{ color: config.color }} />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap mb-1">
+                                    <span className="text-sm font-medium" style={{ color: '#1A1A1A' }}>{item.title}</span>
+                                    <Tag label={ownerLabel(item.owner)} owner={item.owner} />
+                                  </div>
+                                  <span className="text-xs px-2 py-0.5" style={{ backgroundColor: config.bg, color: config.color, borderRadius: '6px' }}>{config.label}</span>
+                                  {item.memo && <p className="text-xs mt-1" style={{ color: '#737373' }}>{item.memo}</p>}
+                                </div>
+                                <div className="flex flex-col items-center gap-1 flex-shrink-0">
+                                  <button onClick={() => toggleMediaDone(item.id)} className="w-5 h-5 rounded border flex items-center justify-center" style={{ borderColor: '#E5E5E5', borderWidth: '0.5px' }} />
+                                  <div className="flex gap-0.5">
+                                    <button onClick={() => openEditMedia(item)} className="p-1 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Pencil size={13} /></button>
+                                    <button onClick={() => deleteMedia(item.id)} className="p-1 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Trash2 size={14} /></button>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </Card>
+                          </SwipeableListItem>
+                        )
+                      })}
+                    </div>
+                  )}
+                </section>
+              ))}
+            </div>
           )}
         </div>
       )}
@@ -676,69 +866,118 @@ function ListPageInner() {
       {/* Todos Tab */}
       {tab === 'todos' && (
         <div className="space-y-2.5">
-          <p className="text-xs px-1" style={{ color: '#A3A3A3' }}>未完了 {todos.filter(t => !t.is_done).length}件</p>
-          {todos.filter(t => !t.is_done).length === 0 && (
-            <div className="flex flex-col items-center py-16 gap-3">
-              <Star size={28} strokeWidth={1.5} style={{ color: '#D4D4D4' }} />
-              <p className="font-serif italic" style={{ color: '#A3A3A3', fontSize: '15px' }}>やりたいことを追加しよう</p>
-            </div>
-          )}
-          {todos.filter(t => !t.is_done).map(todo => (
-            <SwipeableListItem key={todo.id} onEdit={() => openEditTodo(todo)} onDelete={() => deleteTodo(todo.id)}>
-            <Card padding="md" style={{ boxShadow: todo.id === highlightedId ? '0 0 0 2px #B07D2C' : undefined }}>
-              <div className="flex items-start gap-3">
-                <button
-                  onClick={() => toggleTodoDone(todo.id)}
-                  className="w-5 h-5 rounded border flex-shrink-0 mt-0.5 flex items-center justify-center"
-                  style={{ borderColor: '#E5E5E5', borderWidth: '0.5px' }}
-                />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap mb-1">
-                    <span className="text-sm font-medium" style={{ color: '#1A1A1A' }}>{todo.title}</span>
-                    <Tag label={ownerLabel(todo.owner)} owner={todo.owner} />
-                  </div>
-                  {todo.category && (
-                    <span className="text-xs px-2 py-0.5" style={{ backgroundColor: '#FFF8EC', color: '#B07D2C', borderRadius: '6px' }}>{todo.category}</span>
-                  )}
-                  {todo.memo && <p className="text-xs mt-1.5" style={{ color: '#737373' }}>{todo.memo}</p>}
-                </div>
-                <div className="flex gap-1 flex-shrink-0">
-                  <button onClick={() => openEditTodo(todo)} className="p-1.5 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}>
-                    <Pencil size={14} strokeWidth={1.5} />
-                  </button>
-                  <button onClick={() => deleteTodo(todo.id)} className="p-1.5 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}>
-                    <Trash2 size={15} strokeWidth={1.5} />
-                  </button>
-                </div>
-              </div>
-            </Card>
-            </SwipeableListItem>
-          ))}
-
-          {todos.filter(t => t.is_done).length > 0 && (
+          {groupBy === 'none' ? (
             <>
-              <p className="text-xs px-1 mt-4" style={{ color: '#A3A3A3' }}>完了 {todos.filter(t => t.is_done).length}件</p>
-              {todos.filter(t => t.is_done).map(todo => (
+              <p className="text-xs px-1" style={{ color: '#A3A3A3' }}>未完了 {todos.filter(t => !t.is_done).length}件</p>
+              {todos.filter(t => !t.is_done).length === 0 && (
+                <div className="flex flex-col items-center py-16 gap-3">
+                  <Star size={28} strokeWidth={1.5} style={{ color: '#D4D4D4' }} />
+                  <p className="font-serif italic" style={{ color: '#A3A3A3', fontSize: '15px' }}>やりたいことを追加しよう</p>
+                </div>
+              )}
+              {todos.filter(t => !t.is_done).map(todo => (
                 <SwipeableListItem key={todo.id} onEdit={() => openEditTodo(todo)} onDelete={() => deleteTodo(todo.id)}>
-                <Card padding="md" style={{ opacity: 0.5 }}>
-                  <div className="flex items-center gap-3">
-                    <button onClick={() => toggleTodoDone(todo.id)} className="w-5 h-5 rounded flex-shrink-0 flex items-center justify-center" style={{ backgroundColor: '#FFF8EC' }}>
-                      <Check size={12} strokeWidth={1.5} style={{ color: '#B07D2C' }} />
-                    </button>
-                    <span className="flex-1 text-sm line-through" style={{ color: '#737373' }}>{todo.title}</span>
+                <Card padding="md" style={{ boxShadow: todo.id === highlightedId ? '0 0 0 2px #B07D2C' : undefined }}>
+                  <div className="flex items-start gap-3">
+                    <button onClick={() => toggleTodoDone(todo.id)} className="w-5 h-5 rounded border flex-shrink-0 mt-0.5 flex items-center justify-center" style={{ borderColor: '#E5E5E5', borderWidth: '0.5px' }} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap mb-1">
+                        <span className="text-sm font-medium" style={{ color: '#1A1A1A' }}>{todo.title}</span>
+                        <Tag label={ownerLabel(todo.owner)} owner={todo.owner} />
+                      </div>
+                      {todo.category && <span className="text-xs px-2 py-0.5" style={{ backgroundColor: '#FFF8EC', color: '#B07D2C', borderRadius: '6px' }}>{todo.category}</span>}
+                      {todo.memo && <p className="text-xs mt-1.5" style={{ color: '#737373' }}>{todo.memo}</p>}
+                    </div>
                     <div className="flex gap-1 flex-shrink-0">
-                      <button onClick={() => openEditTodo(todo)} className="p-1.5 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}>
-                        <Pencil size={14} strokeWidth={1.5} />
-                      </button>
-                      <button onClick={() => deleteTodo(todo.id)} className="p-1.5 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}>
-                        <Trash2 size={15} strokeWidth={1.5} />
-                      </button>
+                      <button onClick={() => openEditTodo(todo)} className="p-1.5 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Pencil size={14} strokeWidth={1.5} /></button>
+                      <button onClick={() => deleteTodo(todo.id)} className="p-1.5 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Trash2 size={15} strokeWidth={1.5} /></button>
                     </div>
                   </div>
                 </Card>
                 </SwipeableListItem>
               ))}
+              {todos.filter(t => t.is_done).length > 0 && (
+                <>
+                  <p className="text-xs px-1 mt-4" style={{ color: '#A3A3A3' }}>完了 {todos.filter(t => t.is_done).length}件</p>
+                  {todos.filter(t => t.is_done).map(todo => (
+                    <SwipeableListItem key={todo.id} onEdit={() => openEditTodo(todo)} onDelete={() => deleteTodo(todo.id)}>
+                    <Card padding="md" style={{ opacity: 0.5 }}>
+                      <div className="flex items-center gap-3">
+                        <button onClick={() => toggleTodoDone(todo.id)} className="w-5 h-5 rounded flex-shrink-0 flex items-center justify-center" style={{ backgroundColor: '#FFF8EC' }}>
+                          <Check size={12} strokeWidth={1.5} style={{ color: '#B07D2C' }} />
+                        </button>
+                        <span className="flex-1 text-sm line-through" style={{ color: '#737373' }}>{todo.title}</span>
+                        <div className="flex gap-1 flex-shrink-0">
+                          <button onClick={() => openEditTodo(todo)} className="p-1.5 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Pencil size={14} strokeWidth={1.5} /></button>
+                          <button onClick={() => deleteTodo(todo.id)} className="p-1.5 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Trash2 size={15} strokeWidth={1.5} /></button>
+                        </div>
+                      </div>
+                    </Card>
+                    </SwipeableListItem>
+                  ))}
+                </>
+              )}
             </>
+          ) : todos.length === 0 ? (
+            <div className="flex flex-col items-center py-16 gap-3">
+              <Star size={28} strokeWidth={1.5} style={{ color: '#D4D4D4' }} />
+              <p className="font-serif italic" style={{ color: '#A3A3A3', fontSize: '15px' }}>やりたいことを追加しよう</p>
+            </div>
+          ) : (
+            <div className="space-y-5">
+              {computeGroups(todos, t => t.category || 'その他').map(group => (
+                <section key={group.key}>
+                  <button
+                    className="w-full flex items-center justify-between px-1 mb-2 active:opacity-60 transition-opacity"
+                    onClick={() => toggleCollapsed(group.key)}
+                  >
+                    <span className="text-xs font-medium uppercase" style={{ color: '#A3A3A3', letterSpacing: '0.08em' }}>{group.label}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs" style={{ color: '#C5C5C5' }}>{group.items.length}</span>
+                      <ChevronDown size={12} style={{ color: '#A3A3A3', transform: collapsed.has(group.key) ? 'rotate(-90deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }} />
+                    </div>
+                  </button>
+                  {!collapsed.has(group.key) && (
+                    <div className="space-y-2">
+                      {group.items.map(todo => (
+                        <SwipeableListItem key={todo.id} onEdit={() => openEditTodo(todo)} onDelete={() => deleteTodo(todo.id)}>
+                        <Card padding="md" style={{ opacity: todo.is_done ? 0.5 : 1, boxShadow: !todo.is_done && todo.id === highlightedId ? '0 0 0 2px #B07D2C' : undefined }}>
+                          {todo.is_done ? (
+                            <div className="flex items-center gap-3">
+                              <button onClick={() => toggleTodoDone(todo.id)} className="w-5 h-5 rounded flex-shrink-0 flex items-center justify-center" style={{ backgroundColor: '#FFF8EC' }}>
+                                <Check size={12} strokeWidth={1.5} style={{ color: '#B07D2C' }} />
+                              </button>
+                              <span className="flex-1 text-sm line-through" style={{ color: '#737373' }}>{todo.title}</span>
+                              <div className="flex gap-1 flex-shrink-0">
+                                <button onClick={() => openEditTodo(todo)} className="p-1.5 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Pencil size={14} strokeWidth={1.5} /></button>
+                                <button onClick={() => deleteTodo(todo.id)} className="p-1.5 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Trash2 size={15} strokeWidth={1.5} /></button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-start gap-3">
+                              <button onClick={() => toggleTodoDone(todo.id)} className="w-5 h-5 rounded border flex-shrink-0 mt-0.5 flex items-center justify-center" style={{ borderColor: '#E5E5E5', borderWidth: '0.5px' }} />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap mb-1">
+                                  <span className="text-sm font-medium" style={{ color: '#1A1A1A' }}>{todo.title}</span>
+                                  <Tag label={ownerLabel(todo.owner)} owner={todo.owner} />
+                                </div>
+                                {todo.category && <span className="text-xs px-2 py-0.5" style={{ backgroundColor: '#FFF8EC', color: '#B07D2C', borderRadius: '6px' }}>{todo.category}</span>}
+                                {todo.memo && <p className="text-xs mt-1.5" style={{ color: '#737373' }}>{todo.memo}</p>}
+                              </div>
+                              <div className="flex gap-1 flex-shrink-0">
+                                <button onClick={() => openEditTodo(todo)} className="p-1.5 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Pencil size={14} strokeWidth={1.5} /></button>
+                                <button onClick={() => deleteTodo(todo.id)} className="p-1.5 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Trash2 size={15} strokeWidth={1.5} /></button>
+                              </div>
+                            </div>
+                          )}
+                        </Card>
+                        </SwipeableListItem>
+                      ))}
+                    </div>
+                  )}
+                </section>
+              ))}
+            </div>
           )}
         </div>
       )}

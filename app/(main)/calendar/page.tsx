@@ -1014,6 +1014,7 @@ function CalendarPageInner() {
   }
 
   return (
+    <>
     <PageTransition>
     <PullToRefresh onRefresh={load}>
     <div className="px-4 pt-6 max-w-lg mx-auto">
@@ -1229,16 +1230,6 @@ function CalendarPageInner() {
         </motion.div>
         </AnimatePresence>
       </div>
-
-      {/* FAB */}
-      <button
-        onClick={() => { haptic('medium'); setShowAddSheet(true) }}
-        className="fixed right-4 z-30 flex items-center gap-2 px-5 py-3 active:opacity-70 transition-opacity"
-        style={{ bottom: `calc(env(safe-area-inset-bottom) + 76px)`, backgroundColor: '#1A1A1A', color: '#FFFFFF', borderRadius: '10px' }}
-      >
-        <Plus size={18} strokeWidth={2} />
-        <span className="text-sm font-medium">追加</span>
-      </button>
 
       {/* Day detail sheet */}
       <BottomSheet
@@ -1465,6 +1456,17 @@ function CalendarPageInner() {
     </div>
     </PullToRefresh>
     </PageTransition>
+
+    {/* FAB — PageTransition外に配置して opacity アニメーションの影響を受けないようにする */}
+    <button
+      onClick={() => { haptic('medium'); setShowAddSheet(true) }}
+      className="fixed right-4 z-30 flex items-center gap-2 px-5 py-3 active:opacity-70 transition-opacity"
+      style={{ bottom: `calc(env(safe-area-inset-bottom) + 76px)`, backgroundColor: '#1A1A1A', color: '#FFFFFF', borderRadius: '10px' }}
+    >
+      <Plus size={18} strokeWidth={2} />
+      <span className="text-sm font-medium">追加</span>
+    </button>
+    </>
   )
 }
 

@@ -631,6 +631,67 @@ export function useAutoRefresh(load: () => void) {
 
 ---
 
+## セッション 10：リストページ グループ表示機能追加
+
+### 目的
+リストページ（places / media / todos 各タブ）に「すべて / カテゴリ / 追加者」の3種類グループ切り替えUIを追加し、グループ単位の折りたたみを実現する。
+
+### 設計判断
+- **ステータスグループは不要** — 既存のリストが未完了/訪問済みで分かれているため、グループ化の追加は冗長
+- **ソート機能は見送り** — 要求スコープ外
+- **長押しプレビューは見送り** — `useSwipeable` との競合（セッション8・9と同じ判断）
+- `groupBy` 状態を `localStorage` に永続化（キー: `'listGroupBy'`）
+- `collapsed`（折りたたみ状態）はタブ切り替え・グループ変更時にリセット
+- `computeGroups<T>` を汎用関数として実装（places/media/todos 共通）
+- **addedBy の並び順**: me → partner → both（`ownerOrder` テーブルで制御）
+
+### バグ修正（実装直後に発見）
+- **`collapsed` がタブをまたいで共有される問題**: `'me'` / `'partner'` / `'both'` などのグループキーが3タブ共通のため、Places タブで「わたし」を折りたたむと Media タブの「わたし」も折りたたまれる状態になっていた。`useEffect` を追加して `tab` 変更時に `setCollapsed(new Set())` を呼ぶことで修正。
+
+### 実装内容（`app/(main)/list/page.tsx`）
+
+**新規 import**
+- `ChevronDown` (lucide-react)
+
+**新規 state・型**
+```typescript
+type GroupBy = 'none' | 'category' | 'addedBy'
+const [groupBy, setGroupBy] = useState<GroupBy>(() => { /* localStorage 復元 */ })
+const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
+```
+
+**新規 useEffect**
+```typescript
+// localStorage 永続化
+useEffect(() => { try { localStorage.setItem('listGroupBy', groupBy) } catch {} }, [groupBy])
+// タブ切り替え時にリセット（バグ修正）
+useEffect(() => { setCollapsed(new Set()) }, [tab])
+```
+
+**新規関数**
+- `toggleCollapsed(key: string)` — Set を immutable に更新
+- `computeGroups<T extends { owner: Owner }>(items, getCategoryKey)` — Map で集約 → addedBy 時はオーナー順にソート
+
+**グループ選択UI**
+- タブ切り替えの直下に `すべて / カテゴリ / 追加者` ボタン3つ
+- 選択中: `#1A1A1A` 背景 + `#FFFFFF` テキスト / 非選択: `#F5F5F3` 背景 + `#737373` テキスト
+
+**各タブのレンダリング変更**
+- `groupBy === 'none'` → 既存の表示（未訪問/訪問済みなど）をそのまま維持
+- `groupBy !== 'none'` + アイテム0件 → 既存の空状態表示
+- `groupBy !== 'none'` + アイテムあり → `computeGroups()` でグループ分け → `<section>` 単位で折りたたみUI
+  - グループヘッダー: ラベル（左）+ 件数 + ChevronDown（右）
+  - ChevronDown は collapsed 時 `rotate(-90deg)`、展開時 `rotate(0deg)`（0.2s transition）
+
+**グループキー**
+| タブ | category キー | addedBy キー |
+|---|---|---|
+| places | `p.category \|\| 'その他'` | `p.owner` |
+| media | `mediaTypeConfig[m.media_type].label` | `m.owner` |
+| todos | `t.category \|\| 'その他'` | `t.owner` |
+
+---
+
 ## 今後の検討候補（未着手）
 
 - Supabase Realtime の todos テーブル有効化（パートナーのtodo追加をリアルタイム反映したい場合）

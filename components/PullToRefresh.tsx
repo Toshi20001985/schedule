@@ -23,6 +23,7 @@ export function PullToRefresh({ onRefresh, children }: Props) {
   const onRefreshRef = useRef(onRefresh)
   useEffect(() => { onRefreshRef.current = onRefresh }, [onRefresh])
 
+  const doneTimerRef   = useRef<ReturnType<typeof setTimeout> | null>(null)
   const startYRef      = useRef(0)
   const startXRef      = useRef(0)
   const pullDistRef    = useRef(0)
@@ -122,7 +123,8 @@ export function PullToRefresh({ onRefresh, children }: Props) {
           setRefreshing(false)
           // 完了チェックマークを 800ms 表示
           setDone(true)
-          setTimeout(() => setDone(false), 800)
+          if (doneTimerRef.current) clearTimeout(doneTimerRef.current)
+          doneTimerRef.current = setTimeout(() => setDone(false), 800)
         }
       }
     }
@@ -143,9 +145,10 @@ export function PullToRefresh({ onRefresh, children }: Props) {
       el.removeEventListener('touchmove',   onTouchMove)
       el.removeEventListener('touchend',    onTouchEnd)
       el.removeEventListener('touchcancel', onTouchCancel)
-      // アンマウント時にリフレッシュ中フラグもリセット
+      // アンマウント時にリフレッシュ中フラグ・タイマーをリセット
       refreshingRef.current   = false
       touchStartedRef.current = false
+      if (doneTimerRef.current) clearTimeout(doneTimerRef.current)
     }
   }, [])
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Copy, Check, LogOut, Calendar, User, Link2, ChevronRight, Vibrate } from 'lucide-react'
@@ -42,6 +42,15 @@ export default function SettingsPage() {
   const [saveError, setSaveError] = useState('')
   const [loading, setLoading] = useState(true)
   const [hapticsEnabled, setHapticsEnabled] = useState(true)
+  const savedTimerRef  = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (savedTimerRef.current)  clearTimeout(savedTimerRef.current)
+      if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current)
+    }
+  }, [])
 
   useEffect(() => {
     setHapticsEnabled(localStorage.getItem('haptics_enabled') !== 'false')
@@ -128,7 +137,8 @@ export default function SettingsPage() {
     try {
       if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !myId) {
         setSaved(true)
-        setTimeout(() => setSaved(false), 2000)
+        if (savedTimerRef.current) clearTimeout(savedTimerRef.current)
+        savedTimerRef.current = setTimeout(() => setSaved(false), 2000)
         return
       }
 
@@ -155,7 +165,8 @@ export default function SettingsPage() {
       }
 
       setSaved(true)
-      setTimeout(() => setSaved(false), 2000)
+      if (savedTimerRef.current) clearTimeout(savedTimerRef.current)
+      savedTimerRef.current = setTimeout(() => setSaved(false), 2000)
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : '保存に失敗しました')
     } finally {
@@ -166,7 +177,8 @@ export default function SettingsPage() {
   function copyCode() {
     navigator.clipboard.writeText(inviteCode).catch(() => {})
     setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current)
+    copiedTimerRef.current = setTimeout(() => setCopied(false), 2000)
   }
 
   async function handleLogout() {

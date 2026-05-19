@@ -85,7 +85,14 @@ export default function HomePage() {
       }
     }
     window.addEventListener('edge-swipe-back', onSwipeBack)
-    return () => window.removeEventListener('edge-swipe-back', onSwipeBack)
+    return () => {
+      window.removeEventListener('edge-swipe-back', onSwipeBack)
+      // アンマウント時（長押し中の画面遷移など）にタイマーをクリア
+      if (longPressTimer.current) {
+        clearTimeout(longPressTimer.current)
+        longPressTimer.current = null
+      }
+    }
   }, [])
 
   // メニューが開いているとき、メニュー外タッチで閉じる
