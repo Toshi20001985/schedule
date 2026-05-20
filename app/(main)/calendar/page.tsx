@@ -1281,7 +1281,8 @@ function CalendarPageInner() {
                             const { createClient } = await import('@/lib/supabase/client')
                             // eslint-disable-next-line @typescript-eslint/no-explicit-any
                             const db = createClient() as any
-                            await db.from('events').delete().eq('id', event.id)
+                            const { error } = await db.from('events').delete().eq('id', event.id)
+                            if (error) { showToast('削除に失敗しました'); return }
                           }
                           setEvents(prev => prev.filter(e => e.id !== event.id))
                         }}

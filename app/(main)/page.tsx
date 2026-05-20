@@ -67,6 +67,7 @@ export default function HomePage() {
   const router = useRouter()
   const reduced = useReducedMotion()
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const touchStartPos = useRef<{ x: number; y: number } | null>(null)
   const [showQuickMenu, setShowQuickMenu] = useState(false)
 
   // Router Cache からの復元時・マウント時にメニューを確実に閉じる
@@ -426,7 +427,8 @@ export default function HomePage() {
   }
 
   // ヒーローカード長押しハンドラー
-  function handleHeroTouchStart() {
+  function handleHeroTouchStart(e: React.TouchEvent) {
+    touchStartPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
     longPressTimer.current = setTimeout(() => {
       haptic('medium')
       setShowQuickMenu(true)
@@ -438,12 +440,17 @@ export default function HomePage() {
       clearTimeout(longPressTimer.current)
       longPressTimer.current = null
     }
+    touchStartPos.current = null
   }
-  function handleHeroTouchMove() {
-    // 移動したらキャンセル
-    if (longPressTimer.current) {
+  function handleHeroTouchMove(e: React.TouchEvent) {
+    // 8px 以上移動した場合のみキャンセル（微小な指のブレは無視）
+    if (!longPressTimer.current || !touchStartPos.current) return
+    const dx = Math.abs(e.touches[0].clientX - touchStartPos.current.x)
+    const dy = Math.abs(e.touches[0].clientY - touchStartPos.current.y)
+    if (dx > 8 || dy > 8) {
       clearTimeout(longPressTimer.current)
       longPressTimer.current = null
+      touchStartPos.current = null
     }
   }
 

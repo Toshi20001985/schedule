@@ -518,6 +518,8 @@ function ListPageInner() {
       )
       haptic('success')
       resetForm(); setShowSheet(false)
+    } catch {
+      showToast('保存に失敗しました')
     } finally {
       setGeocoding(false)
     }
