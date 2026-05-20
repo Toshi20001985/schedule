@@ -124,7 +124,7 @@ function MapPageInner() {
           </div>
         ) : (
           <>
-            <PlacesMap places={filteredPlaces} height="100%" />
+            <PlacesMap places={filteredPlaces} height="100%" center={[35.6762, 139.6503]} zoom={10} />
 
             {/* フィルターピル */}
             <div style={{

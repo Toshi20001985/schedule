@@ -41,23 +41,24 @@ function ClickHandler({ onMapClick }: { onMapClick: (lat: number, lon: number) =
   return null
 }
 
+const TOKYO: [number, number] = [35.6762, 139.6503]
+
 interface Props {
   places: PlacePin[]
   height: string
   zoom?: number
+  center?: [number, number]
   editable?: boolean
   onMapClick?: (lat: number, lon: number) => void
 }
 
-export default function PlacesMap({ places, height, zoom = 5, editable = false, onMapClick }: Props) {
-  // 中心: 場所の重心 または 日本中央
+export default function PlacesMap({ places, height, zoom = 5, center: centerProp, editable = false, onMapClick }: Props) {
+  // 中心: prop で指定 > 場所が1件のみの場合はその座標 > フォールバック（東京）
   const center: [number, number] =
-    places.length > 0
-      ? [
-          places.reduce((s, p) => s + p.latitude,  0) / places.length,
-          places.reduce((s, p) => s + p.longitude, 0) / places.length,
-        ]
-      : [36.2048, 138.2529]
+    centerProp ??
+    (places.length === 1
+      ? [places[0].latitude, places[0].longitude]
+      : TOKYO)
 
   return (
     <MapContainer
