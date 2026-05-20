@@ -265,7 +265,7 @@ function ListPageInner() {
       }
     }
 
-    const [{ data: placesData }, { data: mediaData }, { data: todosData }] = await Promise.all([
+    const [placesResult, { data: mediaData }, { data: todosData }] = await Promise.all([
       db.from('places')
         .select('id, name, category, location, memo, is_visited, owner, latitude, longitude')
         .eq('couple_id', cId)
@@ -279,6 +279,16 @@ function ListPageInner() {
         .eq('couple_id', cId)
         .order('created_at', { ascending: false }),
     ])
+
+    // latitude/longitude カラムが DB 未追加の場合はフォールバック
+    let placesData = placesResult.data
+    if (placesResult.error && !placesData) {
+      const fallback = await db.from('places')
+        .select('id, name, category, location, memo, is_visited, owner')
+        .eq('couple_id', cId)
+        .order('created_at', { ascending: false })
+      placesData = fallback.data
+    }
 
     if (placesData) {
       setPlaces(placesData.map((p: {
