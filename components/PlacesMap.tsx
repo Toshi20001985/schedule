@@ -65,6 +65,7 @@ export default function PlacesMap({ places, height, zoom = 5, editable = false, 
       zoom={zoom}
       style={{ height, width: '100%' }}
       zoomControl={false}
+      worldCopyJump={true}
     >
       {/* Carto Light タイル（OSM データ、無料） */}
       <TileLayer
