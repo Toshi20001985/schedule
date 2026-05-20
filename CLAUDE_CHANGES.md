@@ -803,6 +803,83 @@ ALTER TABLE public.places ADD COLUMN IF NOT EXISTS longitude DOUBLE PRECISION;
 
 ---
 
+---
+
+## セッション 13：ジオコーディング精度向上 + 位置確認UI + 手動位置指定
+
+### 症状（実データで判明した問題）
+
+```json
+{ "name": "熊本旅行", "latitude": 22.649, "longitude": 120.339 }  // 台湾の座標（誤り）
+{ "name": "ハワイ旅行", "latitude": null, "longitude": null }       // 取得失敗
+```
+
+「旅行」「デート」などの一般語を含む名前で登録すると、Nominatim がノイズ語を地名と解釈して誤った国・地域の座標を返す。
+また「ハワイ旅行」のように実在しない地名になった場合は null が返る。
+
+### 根本原因
+
+1. Nominatim は地名専用検索 API のため「旅行」「デート」などのノイズ語が混入すると大幅に精度が下がる
+2. 日本語クエリ + 日本以外がヒットした場合の信頼度チェックがなかった
+3. 失敗時のリトライ処理がなかった
+
+### 修正内容
+
+**`lib/geocoding.ts` — 完全書き換え**
+- 戻り値の型を `{ lat, lon }` から `GeocodeResult { lat, lon, displayName }` に変更
+- `cleanQuery(query)`: NOISE_WORDS（「旅行」「デート」「trip」等 17語）をクエリから除去
+- `searchNominatim(query)`: `limit=5` / `addressdetails=1` / `accept-language: ja` で取得
+- `scoreResults()`: 日本語クエリかつ海外キーワードなし → 日本国内に +2.0 加点。海外キーワードあり → 海外に +0.5。日本語なのに海外ヒット → -0.5
+- `isLowConfidence()`: importance < 0.3、または日本語クエリで日本以外がヒットした場合に低信頼度判定
+- `geocode()`: 3段階リトライ（元クエリ → ノイズ除去クエリ → 先頭単語）。各リトライ間は 1.1s 待機（レート制限遵守）
+
+**`components/PlacesMap.tsx`**
+- `zoom?: number`（デフォルト 5）prop 追加
+- `editable?: boolean` / `onMapClick?: (lat, lon) => void` prop 追加
+- `useMapEvents` を使った `ClickHandler` コンポーネントを追加
+
+**`hooks/useCollection.ts`**
+- `addItem` の戻り値を `Promise<void>` → `Promise<string>` に変更（追加した item の ID を返す）
+- DB insert 成功時は `data.id`、フォールバック時は `localItem.id` を返す
+- 既存の呼び出し元（handleAddTodo / handleAddMedia）は戻り値を無視するため影響なし
+
+**`app/(main)/list/page.tsx`**
+- `dynamic(() => import('@/components/PlacesMap'), { ssr: false })` を追加
+- 新 state: `confirmingPlace` / `manualCoords` / `showMapPicker` / `mapPickerCoords`
+- `resetForm()` に `setManualCoords(null)` を追加
+- `handleAddPlace()`:
+  - `manualCoords` がある場合はジオコーディングをスキップしてそれを使用
+  - `addPlaceItem` の戻り値（ID）を `newId` でキャプチャ
+  - 座標取得成功 → `setConfirmingPlace(...)` で確認モーダル表示
+  - 座標取得失敗 → Toast で案内
+- 場所追加フォームに「地図で位置を指定（任意）」ボタンを追加
+  - タップ → `showMapPicker = true` でマップピッカーオーバーレイ表示
+  - 指定済みの場合は緑色のバッジで座標を表示 + クリアボタン
+- 位置確認BottomSheet: ミニマップ（zoom=10）+ 住所表示 + 「この場所でOK」/「違う」ボタン
+  - 「違う」→ `updatePlaceItem(id, { latitude: null, longitude: null })` で座標クリア
+- マップピッカーオーバーレイ（`position: fixed`, `z-index: 60`）:
+  - `PageTransition` 外に配置（opacity アニメーション問題を回避）
+  - `PlacesMapDynamic` を `editable` モードで表示、タップで `mapPickerCoords` を更新
+  - 「この位置を使う」→ `setManualCoords(mapPickerCoords)` してオーバーレイを閉じる
+
+**`app/(main)/settings/page.tsx`**
+- `handleRefreshAllCoordinates()`: 座標の有無にかかわらず全場所を再ジオコーディング。誤判定データをクリアしてから正しい座標を取得
+- 「地図データ」カードに「すべての座標を再取得（誤判定修正）」ボタンを追加（金色スタイルで既存ボタンと区別）
+
+### 動作フロー
+
+「熊本旅行」登録時:
+1. Step 1: 「熊本旅行」で検索 → 台湾ヒット、importance 低 → isLowConfidence = true
+2. Step 2: 「熊本」で再検索（「旅行」除去）→ 熊本県ヒット → jp に +2.0 加点 → 最優先
+3. 追加完了後、確認モーダル表示 → ユーザーが地図で確認 → OK or 違う
+
+「ハワイ旅行」登録時:
+1. Step 1: 「ハワイ旅行」で検索 → null
+2. Step 2: 「ハワイ」で再検索 → Hawaii ヒット → 海外KW「ハワイ」検出 → 加点
+3. 確認モーダルでハワイの地図表示
+
+---
+
 ## 今後の検討候補（未着手）
 
 - Supabase Realtime の todos テーブル有効化（パートナーのtodo追加をリアルタイム反映したい場合）

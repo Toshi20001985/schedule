@@ -240,6 +240,68 @@ export default function SettingsPage() {
     }
   }
 
+  async function handleRefreshAllCoordinates() {
+    if (!coupleId || backfilling) return
+    setBackfilling(true)
+    setBackfillMessage('')
+
+    try {
+      if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+        setBackfillMessage('デモ環境では利用できません')
+        return
+      }
+      const { createClient } = await import('@/lib/supabase/client')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const db = createClient() as any
+
+      // 座標の有無にかかわらず全件取得
+      const { data: places } = await db
+        .from('places')
+        .select('id, name, location')
+        .eq('couple_id', coupleId)
+
+      if (!places || places.length === 0) {
+        setBackfillMessage('場所が登録されていません')
+        return
+      }
+
+      setBackfillProgress({ done: 0, total: places.length })
+
+      const { geocode } = await import('@/lib/geocoding')
+      let updated = 0
+      let failed = 0
+
+      for (let i = 0; i < places.length; i++) {
+        const place = places[i]
+        const query = [place.name, place.location].filter(Boolean).join(' ')
+        const coords = await geocode(query)
+        if (coords) {
+          await db
+            .from('places')
+            .update({ latitude: coords.lat, longitude: coords.lon })
+            .eq('id', place.id)
+          updated++
+        } else {
+          // 誤データをクリア
+          await db
+            .from('places')
+            .update({ latitude: null, longitude: null })
+            .eq('id', place.id)
+          failed++
+        }
+        setBackfillProgress({ done: i + 1, total: places.length })
+        if (i < places.length - 1) {
+          await new Promise(r => setTimeout(r, 1100))
+        }
+      }
+
+      setBackfillMessage(`再取得完了: ${updated} 件成功 / ${failed} 件取得不可`)
+    } finally {
+      setBackfilling(false)
+      setBackfillProgress(null)
+    }
+  }
+
   async function handleLogout() {
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL) { router.push('/auth/login'); return }
     const { createClient } = await import('@/lib/supabase/client')
@@ -392,10 +454,18 @@ export default function SettingsPage() {
           <button
             onClick={handleBackfill}
             disabled={backfilling || !coupleId}
-            className="w-full py-2.5 text-sm font-medium transition-opacity disabled:opacity-40"
+            className="w-full py-2.5 text-sm font-medium transition-opacity disabled:opacity-40 mb-2"
             style={{ backgroundColor: '#F5F5F3', color: '#1A1A1A', borderRadius: '10px' }}
           >
-            {backfilling ? '取得中...' : '座標データを更新する'}
+            {backfilling ? '取得中...' : '座標のない場所を取得する'}
+          </button>
+          <button
+            onClick={handleRefreshAllCoordinates}
+            disabled={backfilling || !coupleId}
+            className="w-full py-2.5 text-sm font-medium transition-opacity disabled:opacity-40"
+            style={{ backgroundColor: '#FFF8E6', color: '#8B6914', borderRadius: '10px', border: '0.5px solid #C4963A' }}
+          >
+            {backfilling ? '取得中...' : 'すべての座標を再取得（誤判定修正）'}
           </button>
         </Card>
       )}

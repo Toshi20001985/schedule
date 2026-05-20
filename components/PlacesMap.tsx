@@ -1,6 +1,6 @@
 'use client'
 
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
+import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
@@ -33,12 +33,23 @@ function createIcon(isVisited: boolean) {
 const visitedIcon  = createIcon(true)
 const wishlistIcon = createIcon(false)
 
+// 地図タップで座標を返すハンドラー（editable モード用）
+function ClickHandler({ onMapClick }: { onMapClick: (lat: number, lon: number) => void }) {
+  useMapEvents({
+    click(e) { onMapClick(e.latlng.lat, e.latlng.lng) },
+  })
+  return null
+}
+
 interface Props {
   places: PlacePin[]
   height: string
+  zoom?: number
+  editable?: boolean
+  onMapClick?: (lat: number, lon: number) => void
 }
 
-export default function PlacesMap({ places, height }: Props) {
+export default function PlacesMap({ places, height, zoom = 5, editable = false, onMapClick }: Props) {
   // 中心: 場所の重心 または 日本中央
   const center: [number, number] =
     places.length > 0
@@ -51,7 +62,7 @@ export default function PlacesMap({ places, height }: Props) {
   return (
     <MapContainer
       center={center}
-      zoom={5}
+      zoom={zoom}
       style={{ height, width: '100%' }}
       zoomControl={false}
     >
@@ -60,6 +71,7 @@ export default function PlacesMap({ places, height }: Props) {
         url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
       />
+      {editable && onMapClick && <ClickHandler onMapClick={onMapClick} />}
       {places.map(place => (
         <Marker
           key={place.id}

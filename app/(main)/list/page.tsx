@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useEffect, useCallback, Suspense } from 'react'
+import dynamic from 'next/dynamic'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { MapPin, Play, Check, Plus, Film, Music, Book, Tv, Trash2, Pencil, Star, ChevronDown } from 'lucide-react'
+import { MapPin, Play, Check, Plus, Film, Music, Book, Tv, Trash2, Pencil, Star, ChevronDown, X } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Tag from '@/components/ui/Tag'
@@ -16,6 +17,16 @@ import { useCollection } from '@/hooks/useCollection'
 import { useToast } from '@/components/ToastProvider'
 import { useAutoRefresh } from '@/hooks/useAutoRefresh'
 import { PageTransition } from '@/components/PageTransition'
+
+// Leaflet は SSR 不可のため動的ロード
+const PlacesMapDynamic = dynamic(() => import('@/components/PlacesMap'), {
+  ssr: false,
+  loading: () => (
+    <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#F5F5F3' }}>
+      <span style={{ color: '#A3A3A3', fontSize: '13px' }}>地図を読み込み中...</span>
+    </div>
+  ),
+})
 
 type Owner = 'me' | 'partner' | 'both'
 
@@ -151,6 +162,12 @@ function ListPageInner() {
   const [newOwner, setNewOwner] = useState<Owner>('both')
   const [highlightedId, setHighlightedId] = useState<string | null>(null)
   const [geocoding,     setGeocoding]     = useState(false)
+  const [confirmingPlace, setConfirmingPlace] = useState<{
+    id: string; name: string; lat: number; lon: number; displayName: string
+  } | null>(null)
+  const [manualCoords, setManualCoords] = useState<{ lat: number; lon: number } | null>(null)
+  const [showMapPicker, setShowMapPicker] = useState(false)
+  const [mapPickerCoords, setMapPickerCoords] = useState<{ lat: number; lon: number } | null>(null)
   const { showToast } = useToast()
 
   type GroupBy = 'none' | 'category' | 'addedBy'
@@ -469,6 +486,7 @@ function ListPageInner() {
     setNewMediaType('movie')
     setNewTodoTitle(''); setNewTodoCategory('')
     setEditingPlace(null); setEditingMedia(null); setEditingTodo(null)
+    setManualCoords(null)
   }
 
   function openEditPlace(place: Place) {
@@ -508,16 +526,34 @@ function ListPageInner() {
     // geocoding state で追加完了まで全体をガード（ボタン二重タップ防止）
     setGeocoding(true)
     try {
-      // 地名→座標変換（失敗しても場所の追加は続行）
-      const { geocode } = await import('@/lib/geocoding')
-      const query = [newName, newLocation].filter(Boolean).join(' ')
-      const coords = await geocode(query)
-      await addPlaceItem(
+      // 手動指定があればそれを優先、なければ Nominatim でジオコーディング
+      let coords: { lat: number; lon: number; displayName: string } | null = null
+      if (manualCoords) {
+        coords = { ...manualCoords, displayName: '手動で指定した位置' }
+      } else {
+        const { geocode } = await import('@/lib/geocoding')
+        const query = [newName, newLocation].filter(Boolean).join(' ')
+        coords = await geocode(query)
+      }
+
+      const tempName = newName  // resetForm() 前に名前を退避
+      const localTempId = Date.now().toString()
+      const newId = await addPlaceItem(
         { name: newName, category: newCategory || 'その他', location: newLocation, memo: newMemo || null, is_visited: false, owner: newOwner, latitude: coords?.lat ?? null, longitude: coords?.lon ?? null },
-        { id: Date.now().toString(), name: newName, category: newCategory || 'その他', location: newLocation, memo: newMemo || undefined, is_visited: false, owner: newOwner, latitude: coords?.lat, longitude: coords?.lon },
+        { id: localTempId, name: newName, category: newCategory || 'その他', location: newLocation, memo: newMemo || undefined, is_visited: false, owner: newOwner, latitude: coords?.lat, longitude: coords?.lon },
       )
       haptic('success')
       resetForm(); setShowSheet(false)
+
+      // newId が localTempId と同じ = Supabase insert 失敗のフォールバック
+      // その場合は確認モーダルを表示しない（"保存できませんでした" トーストが既に出ている）
+      const insertSucceeded = newId !== localTempId
+      if (coords && insertSucceeded) {
+        // 位置確認モーダルを表示
+        setConfirmingPlace({ id: newId, name: tempName, lat: coords.lat, lon: coords.lon, displayName: coords.displayName })
+      } else if (!coords) {
+        showToast(`「${tempName}」を追加しました（地図の座標を取得できませんでした）`)
+      }
     } catch {
       showToast('保存に失敗しました')
     } finally {
@@ -1093,6 +1129,29 @@ function ListPageInner() {
               <label className="block text-xs font-medium uppercase tracking-widest mb-2" style={{ color: '#A3A3A3' }}>メモ（任意）</label>
               <textarea value={newMemo} onChange={e => setNewMemo(e.target.value)} style={{ ...inputStyle, resize: 'none' }} rows={2} placeholder="メモ..." />
             </div>
+            {/* 手動位置指定 */}
+            {!editingPlace && (
+              <div>
+                {manualCoords ? (
+                  <div className="flex items-center justify-between px-3 py-2 rounded-lg" style={{ backgroundColor: '#F0F7F0', border: '0.5px solid #4A7C59' }}>
+                    <span style={{ fontSize: '12px', color: '#4A7C59' }}>
+                      📍 手動位置指定済み ({manualCoords.lat.toFixed(4)}, {manualCoords.lon.toFixed(4)})
+                    </span>
+                    <button onClick={() => setManualCoords(null)} style={{ color: '#737373', padding: '2px' }}>
+                      <X size={14} strokeWidth={1.5} />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => { setMapPickerCoords(null); setShowMapPicker(true) }}
+                    className="w-full py-2 text-sm transition-opacity active:opacity-60"
+                    style={{ backgroundColor: '#F5F5F3', color: '#737373', borderRadius: '10px', border: '0.5px solid #E5E5E5' }}
+                  >
+                    地図で位置を指定（任意）
+                  </button>
+                )}
+              </div>
+            )}
             {editingPlace
               ? <Button fullWidth onClick={handleUpdatePlace} disabled={!newName}>更新する</Button>
               : <Button fullWidth onClick={handleAddPlace}    disabled={!newName || geocoding}>
@@ -1157,6 +1216,122 @@ function ListPageInner() {
       <Plus size={18} strokeWidth={2} />
       <span className="text-sm font-medium">追加</span>
     </button>
+
+    {/* 位置確認モーダル — 場所追加直後に表示 */}
+    <BottomSheet
+      open={!!confirmingPlace}
+      onClose={() => setConfirmingPlace(null)}
+      title="この場所で合っていますか？"
+    >
+      {confirmingPlace && (
+        <div className="space-y-4">
+          <div className="px-3 py-2 rounded-lg" style={{ backgroundColor: '#F5F5F3' }}>
+            <p className="text-sm font-semibold" style={{ color: '#1A1A1A' }}>{confirmingPlace.name}</p>
+            <p className="text-xs mt-1" style={{ color: '#737373' }}>📍 {confirmingPlace.displayName}</p>
+          </div>
+          {/* ミニマップ */}
+          <div style={{ height: '200px', borderRadius: '12px', overflow: 'hidden' }}>
+            <PlacesMapDynamic
+              places={[{
+                id: confirmingPlace.id,
+                name: confirmingPlace.name,
+                category: '',
+                is_visited: false,
+                latitude: confirmingPlace.lat,
+                longitude: confirmingPlace.lon,
+              }]}
+              height="100%"
+              zoom={10}
+            />
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setConfirmingPlace(null)}
+              className="flex-1 py-3 text-sm font-medium transition-opacity active:opacity-70"
+              style={{ backgroundColor: '#1A1A1A', color: '#FFFFFF', borderRadius: '10px' }}
+            >
+              この場所で OK
+            </button>
+            <button
+              onClick={() => {
+                updatePlaceItem(confirmingPlace.id, { latitude: null, longitude: null })
+                setConfirmingPlace(null)
+                showToast('座標をクリアしました。設定画面から再取得できます')
+              }}
+              className="py-3 px-4 text-sm font-medium transition-opacity active:opacity-70"
+              style={{ backgroundColor: '#F5F5F3', color: '#737373', borderRadius: '10px' }}
+            >
+              違う
+            </button>
+          </div>
+        </div>
+      )}
+    </BottomSheet>
+
+    {/* 手動マップピッカー — position: fixed で PageTransition 外に配置 */}
+    {showMapPicker && (
+      <div style={{
+        position: 'fixed', inset: 0, zIndex: 60,
+        display: 'flex', flexDirection: 'column',
+        backgroundColor: '#000',
+      }}>
+        {/* ヘッダー */}
+        <div style={{
+          position: 'absolute', top: 0, left: 0, right: 0,
+          zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: `calc(env(safe-area-inset-top) + 12px) 16px 12px`,
+          background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(8px)',
+        }}>
+          <span style={{ color: '#FFFFFF', fontSize: '14px', fontWeight: 500 }}>
+            {mapPickerCoords ? '位置を確認してください' : '場所をタップして位置を指定'}
+          </span>
+          <button onClick={() => setShowMapPicker(false)} style={{ color: '#FFFFFF', padding: '4px' }}>
+            <X size={20} strokeWidth={1.5} />
+          </button>
+        </div>
+        {/* 地図 */}
+        <div style={{ flex: 1 }}>
+          <PlacesMapDynamic
+            places={mapPickerCoords ? [{
+              id: 'picker',
+              name: '選択した位置',
+              category: '',
+              is_visited: false,
+              latitude: mapPickerCoords.lat,
+              longitude: mapPickerCoords.lon,
+            }] : []}
+            height="100%"
+            zoom={mapPickerCoords ? 12 : 5}
+            editable
+            onMapClick={(lat, lon) => setMapPickerCoords({ lat, lon })}
+          />
+        </div>
+        {/* フッター */}
+        {mapPickerCoords && (
+          <div style={{
+            position: 'absolute', bottom: 0, left: 0, right: 0,
+            padding: `16px 16px calc(env(safe-area-inset-bottom) + 16px)`,
+            background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(8px)',
+            display: 'flex', gap: '8px',
+          }}>
+            <button
+              onClick={() => { setManualCoords(mapPickerCoords); setShowMapPicker(false) }}
+              className="flex-1 py-3 text-sm font-semibold transition-opacity active:opacity-70"
+              style={{ backgroundColor: '#1A1A1A', color: '#FFFFFF', borderRadius: '10px' }}
+            >
+              この位置を使う
+            </button>
+            <button
+              onClick={() => setMapPickerCoords(null)}
+              className="py-3 px-4 text-sm font-medium transition-opacity active:opacity-70"
+              style={{ backgroundColor: 'rgba(255,255,255,0.2)', color: '#FFFFFF', borderRadius: '10px' }}
+            >
+              やり直す
+            </button>
+          </div>
+        )}
+      </div>
+    )}
     </>
   )
 }

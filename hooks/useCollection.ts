@@ -8,7 +8,7 @@ type ListTable = 'places' | 'media' | 'todos'
 interface UseCollectionReturn<T extends { id: string }> {
   items: T[]
   setItems: React.Dispatch<React.SetStateAction<T[]>>
-  addItem: (dbPayload: Record<string, unknown>, localItem: T) => Promise<void>
+  addItem: (dbPayload: Record<string, unknown>, localItem: T) => Promise<string>
   updateItem: (id: string, updates: Record<string, unknown>) => Promise<void>
   deleteItem: (id: string) => Promise<void>
 }
@@ -40,7 +40,7 @@ export function useCollection<T extends { id: string }>(
   const addItem = useCallback(async (
     dbPayload: Record<string, unknown>,
     localItem: T,
-  ) => {
+  ): Promise<string> => {
     if (process.env.NEXT_PUBLIC_SUPABASE_URL && myId && coupleId) {
       const { createClient } = await import('@/lib/supabase/client')
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -53,13 +53,14 @@ export function useCollection<T extends { id: string }>(
       if (!error && data) {
         // 成功: DB の UUID を id として使う（Realtime の重複防止と整合）
         setItems(prev => [{ ...localItem, id: data.id as string } as T, ...prev])
-        return
+        return data.id as string
       }
       // Supabase エラー: ローカルに追加してUIを維持し、エラーを通知
       showToast('保存できませんでした', { variant: 'error' })
     }
     // Supabase 未設定 or エラー: temp id のローカルアイテムを追加してUIを維持
     setItems(prev => [localItem, ...prev])
+    return localItem.id
   }, [table, coupleId, myId])
 
   /**
