@@ -880,6 +880,59 @@ ALTER TABLE public.places ADD COLUMN IF NOT EXISTS longitude DOUBLE PRECISION;
 
 ---
 
+---
+
+## セッション 12：Playwright E2E テスト環境構築
+
+### 概要
+
+デモモード（Supabase 未設定）で動作する E2E テストを Playwright で整備した。全 19 テスト通過。
+
+### 変更ファイル
+
+**`proxy.ts`（旧 `middleware.ts` を改名・拡張）**
+- Next.js 16.2.6 の新規約に従い `middleware.ts` → `proxy.ts` に移行
+- `E2E_TEST=true` 環境変数が設定されている場合、認証チェックをスキップするバイパスを追加
+
+**`app/(main)/page.tsx`**
+- ヒーローカード `<motion.div>` に `data-testid="hero"` を追加
+
+**`app/(main)/calendar/page.tsx`**
+- FAB ボタンに `data-testid="fab-add"` を追加
+
+**`app/(main)/list/page.tsx`**
+- FAB ボタンに `data-testid="fab-add"` を追加
+
+**`playwright.config.ts`（新規）**
+- ポート 3099 を使用（既存 dev サーバー 3000 と競合しないため）
+- システム Chrome を使用（別途 Chromium DL 不要）
+- `E2E_TEST=true` を webServer 環境変数に設定
+- テストタイムアウト 60 秒（マップタイル取得に時間がかかるため）
+
+**`tests/smoke.spec.ts`（新規）**
+- アプリ起動・ページ遷移・BottomNav の基本動作確認（5 テスト）
+
+**`tests/home.spec.ts`（新規）**
+- ヒーローカード表示・テキスト・カレンダー遷移（4 テスト）
+
+**`tests/calendar.spec.ts`（新規）**
+- カレンダーグリッド・FAB・イベント追加・月切り替え（5 テスト）
+- 月ラベルは `'yyyy年 M月'`（年と月の間にスペースあり）なので `h1` ロケーターで確認
+- `waitForLoadState('load')` を使用（`networkidle` だとマップタイルで永遠に待機するため）
+
+**`tests/list.spec.ts`（新規）**
+- タブ切り替え・FAB・場所追加・やりたいこと追加（5 テスト）
+- タブ名は「行きたい場所」「観たい・聴きたい」「やりたいこと」
+- 「場所を追加」シートは `getByRole('heading', { name: '場所を追加' })` で特定（空状態テキストと重複するため）
+
+### 注意事項
+
+- テスト実行前に古い dev サーバー（ポート 3099）が残っている場合は kill が必要
+  - 残留サーバーはルートのみ応答し他ルートが 404 になる症状が出る
+- `npm test` で全テスト実行可能（`playwright test`）
+
+---
+
 ## 今後の検討候補（未着手）
 
 - Supabase Realtime の todos テーブル有効化（パートナーのtodo追加をリアルタイム反映したい場合）
