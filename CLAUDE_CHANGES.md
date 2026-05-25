@@ -1061,3 +1061,81 @@ SQL Editor にペーストして実行すること。冪等（`IF NOT EXISTS`）
 - Supabase Realtime の todos テーブル有効化（パートナーのtodo追加をリアルタイム反映したい場合）
 - フライト情報の番号から航空会社・時刻を自動補完する機能（API連携）
 - iOS Safari での `datetime-local` input の UX 改善（ネイティブピッカーが使いにくい）
+
+---
+
+## セッション 16：セキュリティ監査（Phase S-3）
+
+### 監査結果サマリー
+
+**実施日**: 2026-05-24
+
+| 項目 | 結果 |
+|---|---|
+| XSS (`dangerouslySetInnerHTML`) | ✅ 使用なし |
+| `service_role` キー漏洩 | ✅ なし（`.env.local` は `.gitignore` 済み） |
+| SQL インジェクション | ✅ Supabase クライアントのパラメータ化クエリのみ |
+| RLS（Row Level Security） | ✅ 全テーブル有効（users, couples, events, places, media, flights, todos）|
+| API ルート | ✅ `/api/` ルートなし（全操作はクライアントから Supabase 直接） |
+| `eval()` / `innerHTML` | ✅ 使用なし |
+
+---
+
+### 改修① — セキュリティヘッダーの追加
+
+**対象**: `next.config.ts`
+
+**追加ヘッダー**（全ページ `/(.*)`）:
+
+| ヘッダー | 値 |
+|---|---|
+| `X-Frame-Options` | `DENY`（クリックジャッキング防止） |
+| `X-Content-Type-Options` | `nosniff`（MIME スニッフィング防止） |
+| `X-DNS-Prefetch-Control` | `on` |
+| `Referrer-Policy` | `strict-origin-when-cross-origin` |
+| `Permissions-Policy` | `camera=(), microphone=(), geolocation=()` |
+| `Content-Security-Policy` | 下記参照 |
+
+**CSP の設計方針**:
+- `default-src 'self'` でデフォルト禁止
+- `script-src 'unsafe-inline' 'unsafe-eval'` は Next.js App Router の hydration と Turbopack に必要
+- `style-src 'unsafe-inline'` は Tailwind のインラインスタイルに必要
+- `img-src` は OpenStreetMap タイル・Supabase ストレージを許可
+- `connect-src` は Supabase API・WebSocket・Nominatim を許可
+- `worker-src 'self'` は Service Worker に必要
+- `frame-src 'none'` `object-src 'none'` で iframe・プラグイン完全禁止
+
+---
+
+### 改修② — パスワード強度バリデーションの追加
+
+**対象**: `app/auth/signup/page.tsx`
+
+**変更内容**:
+- フォームに `noValidate` を追加（ブラウザ標準 HTML5 バリデーションを無効化し、JS側で制御）
+- `handleSignup` の先頭にクライアントサイドチェックを追加:
+  1. 8文字未満 → "パスワードは8文字以上にしてください。"
+  2. 英字・数字の両方が含まれない → "パスワードは英字と数字を両方含めてください。"
+- Supabase API 呼び出し前にエラーを表示（API ラウンドトリップなし）
+
+---
+
+### 改修③ — セキュリティ E2E テストの追加
+
+**対象**: `tests/security.spec.ts`（新規作成）
+
+**テスト内容**（7 件）:
+- `X-Frame-Options: DENY` が設定されているか
+- `X-Content-Type-Options: nosniff` が設定されているか
+- `Content-Security-Policy` ヘッダーが存在し `default-src 'self'` / `frame-src 'none'` / `object-src 'none'` を含むか
+- `Referrer-Policy` が `strict-origin-when-cross-origin` か
+- パスワード 6 文字でエラーメッセージが表示されるか
+- パスワードが数字のみでエラーメッセージが表示されるか
+- パスワードが英字のみでエラーメッセージが表示されるか
+
+---
+
+### E2E テスト結果
+
+- ベースライン: ✓ 19/19 全通過
+- 全改修後: ✓ **26/26 全通過**（セキュリティ 7 件追加）

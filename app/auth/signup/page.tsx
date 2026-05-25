@@ -16,6 +16,25 @@ export default function SignupPage() {
   async function handleSignup(e: React.FormEvent) {
     e.preventDefault()
     setError('')
+
+    // 入力チェック（noValidate により HTML5 バリデーションが無効なため JS で補完）
+    if (!displayName.trim()) {
+      setError('ニックネームを入力してください。')
+      return
+    }
+    if (!email.trim()) {
+      setError('メールアドレスを入力してください。')
+      return
+    }
+    if (password.length < 8) {
+      setError('パスワードは8文字以上にしてください。')
+      return
+    }
+    if (!/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
+      setError('パスワードは英字と数字を両方含めてください。')
+      return
+    }
+
     setLoading(true)
 
     try {
@@ -78,7 +97,7 @@ export default function SignupPage() {
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSignup} className="space-y-4">
+        <form onSubmit={handleSignup} noValidate className="space-y-4">
           <div>
             <label className="block text-sm font-medium mb-1.5" style={{ color: '#1A1A1A' }}>
               ニックネーム
@@ -134,7 +153,7 @@ export default function SignupPage() {
                 backgroundColor: '#FFFFFF',
                 color: '#1A1A1A',
               }}
-              placeholder="8文字以上"
+              placeholder="英字+数字を含む8文字以上"
               minLength={8}
               required
             />
