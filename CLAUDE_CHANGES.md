@@ -1352,3 +1352,93 @@ logger.error('Supabase insert 失敗', { error })
 
 - ベースライン: ✓ 31/31 全通過
 - 全改修後: ✓ **33/33 全通過**（ヘルスチェック 2 件追加）
+
+---
+
+## セッション 19：地図ページ表示不具合の修正（Phase S-6）
+
+### 症状
+
+1. 地図タイルが表示されない（白/グレーの空白）
+2. レイアウトが崩れ、BottomNav と地図エリアが重なる
+3. ピンが表示されない（タイルが表示されないため）
+4. 凡例カードだけ正常表示される
+
+---
+
+### 根本原因と修正
+
+#### 修正① — CSP: CARTO タイルドメインが未許可（主因）
+
+**対象**: `next.config.ts`
+
+**原因**: セッション16（Phase S-3）で CSP を追加した際、`img-src` に地図タイル提供元のドメインが不足していた。
+
+| 不足していたドメイン | 用途 |
+|---|---|
+| `https://*.basemaps.cartocdn.com` | PlacesMap の TileLayer（Carto Light タイル） |
+
+ブラウザが地図タイルのリクエストを CSP 違反としてブロックし、白紙の地図になっていた。
+
+**修正**: `img-src` に `https://*.basemaps.cartocdn.com` を追加。
+
+---
+
+#### 修正② — CSP: Google Fonts と Vercel Analytics スクリプトが未許可
+
+**対象**: `next.config.ts`
+
+`globals.css` の `@import url('https://fonts.googleapis.com/...')` と、`<Analytics />` / `<SpeedInsights />` のスクリプト (`va.vercel-scripts.com`) が CSP に未記載だった。
+
+**修正**:
+
+| ディレクティブ | 追加ドメイン |
+|---|---|
+| `script-src` | `https://va.vercel-scripts.com` |
+| `style-src` | `https://fonts.googleapis.com` |
+| `font-src`（新規追加） | `https://fonts.gstatic.com` |
+
+---
+
+#### 修正③ — レイアウト: main の padding が地図の高さ計算と干渉
+
+**対象**: `app/(main)/map/page.tsx`
+
+**原因**: 地図ページの外側 div が `height: calc(100dvh - ...)` を使っていたが、`(main)/layout.tsx` の `main` 要素（`overflow-y: auto` + padding）との組み合わせで、ページが scrollable になり BottomNav の後ろに地図が隠れる場合があった。
+
+**修正**: `height: calc(100dvh - ...)` を廃止し、`position: fixed` で画面上の正確な位置に固定。
+
+```tsx
+// Before
+<div style={{
+  height: 'calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 72px)',
+  ...
+}}>
+
+// After
+<div style={{
+  position: 'fixed',
+  top: 'env(safe-area-inset-top)',
+  left: 0,
+  right: 0,
+  bottom: 'calc(env(safe-area-inset-bottom) + 72px)',
+  ...
+}}>
+```
+
+---
+
+#### 修正④ — list.spec.ts: ジオコーディング成功時の確認モーダルを未処理
+
+**対象**: `tests/list.spec.ts`
+
+**原因**: セッション13でジオコーディング成功時に位置確認モーダルが表示される仕様が追加されたが、テストがモーダルを処理していなかった。Nominatim が正常応答した場合にモーダルが出て、テストが失敗。
+
+**修正**: `Promise.race` でモーダルとリスト表示を競合チェックし、モーダルが出た場合は「この場所でOK」をクリックしてから確認する。
+
+---
+
+### E2E テスト結果
+
+- ベースライン: ✓ 33/33 全通過
+- 全改修後: ✓ **37/37 全通過**（地図テスト 4 件追加）

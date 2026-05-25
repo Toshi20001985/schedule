@@ -44,10 +44,17 @@ test.describe('List: リスト機能', () => {
     // 追加する（ジオコーディングが走るので少し時間がかかる可能性あり）
     await page.getByRole('button', { name: '追加する' }).click()
 
-    // シートが閉じること、またはリストに表示されること
-    // デモモードでは Nominatim を叩かず geocode=null になるため即座に完了する
-    // "保存できませんでした" か "座標を取得できませんでした" トーストが出る可能性あるが
-    // アイテム自体はリストに追加される
+    // ジオコーディング成功時: 位置確認モーダルが表示される → 「この場所でOK」をクリック
+    // ジオコーディング失敗時: モーダルなしでリストに直接追加される
+    const confirmBtn = page.getByRole('button', { name: 'この場所でOK' })
+    const itemInList = page.getByText('Playwright テスト場所')
+
+    // どちらが先に現れても対応できるよう競合チェック
+    await Promise.race([
+      confirmBtn.waitFor({ timeout: 15000 }).then(() => confirmBtn.click()),
+      itemInList.waitFor({ timeout: 15000 }),
+    ])
+
     await expect(page.getByText('Playwright テスト場所')).toBeVisible({ timeout: 10000 })
   })
 

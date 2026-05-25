@@ -6,9 +6,14 @@ import { withSentryConfig } from '@sentry/nextjs'
 // unsafe-eval: 開発ビルドで Turbopack が使用（本番では不要だが互換性のため含める）
 const CSP = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-  "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://*.tile.openstreetmap.org https://*.supabase.co",
+  // Vercel Analytics/Speed Insights のスクリプトを許可
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://va.vercel-scripts.com",
+  // globals.css の Google Fonts @import を許可
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  // Google Fonts の実フォントファイルを許可
+  "font-src 'self' https://fonts.gstatic.com",
+  // Leaflet の地図タイル（OpenStreetMap・CARTO）を許可
+  "img-src 'self' data: blob: https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com https://*.supabase.co",
   // Supabase API/WebSocket + Nominatim + Vercel Analytics/Speed Insights + Sentry
   "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://nominatim.openstreetmap.org https://va.vercel-scripts.com https://vitals.vercel-insights.com https://*.ingest.sentry.io",
   "worker-src 'self'",

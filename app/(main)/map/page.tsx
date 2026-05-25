@@ -86,10 +86,15 @@ function MapPageInner() {
 
   return (
     <div style={{
-      height: 'calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 72px)',
+      position: 'fixed',
+      top: 'env(safe-area-inset-top)',
+      left: 0,
+      right: 0,
+      bottom: 'calc(env(safe-area-inset-bottom) + 72px)',
       display: 'flex',
       flexDirection: 'column',
       overflow: 'hidden',
+      backgroundColor: '#FAF5EE',
     }}>
 
       {/* ヘッダー */}
