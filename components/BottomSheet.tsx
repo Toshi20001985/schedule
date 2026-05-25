@@ -35,6 +35,7 @@ export default function BottomSheet({
             borderTop: '0.5px solid rgba(255,255,255,0.7)',
             maxHeight: '92dvh',
           }}
+          aria-describedby={undefined}
         >
           {/* Handle */}
           <div className="flex justify-center pt-3 pb-1">

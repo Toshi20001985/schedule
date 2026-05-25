@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef, Suspense } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval,
@@ -794,29 +794,46 @@ function CalendarPageInner() {
     preventScrollOnSwipe: false,
   })
 
-  const monthStart = startOfMonth(currentMonth)
-  const monthEnd   = endOfMonth(currentMonth)
-  const calStart   = startOfWeek(monthStart, { weekStartsOn: 0 })
-  const calEnd     = endOfWeek(monthEnd,     { weekStartsOn: 0 })
-  const calDays    = eachDayOfInterval({ start: calStart, end: calEnd })
+  // calDays は currentMonth が変わった時のみ再計算
+  const calDays = useMemo(() => {
+    const monthStart = startOfMonth(currentMonth)
+    const monthEnd   = endOfMonth(currentMonth)
+    const calStart   = startOfWeek(monthStart, { weekStartsOn: 0 })
+    const calEnd     = endOfWeek(monthEnd,     { weekStartsOn: 0 })
+    return eachDayOfInterval({ start: calStart, end: calEnd })
+  }, [currentMonth])
 
-  // 日付と重なるイベントを返す（範囲イベント含む）
-  const eventsOnDay = (date: Date) => {
-    const dayStr = format(date, 'yyyy-MM-dd')
-    return events.filter(e => {
-      const endStr = e.end_date ?? e.date
-      return dayStr >= e.date && dayStr <= endStr
-    })
-  }
+  // 日付 → イベント配列のマップを事前構築（events / calDays 変化時のみ再計算）
+  // 毎レンダリングで 35セル × events.filter() する代わりに O(events × calDays) の1回構築に削減
+  const eventsByDate = useMemo(() => {
+    const map = new Map<string, CalEvent[]>()
+    if (calDays.length === 0 || events.length === 0) return map
+    const calStartStr = format(calDays[0], 'yyyy-MM-dd')
+    const calEndStr   = format(calDays[calDays.length - 1], 'yyyy-MM-dd')
+    for (const event of events) {
+      const endStr = event.end_date ?? event.date
+      if (event.date > calEndStr || endStr < calStartStr) continue  // 表示範囲外をスキップ
+      for (const day of calDays) {
+        const dayStr = format(day, 'yyyy-MM-dd')
+        if (dayStr >= event.date && dayStr <= endStr) {
+          const list = map.get(dayStr)
+          if (list) list.push(event)
+          else map.set(dayStr, [event])
+        }
+      }
+    }
+    return map
+  }, [events, calDays])
 
-  // 選択日のイベント（範囲イベント含む）
-  const selectedDayEvents = selectedDate ? (() => {
+  // 選択日のイベント（selectedDate 変化時のみ再計算）
+  const selectedDayEvents = useMemo(() => {
+    if (!selectedDate) return []
     const dayStr = format(selectedDate, 'yyyy-MM-dd')
     return events.filter(e => {
       const endStr = e.end_date ?? e.date
       return dayStr >= e.date && dayStr <= endStr
     })
-  })() : []
+  }, [selectedDate, events])
 
   function resetForm() {
     setNewTitle(''); setNewType('visit'); setNewMemo('')
@@ -1121,7 +1138,7 @@ function CalendarPageInner() {
         <div className="grid grid-cols-7 gap-y-0.5">
           {calDays.map(day => {
             const dayStr         = format(day, 'yyyy-MM-dd')
-            const dayEvents      = eventsOnDay(day)
+            const dayEvents      = eventsByDate.get(dayStr) ?? []
             const rangeEvents    = dayEvents.filter(e => e.end_date && e.end_date !== e.date)
             const singleEvents   = dayEvents.filter(e => !e.end_date || e.end_date === e.date)
             const hasFlights     = dayEvents.some(e => (flightsByEventId[e.id]?.length ?? 0) > 0)

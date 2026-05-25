@@ -973,6 +973,89 @@ ALTER TABLE public.places ADD COLUMN IF NOT EXISTS longitude DOUBLE PRECISION;
 
 ---
 
+---
+
+## セッション 15：パフォーマンス最適化（Phase S-2）
+
+### 実施内容
+
+STABILITY_AUDIT.md の発見事項に基づき、以下の3点を改修した。
+
+---
+
+#### 改修① — vaul DialogContent アクセシビリティ修正
+
+**対象**: `components/BottomSheet.tsx`
+
+**変更**: `Drawer.Content` に `aria-describedby={undefined}` を追加
+
+**効果**:
+- BottomSheet を使うすべての画面（calendar・list・home）でコンソール警告「Missing `Description` or `aria-describedby={undefined}` for {DialogContent}」が解消
+- スクリーンリーダーへの誤った Description 参照を明示的に無効化
+- テスト実行ログがクリーンになる
+
+---
+
+#### 改修② — カレンダー `useMemo` 最適化
+
+**対象**: `app/(main)/calendar/page.tsx`
+
+**変更**:
+1. `useMemo` を import に追加
+2. `calDays` を `useMemo([currentMonth])` に変換（月変化時のみ再計算）
+3. `eventsOnDay` 関数（毎レンダリングで35回呼び出されていた）を廃止し、`eventsByDate: Map<string, CalEvent[]>` を `useMemo([events, calDays])` で事前構築に変更
+4. `selectedDayEvents` IIFE を `useMemo([selectedDate, events])` に変換
+
+**Before**:
+```typescript
+// 毎レンダリング × 35セル = events.filter() × 35回
+const eventsOnDay = (date: Date) => events.filter(e => ...)
+const dayEvents = eventsOnDay(day)  // JSX 内で 35回呼び出し
+```
+
+**After**:
+```typescript
+// events / calDays が変わった時のみ1回構築
+const eventsByDate = useMemo(() => {
+  const map = new Map<string, CalEvent[]>()
+  for (const event of events) { /* 各セルへのマッピング */ }
+  return map
+}, [events, calDays])
+
+// JSX 内はマップ参照のみ（O(1)）
+const dayEvents = eventsByDate.get(dayStr) ?? []
+```
+
+**効果**: イベント数が増えるほど効果が大きくなる。月切り替え時・他 state 変化時のレンダリングコストが削減される。
+
+---
+
+#### 改修③ — DB インデックス追加 SQL（未適用）
+
+**対象**: `supabase/migrations/009_add_performance_indexes.sql`（新規作成）
+
+**内容**:
+- `events(couple_id, start_date)` — カレンダー表示クエリ向け
+- `places(couple_id, is_visited)` — リスト・地図絞り込み向け
+- `places(couple_id) WHERE latitude IS NOT NULL` — 地図バックフィル向け
+- `todos(couple_id, is_done)` — リスト絞り込み向け
+- `media(couple_id, is_done)` — リスト・インサイト向け
+- `flights(event_id)` — カレンダーのフライト関連付け向け
+
+**⚠️ 注意**: このファイルは Supabase Dashboard での手動実行が必要。
+SQL Editor にペーストして実行すること。冪等（`IF NOT EXISTS`）のため何度実行しても安全。
+
+---
+
+### E2E テスト結果
+
+- ベースライン: ✓ 19/19 全通過
+- 改修①後: ✓ 19/19 全通過（DialogContent 警告も消去）
+- 改修②後: ✓ 19/19 全通過
+- 追加テスト: なし（パフォーマンス改善のため）
+
+---
+
 ## 今後の検討候補（未着手）
 
 - Supabase Realtime の todos テーブル有効化（パートナーのtodo追加をリアルタイム反映したい場合）
