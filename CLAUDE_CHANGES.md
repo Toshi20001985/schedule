@@ -1250,3 +1250,105 @@ E2E テスト環境での設定ページの表示が正常化。
 
 - ベースライン: ✓ 26/26 全通過
 - 全改修後: ✓ **31/31 全通過**（データ管理 5 件追加）
+
+---
+
+## セッション 18：監視・ログ・アラート（Phase S-5）
+
+### 実施内容
+
+---
+
+#### 改修① — Vercel Analytics / Speed Insights
+
+**インストール**: `npm install @vercel/analytics @vercel/speed-insights`
+
+**対象**: `app/layout.tsx`
+
+**変更**: `<Analytics />` と `<SpeedInsights />` を `<body>` 末尾に追加。
+`<ToastProvider>` の外側（全ページ共通）に配置。
+
+**CSP 更新** (`next.config.ts` の `connect-src`):
+- `https://va.vercel-scripts.com` — Vercel Analytics
+- `https://vitals.vercel-insights.com` — Speed Insights
+
+---
+
+#### 改修② — Sentry エラートラッキング
+
+**インストール**: `npm install @sentry/nextjs`
+
+**新規作成ファイル**:
+
+| ファイル | 役割 |
+|---|---|
+| `sentry.client.config.ts` | ブラウザ側 Sentry 初期化 |
+| `sentry.server.config.ts` | サーバー側 Sentry 初期化 |
+| `sentry.edge.config.ts` | Edge Runtime 用 Sentry 初期化 |
+| `instrumentation.ts` | Next.js App Router のサーバー設定登録フック |
+
+**`next.config.ts` 変更**: `withSentryConfig` でラップ（`silent: true, disableLogger: true`）
+
+**設計方針**:
+- `enabled: !!process.env.NEXT_PUBLIC_SENTRY_DSN` で DSN 未設定時は完全無効
+- `enabled: process.env.E2E_TEST !== 'true'` で E2E テスト中も無効
+- `tracesSampleRate: 0.1`（本番 10%、開発 0%）
+- `beforeSend` でパスワードフィールドをイベントから除去
+- `SENTRY_AUTH_TOKEN` 未設定のためソースマップアップロードなし
+
+**有効化方法**: `.env.local` に `NEXT_PUBLIC_SENTRY_DSN=<your-dsn>` を追加
+（`.env.example` に記載済み）
+
+**CSP 更新** (`connect-src` に追加):
+- `https://*.ingest.sentry.io` — Sentry のイベント送信先
+
+---
+
+#### 改修③ — ヘルスチェック API
+
+**対象**: `app/api/health/route.ts`（新規作成）
+
+**動作**:
+- Supabase 設定あり: `couples` テーブルへの疎通確認（anon キー + RLS で空結果、エラーなし = DB 接続成功）
+- Supabase 未設定（デモ環境）: `database: 'skipped'` で常に 200 を返す
+
+**レスポンス例**:
+```json
+{
+  "status": "healthy",
+  "timestamp": "2026-05-25T00:00:00.000Z",
+  "checks": { "database": "ok" }
+}
+```
+
+**UptimeRobot での監視設定（手動・コードなし）**:
+- URL: `https://your-domain.vercel.app/api/health`
+- 監視間隔: 5分
+- 通知: メール
+
+---
+
+#### 改修④ — 構造化ロガー
+
+**対象**: `lib/logger.ts`（新規作成）
+
+**使い方**:
+```typescript
+import { logger } from '@/lib/logger'
+
+logger.info('イベント追加', { eventId: id, coupleId })
+logger.warn('ジオコーディング失敗', { placeName })
+logger.error('Supabase insert 失敗', { error })
+```
+
+**仕様**:
+- `debug` ログは本番環境で出力しない
+- Vercel / Next.js のサーバーログとして構造化 JSON を出力
+- ブラウザコンソールではなくサーバーサイドで使用することを想定
+
+---
+
+### E2E テスト結果
+
+- ベースライン: ✓ 31/31 全通過
+- 全改修後: ✓ **33/33 全通過**（ヘルスチェック 2 件追加）

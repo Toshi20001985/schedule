@@ -1,4 +1,5 @@
 import type { NextConfig } from 'next'
+import { withSentryConfig } from '@sentry/nextjs'
 
 // Content Security Policy
 // unsafe-inline: Next.js App Router の hydration インラインスクリプト・Tailwind インラインスタイルに必要
@@ -8,7 +9,8 @@ const CSP = [
   "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https://*.tile.openstreetmap.org https://*.supabase.co",
-  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://nominatim.openstreetmap.org",
+  // Supabase API/WebSocket + Nominatim + Vercel Analytics/Speed Insights + Sentry
+  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://nominatim.openstreetmap.org https://va.vercel-scripts.com https://vitals.vercel-insights.com https://*.ingest.sentry.io",
   "worker-src 'self'",
   "frame-src 'none'",
   "object-src 'none'",
@@ -54,4 +56,9 @@ const nextConfig: NextConfig = {
   },
 }
 
-export default nextConfig
+// Sentry: SENTRY_AUTH_TOKEN 未設定のため source map アップロードなし
+// DSN は NEXT_PUBLIC_SENTRY_DSN 環境変数で制御（未設定時は無効化）
+export default withSentryConfig(nextConfig, {
+  silent: true,       // ビルドログを抑制
+  disableLogger: true, // バンドルサイズ削減のため Sentry ロガーを除去
+})
