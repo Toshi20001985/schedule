@@ -466,6 +466,7 @@ export default function HomePage() {
 
       {/* ── Hero ─────────────────────────────────────────── */}
       <motion.div
+        data-testid="hero"
         variants={reduced ? undefined : staggerItem}
         className="relative active:opacity-90 transition-opacity"
         style={{ WebkitUserSelect: 'none', userSelect: 'none' }}

@@ -1460,6 +1460,7 @@ function CalendarPageInner() {
 
     {/* FAB — PageTransition外に配置して opacity アニメーションの影響を受けないようにする */}
     <button
+      data-testid="fab-add"
       onClick={() => { haptic('medium'); setShowAddSheet(true) }}
       className="fixed right-4 z-30 flex items-center gap-2 px-5 py-3 active:opacity-70 transition-opacity"
       style={{ bottom: `calc(env(safe-area-inset-bottom) + 76px)`, backgroundColor: '#1A1A1A', color: '#FFFFFF', borderRadius: '10px' }}
