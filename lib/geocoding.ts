@@ -121,6 +121,8 @@ function isLowConfidence(result: NominatimResult, originalQuery: string): boolea
  */
 export async function geocode(query: string): Promise<GeocodeResult | null> {
   if (!query || query.trim().length === 0) return null
+  // Supabase 未設定（デモモード）では座標を保存できないためスキップ
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return null
 
   // Step 1: 元のクエリで試す
   let results = await searchNominatim(query)

@@ -933,6 +933,46 @@ ALTER TABLE public.places ADD COLUMN IF NOT EXISTS longitude DOUBLE PRECISION;
 
 ---
 
+---
+
+## セッション 14：安定性監査（Phase S-1）
+
+### 監査の目的
+
+運用安定性向上に向けた現状把握。改修前のベースライン確認と潜在的問題のリストアップ。
+
+### 主要な発見
+
+**バグ修正（1件）**
+- `lib/geocoding.ts`: Supabase 未設定（デモモード）でも Nominatim を呼び出していた
+  - → `!process.env.NEXT_PUBLIC_SUPABASE_URL` の場合はスキップするよう1行追加
+  - これにより E2E テスト「場所を追加するとリストに表示される」の不安定性が解消
+
+**バンドルサイズ**
+- 静的 JS 総量: 1.8 MB（非圧縮）、34チャンク、最大236KB
+- 個人 PWA として許容範囲。Leaflet は dynamic import でコード分割済み
+
+**コード品質**
+- setTimeout / Realtime チャンネル等のクリーンアップは全て適切
+- 空の `catch {}` が 7 箇所あるが、いずれも意図的なサイレント失敗
+
+**手動確認が必要な残件**
+- Lighthouse スコア（実機 Chrome DevTools が必要）
+- iPhone 実機パフォーマンス
+- Supabase ダッシュボード（todos Realtime 有効化・Slow Query）
+
+### E2E テスト結果
+
+- ベースライン: ⚠ 18/19（1件失敗）
+- geocoding.ts 修正後: ✓ **19/19 全通過**
+- 詳細: `STABILITY_AUDIT.md` を参照
+
+### 詳細レポート
+
+`STABILITY_AUDIT.md` を参照。
+
+---
+
 ## 今後の検討候補（未着手）
 
 - Supabase Realtime の todos テーブル有効化（パートナーのtodo追加をリアルタイム反映したい場合）
