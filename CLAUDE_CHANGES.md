@@ -1139,3 +1139,114 @@ SQL Editor にペーストして実行すること。冪等（`IF NOT EXISTS`）
 
 - ベースライン: ✓ 19/19 全通過
 - 全改修後: ✓ **26/26 全通過**（セキュリティ 7 件追加）
+
+---
+
+## セッション 17：データバックアップ・エクスポート（Phase S-4）
+
+### 実施内容
+
+---
+
+#### 改修① — 手動データエクスポート API
+
+**対象**: `app/api/export/route.ts`（新規作成）
+
+**概要**: 認証済みユーザーのカップルデータを JSON 形式で返す GET エンドポイント。
+
+**取得テーブル**: events / places / media / todos / flights / users(id, display_name, avatar_color) / couples
+
+**レスポンス形式**:
+```json
+{
+  "version": "1.0",
+  "exported_at": "ISO 8601 日時",
+  "couple": { ... },
+  "users": [ ... ],
+  "events": [ ... ],
+  ...
+}
+```
+
+**エラーハンドリング**:
+- 未認証 → 401
+- カップル未設定 → 404
+- デモ環境（Supabase 未設定）→ 503
+
+---
+
+#### 改修② — アカウント削除 API
+
+**対象**: `app/api/delete-account/route.ts`（新規作成）
+
+**概要**: 認証済みユーザーのデータを削除してサインアウトする DELETE エンドポイント。
+
+**RLS 制約上の削除範囲**:
+- `todos`, `flights` → couple_id スコープ（メンバー全員のデータを削除）
+- `media`, `places` → added_by = 自分のデータのみ削除
+- `events` → created_by = 自分のデータのみ削除
+
+**⚠️ 制限事項**: auth ユーザー自体の削除には `service_role` キーが必要なため省略。
+完全な auth アカウント削除は Supabase Dashboard > Authentication > Users から手動実施。
+
+---
+
+#### 改修③ — 設定画面「データ管理」カード追加
+
+**対象**: `app/(main)/settings/page.tsx`
+
+**追加 UI**（Map Data カードと App Settings カードの間）:
+- 説明テキスト（定期エクスポートのすすめ）
+- `すべてのデータをエクスポート` ボタン（`data-testid="export-button"`）
+  - クリック → `/api/export` GET → Blob ダウンロード → "データをエクスポートしました" トースト
+  - エクスポート中はボタン disabled
+- 「危険ゾーン」セクション（区切り線付き）
+  - `データを削除してログアウト` ボタン（`data-testid="delete-account-button"`）
+  - 2段階確認（confirm → prompt で「DELETE」入力）→ `/api/delete-account` DELETE → `/auth/login` リダイレクト
+
+**インポート追加**: `Download`, `Trash2` (lucide-react), `useToast` (ToastProvider)
+
+---
+
+#### バグ修正（実装中に発見）— 設定ページのローディング無限化
+
+**対象**: `app/(main)/settings/page.tsx`
+
+**症状**: E2E テスト環境（Supabase URL あり・認証セッションなし）で `loading` が `false` にならず、
+ページコンテンツが永久に表示されない。
+
+**根本原因**: `load()` 関数の `if (!user) return` が `setLoading(false)` を呼ばずに早期 return していた。
+
+**修正**: `if (!user) { setLoading(false); return }`
+
+**影響**: 本番環境（認証済み）ではこのコードパスを通らないため影響なし。
+E2E テスト環境での設定ページの表示が正常化。
+
+---
+
+#### 見送った機能
+
+**Vercel Cron 自動バックアップ** — 以下の理由でスキップ:
+- `SUPABASE_SERVICE_ROLE_KEY` が環境変数に未設定（全カップルデータのイテレーションに必要）
+- バックアップ保存先（S3・Supabase Storage 等）が未定
+- 2人用個人アプリとして Supabase 無料プランの日次バックアップ + 手動エクスポートで十分
+
+---
+
+#### 改修④ — データ管理 E2E テスト追加
+
+**対象**: `tests/data-management.spec.ts`（新規作成）
+
+**テスト内容**（5 件）:
+1. エクスポートボタンが設定画面に表示される
+2. データ削除ボタンが設定画面に表示される
+3. エクスポートボタンがダウンロードをトリガーする（API をモック）
+4. 削除ボタンは confirm キャンセルでデータを削除しない
+5. 削除ボタンは「DELETE」以外の入力では削除しない
+
+---
+
+### E2E テスト結果
+
+- ベースライン: ✓ 26/26 全通過
+- 全改修後: ✓ **31/31 全通過**（データ管理 5 件追加）

@@ -3,11 +3,12 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Copy, Check, LogOut, Calendar, User, Link2, ChevronRight, Vibrate, MapPin } from 'lucide-react'
+import { Copy, Check, LogOut, Calendar, User, Link2, ChevronRight, Vibrate, MapPin, Download, Trash2 } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import IconCircle from '@/components/ui/IconCircle'
 import { PageTransition } from '@/components/PageTransition'
+import { useToast } from '@/components/ToastProvider'
 
 const AVATAR_COLORS = [
   '#1A1A1A', '#6D5BD0', '#2D6B9E', '#4A7C59', '#B5465A',
@@ -27,6 +28,7 @@ const inputStyle: React.CSSProperties = {
 
 export default function SettingsPage() {
   const router = useRouter()
+  const { showToast } = useToast()
   const [myId, setMyId] = useState<string | null>(null)
   const [partnerId, setPartnerId] = useState<string | null>(null)
   const [coupleId, setCoupleId] = useState<string | null>(null)
@@ -45,6 +47,8 @@ export default function SettingsPage() {
   const [backfillProgress,  setBackfillProgress]  = useState<{ done: number; total: number } | null>(null)
   const [backfillMessage,   setBackfillMessage]   = useState('')
   const [hapticsEnabled, setHapticsEnabled] = useState(true)
+  const [exporting, setExporting] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const savedTimerRef  = useRef<ReturnType<typeof setTimeout> | null>(null)
   const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -79,7 +83,10 @@ export default function SettingsPage() {
       const supabase = createClient()
 
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      if (!user) {
+        setLoading(false)
+        return
+      }
 
       setMyId(user.id)
 
@@ -302,6 +309,44 @@ export default function SettingsPage() {
     }
   }
 
+  async function handleExport() {
+    setExporting(true)
+    try {
+      const response = await fetch('/api/export')
+      if (!response.ok) throw new Error('export failed')
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `layover-backup-${new Date().toISOString().split('T')[0]}.json`
+      a.click()
+      URL.revokeObjectURL(url)
+      showToast('データをエクスポートしました', { variant: 'success' })
+    } catch {
+      showToast('エクスポートに失敗しました', { variant: 'error' })
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  async function handleDeleteAccount() {
+    if (!window.confirm('本当にすべてのデータを削除しますか？\n\nこの操作は元に戻せません。')) return
+    const text = window.prompt('確認のため「DELETE」と入力してください')
+    if (text !== 'DELETE') return
+
+    setDeleting(true)
+    try {
+      const response = await fetch('/api/delete-account', { method: 'DELETE' })
+      if (!response.ok) throw new Error('delete failed')
+      showToast('データを削除しました')
+      router.push('/auth/login')
+    } catch {
+      showToast('削除に失敗しました', { variant: 'error' })
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   async function handleLogout() {
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL) { router.push('/auth/login'); return }
     const { createClient } = await import('@/lib/supabase/client')
@@ -469,6 +514,42 @@ export default function SettingsPage() {
           </button>
         </Card>
       )}
+
+      {/* Data Management */}
+      <Card>
+        <h2 className="text-xs font-medium uppercase tracking-widest mb-3 flex items-center gap-2" style={{ color: '#A3A3A3' }}>
+          <Download size={13} strokeWidth={1.5} /> データ管理
+        </h2>
+        <p className="text-xs mb-3" style={{ color: '#737373' }}>
+          すべてのデータを JSON 形式でダウンロードできます。
+          定期的にエクスポートしてバックアップとして保存してください。
+        </p>
+        <button
+          onClick={handleExport}
+          disabled={exporting}
+          data-testid="export-button"
+          className="w-full flex items-center justify-center gap-2 py-2.5 text-sm font-medium transition-opacity disabled:opacity-40 mb-3"
+          style={{ backgroundColor: '#F5F5F3', color: '#1A1A1A', borderRadius: '10px' }}
+        >
+          <Download size={15} strokeWidth={1.5} />
+          {exporting ? 'エクスポート中...' : 'すべてのデータをエクスポート'}
+        </button>
+        <div style={{ borderTop: '0.5px solid #E5E5E5', paddingTop: '12px' }}>
+          <p className="text-xs mb-2" style={{ color: '#A3A3A3' }}>
+            危険ゾーン — データを削除するとパートナーとの共有データも失われます
+          </p>
+          <button
+            onClick={handleDeleteAccount}
+            disabled={deleting}
+            data-testid="delete-account-button"
+            className="w-full flex items-center justify-center gap-2 py-2.5 text-sm font-medium transition-opacity disabled:opacity-40"
+            style={{ backgroundColor: '#FFF0F3', color: '#B5465A', borderRadius: '10px', border: '0.5px solid #B5465A' }}
+          >
+            <Trash2 size={15} strokeWidth={1.5} />
+            {deleting ? '削除中...' : 'データを削除してログアウト'}
+          </button>
+        </div>
+      </Card>
 
       {/* App Settings */}
       <Card padding="none">
