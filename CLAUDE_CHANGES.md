@@ -1445,6 +1445,104 @@ logger.error('Supabase insert 失敗', { error })
 
 ---
 
+## セッション 22：ホーム画面の質感アップ（Phase 2）
+
+### 目的
+
+ホーム画面のヒーローエリア・アバターアイコン・統計カード・セクションヘッダーを磨き上げ、
+Airbnb × Apple ハイブリッドの洗練された大人の雰囲気に仕上げる。
+
+### 変更ファイル
+
+**`app/(main)/page.tsx`** のみ（ロジック変更なし・視覚のみ）
+
+---
+
+### 改修① — ヒーロー背景：グラデーション + ノイズテクスチャ
+
+**Before**: `backgroundColor: 'var(--color-hero-bg)'`（単調なフラットダーク）+ 単純な linear-gradient オーバーレイ
+
+**After**: ペアカラー（パープル・ピンク）を薄く差し込んだ多層グラデーション + ノイズテクスチャオーバーレイ
+
+```tsx
+background: [
+  'radial-gradient(ellipse at top right, rgba(167,139,250,0.15) 0%, transparent 50%)',   // パープル
+  'radial-gradient(ellipse at bottom left, rgba(255,159,184,0.08) 0%, transparent 50%)', // ピンク
+  'linear-gradient(135deg, #1A1A1A 0%, #0F0F0F 100%)',
+].join(', ')
+```
+
+ノイズテクスチャ（SVG fractalNoise、opacity 0.04、mix-blend-mode: overlay）で
+微細な質感を付加。セッション 20 の数字レイアウト（lining numerals・ベースライン揃え）は変更なし。
+
+---
+
+### 改修② — アバターアイコン：グラデーション + ボーダー + シャドウ
+
+**Before**: `<IconCircle>` コンポーネントの flat `backgroundColor: color`、`gap-1.5`（横並び）
+
+**After**: インラインの gradient circle × 2、`-space-x-2`（重なり配置）
+
+```tsx
+<div
+  className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-semibold"
+  style={{
+    background: `linear-gradient(135deg, ${avatar_color} 0%, ${avatar_color}BB 100%)`,
+    border: '2px solid rgba(255,255,255,0.15)',
+    boxShadow: `0 2px 8px ${avatar_color}50`,
+  }}
+>
+```
+
+アバターカラー（`avatar_color`）をグラデーションのベースとして動的に使用。
+`IconCircle` コンポーネント自体は変更せず、ホームのヒーロー表示のみインラインで上書き。
+
+---
+
+### 改修③ — 統計カード3枚の磨き
+
+| 要素 | Before | After |
+|---|---|---|
+| アイコンコンテナ | `rounded-lg p-2` フラット背景 | `w-9 h-9 rounded-full` グラデーション + リングシャドウ |
+| 数字フォント | `font-mono 22px fontWeight 500` | `font-display italic 26px fontWeight 400` + lining numerals |
+| ラベル | 日本語テキスト `fontSize: 10px` | 英語ラベル (`Places`/`Media`/`Bucket`) + `uppercase tracking-[0.1em]` |
+| タップ時 | 変化なし | `active:scale-[0.97] transition-transform duration-100` |
+| シャドウ | `--shadow-sm` | `--shadow-soft-sm`（Phase 1 追加の新トークン） |
+
+---
+
+### 改修④ — セクションヘッダーの統一
+
+「近いイベント」「最近追加された場所」の両カードヘッダーを同一フォーマットに統一：
+
+```tsx
+<header className="flex items-end justify-between mb-5">
+  <div className="space-y-1">
+    <p style={{ fontSize: '10px', letterSpacing: '0.16em', textTransform: 'uppercase' }}>
+      Coming up / Wishlist
+    </p>
+    <h2 style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: '22px', fontWeight: 400 }}>
+      近いイベント / 最近追加された場所
+    </h2>
+  </div>
+  <Link>すべて見る → / すべて →</Link>
+</header>
+```
+
+- `items-end`（ベースライン揃え）
+- `font-display italic`（Instrument Serif Italic）
+- Wishlist の `<MapPin>` アイコンリンク → `"すべて →"` テキストリンクに統一
+
+---
+
+### E2E テスト結果
+
+- 改修前: ✓ 37/37 全通過
+- 改修後: ✓ **37/37 全通過**
+- TypeScript: エラーなし
+
+---
+
 ## セッション 21：デザイントークン整理（Phase 1）
 
 ### 目的

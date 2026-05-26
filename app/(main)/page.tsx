@@ -477,7 +477,11 @@ export default function HomePage() {
       >
         <div
           style={{
-            backgroundColor: 'var(--color-hero-bg)',
+            background: [
+              'radial-gradient(ellipse at top right, rgba(167,139,250,0.15) 0%, transparent 50%)',
+              'radial-gradient(ellipse at bottom left, rgba(255,159,184,0.08) 0%, transparent 50%)',
+              'linear-gradient(135deg, #1A1A1A 0%, #0F0F0F 100%)',
+            ].join(', '),
             borderRadius: 'var(--radius-xl)',
             padding: '28px 28px 24px',
             minHeight: '46dvh',
@@ -488,10 +492,12 @@ export default function HomePage() {
             overflow: 'hidden',
           }}
         >
-          {/* Gradient colour overlay */}
+          {/* ノイズテクスチャオーバーレイ */}
           <div aria-hidden style={{
             position: 'absolute', inset: 0, borderRadius: 'inherit', pointerEvents: 'none',
-            background: 'linear-gradient(135deg, rgba(109,91,208,0.18) 0%, transparent 55%, rgba(45,107,158,0.14) 100%)',
+            opacity: 0.04,
+            mixBlendMode: 'overlay' as const,
+            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
           }} />
           {/* Top row: greeting + avatars */}
           <div className="flex items-start justify-between">
@@ -503,16 +509,38 @@ export default function HomePage() {
                 {format(new Date(), 'M月d日(E)', { locale: ja })}
               </p>
             </div>
-            <div className="flex items-center gap-1.5">
+            <div className="flex -space-x-2">
               {loading ? (
                 <>
-                  <div className="w-7 h-7 rounded-full" style={{ backgroundColor: '#333' }} />
-                  <div className="w-7 h-7 rounded-full" style={{ backgroundColor: '#333' }} />
+                  <div className="w-8 h-8 rounded-full" style={{ backgroundColor: '#333', border: '2px solid rgba(255,255,255,0.1)' }} />
+                  <div className="w-8 h-8 rounded-full" style={{ backgroundColor: '#333', border: '2px solid rgba(255,255,255,0.1)' }} />
                 </>
               ) : (
                 <>
-                  {me      && <IconCircle initial={me.display_name}      color={me.avatar_color}      size="sm" />}
-                  {partner && <IconCircle initial={partner.display_name} color={partner.avatar_color} size="sm" />}
+                  {me && (
+                    <div
+                      className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-semibold"
+                      style={{
+                        background: `linear-gradient(135deg, ${me.avatar_color} 0%, ${me.avatar_color}BB 100%)`,
+                        border: '2px solid rgba(255,255,255,0.15)',
+                        boxShadow: `0 2px 8px ${me.avatar_color}50`,
+                      }}
+                    >
+                      {me.display_name.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  {partner && (
+                    <div
+                      className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-semibold"
+                      style={{
+                        background: `linear-gradient(135deg, ${partner.avatar_color} 0%, ${partner.avatar_color}BB 100%)`,
+                        border: '2px solid rgba(255,255,255,0.15)',
+                        boxShadow: `0 2px 8px ${partner.avatar_color}50`,
+                      }}
+                    >
+                      {partner.display_name.charAt(0).toUpperCase()}
+                    </div>
+                  )}
                 </>
               )}
             </div>
@@ -722,52 +750,75 @@ export default function HomePage() {
 
       {/* ── Stats row ──────────────────────────────────────── */}
       <motion.div variants={reduced ? undefined : staggerItem} className="grid grid-cols-3 gap-3">
-        <Link href="/list" className="block">
-          <Card padding="sm" shadow="sm">
-            <div className="flex flex-col gap-2.5 p-1">
-              <div className="p-2 rounded-lg w-fit" style={{ backgroundColor: 'var(--color-trip-soft)' }}>
-                <MapPin size={14} strokeWidth={1.5} style={{ color: 'var(--color-trip-accent)' }} />
+        {/* 行きたい場所 */}
+        <Link href="/list" className="block active:scale-[0.97] transition-transform duration-100">
+          <Card padding="sm" shadow="sm" style={{ boxShadow: 'var(--shadow-soft-sm)' }}>
+            <div className="flex flex-col gap-3 p-1">
+              <div
+                className="w-9 h-9 rounded-full flex items-center justify-center"
+                style={{
+                  background: 'linear-gradient(135deg, var(--color-trip-soft) 0%, rgba(74,124,89,0.14) 100%)',
+                  boxShadow: '0 0 0 1px rgba(74,124,89,0.18)',
+                }}
+              >
+                <MapPin size={15} strokeWidth={1.5} style={{ color: 'var(--color-trip-accent)' }} />
               </div>
               <div>
-                <p style={{ color: 'var(--color-subtle)', fontSize: '10px', letterSpacing: '0.03em', marginBottom: '4px' }}>行きたい場所</p>
+                <p style={{ color: 'var(--color-subtle)', fontSize: '9px', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '4px' }}>Places</p>
                 {loading ? (
-                  <p style={{ fontFamily: 'var(--font-mono)', fontSize: '22px', fontWeight: 500, color: 'var(--color-text)', lineHeight: 1 }}>—</p>
+                  <p style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: '26px', fontWeight: 400, color: 'var(--color-text)', lineHeight: 1 }}>—</p>
                 ) : (
-                  <AnimatedNumber value={placesCount} style={{ fontFamily: 'var(--font-mono)', fontSize: '22px', fontWeight: 500, color: 'var(--color-text)', lineHeight: 1, display: 'block' }} />
+                  <AnimatedNumber value={placesCount} style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: '26px', fontWeight: 400, color: 'var(--color-text)', lineHeight: 1, display: 'block', fontVariantNumeric: 'lining-nums tabular-nums', fontFeatureSettings: '"lnum" 1, "tnum" 1' }} />
                 )}
               </div>
             </div>
           </Card>
         </Link>
-        <Link href="/list?tab=media" className="block">
-          <Card padding="sm" shadow="sm">
-            <div className="flex flex-col gap-2.5 p-1">
-              <div className="p-2 rounded-lg w-fit" style={{ backgroundColor: 'var(--color-online-soft)' }}>
-                <Play size={14} strokeWidth={1.5} style={{ color: 'var(--color-online-accent)' }} />
+
+        {/* 観たい・聴きたい */}
+        <Link href="/list?tab=media" className="block active:scale-[0.97] transition-transform duration-100">
+          <Card padding="sm" shadow="sm" style={{ boxShadow: 'var(--shadow-soft-sm)' }}>
+            <div className="flex flex-col gap-3 p-1">
+              <div
+                className="w-9 h-9 rounded-full flex items-center justify-center"
+                style={{
+                  background: 'linear-gradient(135deg, var(--color-online-soft) 0%, rgba(194,120,45,0.12) 100%)',
+                  boxShadow: '0 0 0 1px rgba(194,120,45,0.18)',
+                }}
+              >
+                <Play size={15} strokeWidth={1.5} style={{ color: 'var(--color-online-accent)' }} />
               </div>
               <div>
-                <p style={{ color: 'var(--color-subtle)', fontSize: '10px', letterSpacing: '0.03em', marginBottom: '4px' }}>観たい・聴きたい</p>
+                <p style={{ color: 'var(--color-subtle)', fontSize: '9px', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '4px' }}>Media</p>
                 {loading ? (
-                  <p style={{ fontFamily: 'var(--font-mono)', fontSize: '22px', fontWeight: 500, color: 'var(--color-text)', lineHeight: 1 }}>—</p>
+                  <p style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: '26px', fontWeight: 400, color: 'var(--color-text)', lineHeight: 1 }}>—</p>
                 ) : (
-                  <AnimatedNumber value={mediaCount} style={{ fontFamily: 'var(--font-mono)', fontSize: '22px', fontWeight: 500, color: 'var(--color-text)', lineHeight: 1, display: 'block' }} />
+                  <AnimatedNumber value={mediaCount} style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: '26px', fontWeight: 400, color: 'var(--color-text)', lineHeight: 1, display: 'block', fontVariantNumeric: 'lining-nums tabular-nums', fontFeatureSettings: '"lnum" 1, "tnum" 1' }} />
                 )}
               </div>
             </div>
           </Card>
         </Link>
-        <Link href="/list?tab=todos" className="block">
-          <Card padding="sm" shadow="sm">
-            <div className="flex flex-col gap-2.5 p-1">
-              <div className="p-2 rounded-lg w-fit" style={{ backgroundColor: '#FFF8EC' }}>
-                <Star size={14} strokeWidth={1.5} style={{ color: '#B07D2C' }} />
+
+        {/* やりたいこと */}
+        <Link href="/list?tab=todos" className="block active:scale-[0.97] transition-transform duration-100">
+          <Card padding="sm" shadow="sm" style={{ boxShadow: 'var(--shadow-soft-sm)' }}>
+            <div className="flex flex-col gap-3 p-1">
+              <div
+                className="w-9 h-9 rounded-full flex items-center justify-center"
+                style={{
+                  background: 'linear-gradient(135deg, #FFF8EC 0%, rgba(176,125,44,0.12) 100%)',
+                  boxShadow: '0 0 0 1px rgba(176,125,44,0.18)',
+                }}
+              >
+                <Star size={15} strokeWidth={1.5} style={{ color: '#B07D2C' }} />
               </div>
               <div>
-                <p style={{ color: 'var(--color-subtle)', fontSize: '10px', letterSpacing: '0.03em', marginBottom: '4px' }}>やりたいこと</p>
+                <p style={{ color: 'var(--color-subtle)', fontSize: '9px', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '4px' }}>Bucket</p>
                 {loading ? (
-                  <p style={{ fontFamily: 'var(--font-mono)', fontSize: '22px', fontWeight: 500, color: 'var(--color-text)', lineHeight: 1 }}>—</p>
+                  <p style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: '26px', fontWeight: 400, color: 'var(--color-text)', lineHeight: 1 }}>—</p>
                 ) : (
-                  <AnimatedNumber value={todosCount} style={{ fontFamily: 'var(--font-mono)', fontSize: '22px', fontWeight: 500, color: 'var(--color-text)', lineHeight: 1, display: 'block' }} />
+                  <AnimatedNumber value={todosCount} style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: '26px', fontWeight: 400, color: 'var(--color-text)', lineHeight: 1, display: 'block', fontVariantNumeric: 'lining-nums tabular-nums', fontFeatureSettings: '"lnum" 1, "tnum" 1' }} />
                 )}
               </div>
             </div>
@@ -786,17 +837,17 @@ export default function HomePage() {
       {(loading || upcomingEvents.length > 0) && (
         <motion.div variants={reduced ? undefined : staggerItem}>
         <Card padding="lg" shadow="sm">
-          <div className="flex items-start justify-between mb-5">
-            <div>
-              <p style={{ color: 'var(--color-subtle)', fontSize: '10px', letterSpacing: '0.16em', textTransform: 'uppercase', fontWeight: 500, marginBottom: '5px' }}>
+          <header className="flex items-end justify-between mb-5">
+            <div className="space-y-1">
+              <p style={{ color: 'var(--color-subtle)', fontSize: '10px', letterSpacing: '0.16em', textTransform: 'uppercase', fontWeight: 500 }}>
                 Coming up
               </p>
-              <h2 style={{ color: 'var(--color-text)', fontSize: '16px', fontWeight: 600 }}>近いイベント</h2>
+              <h2 style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', color: 'var(--color-text)', fontSize: '22px', fontWeight: 400, lineHeight: 1.2 }}>近いイベント</h2>
             </div>
-            <Link href="/calendar" style={{ color: 'var(--color-subtle)', fontSize: '12px', marginTop: '20px' }}>
+            <Link href="/calendar" style={{ color: 'var(--color-foreground-tertiary)', fontSize: '13px' }}>
               すべて見る →
             </Link>
-          </div>
+          </header>
           {loading ? (
             <div className="space-y-4">
               {[1, 2].map(i => (
@@ -843,17 +894,17 @@ export default function HomePage() {
       {places.length > 0 && !loading && (
         <motion.div variants={reduced ? undefined : staggerItem}>
         <Card padding="lg" shadow="sm">
-          <div className="flex items-start justify-between mb-5">
-            <div>
-              <p style={{ color: 'var(--color-subtle)', fontSize: '10px', letterSpacing: '0.16em', textTransform: 'uppercase', fontWeight: 500, marginBottom: '5px' }}>
+          <header className="flex items-end justify-between mb-5">
+            <div className="space-y-1">
+              <p style={{ color: 'var(--color-subtle)', fontSize: '10px', letterSpacing: '0.16em', textTransform: 'uppercase', fontWeight: 500 }}>
                 Wishlist
               </p>
-              <h2 style={{ color: 'var(--color-text)', fontSize: '16px', fontWeight: 600 }}>最近追加された場所</h2>
+              <h2 style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', color: 'var(--color-text)', fontSize: '22px', fontWeight: 400, lineHeight: 1.2 }}>最近追加された場所</h2>
             </div>
-            <Link href="/list" style={{ color: 'var(--color-subtle)', marginTop: '20px' }}>
-              <MapPin size={14} />
+            <Link href="/list" style={{ color: 'var(--color-foreground-tertiary)', fontSize: '13px' }}>
+              すべて →
             </Link>
-          </div>
+          </header>
           <div className="space-y-3">
             {places.map(place => (
               <Link key={place.id} href="/list" className="flex items-center gap-3">
