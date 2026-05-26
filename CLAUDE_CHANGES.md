@@ -1445,6 +1445,105 @@ logger.error('Supabase insert 失敗', { error })
 
 ---
 
+## セッション 21：デザイントークン整理（Phase 1）
+
+### 目的
+
+UI プロ品質磨き込みの基盤として、散在していたデザイントークンを整理・拡充し、
+全画面で一貫性を持たせる共通基盤を構築する。
+
+### 作業内容
+
+#### Step 1: 設計監査ドキュメント作成
+
+**`DESIGN_TOKEN_AUDIT.md`（新規作成）**
+- 既存 `@theme` トークンの全一覧
+- 画面別ハードコード値の洗い出し（list.spec のハードコード `#E5E5E5` 等）
+- 不整合・課題まとめ（角丸命名のズレ、シャドウ命名の二重化）
+- Phase 1 変更内容の事前仕様
+
+---
+
+#### Step 2: `app/globals.css` — `@theme` トークン追加
+
+**追加カラートークン**:
+
+| グループ | トークン | 値 |
+|---|---|---|
+| 前景・反転 | `--color-foreground-inverse` | `#FAFAF7` |
+| 背景バリアント | `--color-background` | `#FAFAF7`（= bg のエイリアス）|
+| 背景バリアント | `--color-background-secondary` | `#F5F4F0` |
+| 背景バリアント | `--color-background-elevated` | `#FFFFFF`（= card のエイリアス）|
+| 背景バリアント | `--color-background-inverse` | `#1A1A1A` |
+| ボーダー | `--color-border-soft` | `#EFEFEF` |
+| ボーダー | `--color-border-strong` | `#D4D4D4` |
+| アクセント | `--color-accent-blue` | `#7BB4FF` |
+| アクセント | `--color-accent-blue-soft` | `#E8F0FF` |
+| アクセント | `--color-accent-pink` | `#FF9FB8` |
+| アクセント | `--color-accent-pink-soft` | `#FFE8EE` |
+
+**追加角丸トークン**:
+
+| トークン | 値 | 用途 |
+|---|---|---|
+| `--radius-xs` | `6px` | タグ、Pill、小バッジ（既存 --radius-sm と同値の新命名）|
+| `--radius-2xl` | `32px` | モーダル、ボトムシート上端 |
+| 既存 `--radius-sm/md/lg/xl` | 変更なし | 既存コンポーネント破壊を防ぐため維持 |
+
+**追加シャドウトークン（soft セット）**:
+
+| トークン | 値 |
+|---|---|
+| `--shadow-soft-xs` | `0 1px 2px 0 rgba(26,26,26,0.04)` |
+| `--shadow-soft-sm` | `0 2px 6px -1px rgba(26,26,26,0.05), 0 1px 3px -1px rgba(26,26,26,0.03)` |
+| `--shadow-soft-md` | `0 4px 12px -2px rgba(26,26,26,0.06), 0 2px 6px -2px rgba(26,26,26,0.04)` |
+| `--shadow-soft-lg` | `0 8px 24px -4px rgba(26,26,26,0.08)` |
+| `--shadow-soft-xl` | `0 16px 40px -8px rgba(26,26,26,0.10)` |
+| `--shadow-glow-accent` | `0 0 32px rgba(167,139,250,0.25)` |
+
+**追加イージング・デュレーショントークン**:
+
+| トークン | 値 | 用途 |
+|---|---|---|
+| `--duration-normal` | `200ms` | 標準トランジション（新命名）|
+| `--duration-slower` | `500ms` | ゆっくりなアニメーション |
+| `--ease-smooth` | `cubic-bezier(0.4, 0, 0.2, 1)` | 標準（値を Material Motion に更新）|
+| `--ease-snappy` | `cubic-bezier(0.34, 1.56, 0.64, 1)` | バウンス（= 旧 --ease-spring の別名）|
+| `--ease-gentle` | `cubic-bezier(0.25, 0.1, 0.25, 1)` | ゆるやか |
+| `--ease-spring` | 変更なし | 既存互換 |
+| `--duration-slow` | `320ms`（旧: 380ms）| 軽微調整 |
+
+---
+
+#### Step 3: ガラス効果ユーティリティ整理
+
+`.glass-light`（新規追加）— クリームベースの半透明ガラス  
+`.glass-dark`（更新）— `rgba(17,17,17,0.82)` → `rgba(26,26,26,0.70)` に改善  
+`.glass`（後方互換維持）— 白ベースの従来値をそのまま保持  
+`.glass-border`（変更なし）
+
+---
+
+### 変更ファイル
+
+| ファイル | 変更種別 |
+|---|---|
+| `app/globals.css` | トークン追加・ガラス更新 |
+| `DESIGN_TOKEN_AUDIT.md` | 新規作成 |
+
+### 注意事項
+
+- **コンポーネントは一切変更していない** — トークン定義のみ
+- 既存の `--radius-sm/md/lg/xl`、`--color-visit-*` 等はすべて維持
+- Phase 2 以降でコンポーネントを段階的にトークン移行予定
+
+### E2E テスト結果
+
+- 改修前: ✓ 37/37 全通過
+- 改修後: ✓ **37/37 全通過**
+
+---
+
 ## セッション 20：ヒーローエリア数字タイポグラフィの修正
 
 ### 症状
