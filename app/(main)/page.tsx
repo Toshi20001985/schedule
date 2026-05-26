@@ -546,7 +546,7 @@ export default function HomePage() {
                 </p>
                 <div className="flex items-center justify-center gap-3 mb-4">
                   <Star size={20} strokeWidth={1.5} style={{ color: 'var(--color-hero-muted)' }} />
-                  <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: '72px', fontWeight: 400, color: 'var(--color-hero-text)', lineHeight: 1, letterSpacing: '-0.01em' }}>
+                  <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: '72px', fontWeight: 400, color: 'var(--color-hero-text)', lineHeight: 1, letterSpacing: '-0.02em', fontVariantNumeric: 'lining-nums tabular-nums', fontFeatureSettings: '"lnum" 1, "tnum" 1' }}>
                     {heroState.months}
                   </span>
                   <Star size={20} strokeWidth={1.5} style={{ color: 'var(--color-hero-muted)' }} />
@@ -577,13 +577,13 @@ export default function HomePage() {
                 <p style={{ color: 'var(--color-hero-muted)', fontSize: '10px', letterSpacing: '0.18em', textTransform: 'uppercase', fontWeight: 500, marginBottom: '20px' }}>
                   Together Now
                 </p>
-                <div className="flex items-baseline gap-2" style={{ lineHeight: 1 }}>
+                <div className="flex items-baseline" style={{ gap: '10px' }}>
                   <AnimatedNumber
                     value={heroState.daysLeft}
-                    style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: '108px', fontWeight: 400, color: 'var(--color-hero-text)', lineHeight: 0.88, letterSpacing: '-0.03em' }}
+                    style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 'clamp(88px, 24vw, 120px)', fontWeight: 400, color: 'var(--color-hero-text)', lineHeight: 1, letterSpacing: '-0.04em', fontVariantNumeric: 'lining-nums tabular-nums', fontFeatureSettings: '"lnum" 1, "tnum" 1' }}
                   />
-                  <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--color-hero-muted)', fontSize: '28px', fontWeight: 400, letterSpacing: '-0.01em' }}>
-                    days left
+                  <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--color-hero-muted)', fontSize: '22px', fontWeight: 400, letterSpacing: '-0.01em', lineHeight: 1 }}>
+                    {heroState.daysLeft === 1 ? 'day left' : 'days left'}
                   </span>
                 </div>
               </>
@@ -616,13 +616,13 @@ export default function HomePage() {
                 <p style={{ color: 'var(--color-hero-muted)', fontSize: '10px', letterSpacing: '0.18em', textTransform: 'uppercase', fontWeight: 500, marginBottom: '12px' }}>
                   Next Layover
                 </p>
-                <div className="flex items-baseline gap-2" style={{ lineHeight: 1 }}>
+                <div className="flex items-baseline" style={{ gap: '10px' }}>
                   <AnimatedNumber
                     value={heroState.daysLeft}
-                    style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: '108px', fontWeight: 400, color: 'var(--color-hero-text)', lineHeight: 0.88, letterSpacing: '-0.03em' }}
+                    style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 'clamp(88px, 24vw, 120px)', fontWeight: 400, color: 'var(--color-hero-text)', lineHeight: 1, letterSpacing: '-0.04em', fontVariantNumeric: 'lining-nums tabular-nums', fontFeatureSettings: '"lnum" 1, "tnum" 1' }}
                   />
-                  <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--color-hero-muted)', fontSize: '28px', fontWeight: 400, letterSpacing: '-0.01em' }}>
-                    days
+                  <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--color-hero-muted)', fontSize: '22px', fontWeight: 400, letterSpacing: '-0.01em', lineHeight: 1 }}>
+                    {heroState.daysLeft === 1 ? 'day' : 'days'}
                   </span>
                 </div>
               </>

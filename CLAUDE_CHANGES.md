@@ -1442,3 +1442,48 @@ logger.error('Supabase insert 失敗', { error })
 
 - ベースライン: ✓ 33/33 全通過
 - 全改修後: ✓ **37/37 全通過**（地図テスト 4 件追加）
+
+---
+
+## セッション 20：ヒーローエリア数字タイポグラフィの修正
+
+### 症状
+
+- カウントダウン数字（"5 days" など）が縦に間延びして見える
+- 「days」ラベルとのベースライン位置関係が不自然
+- 数字の形が大きいサイズで美しくない
+
+### 根本原因と修正
+
+**対象**: `app/(main)/page.tsx`（`upcoming` カウントダウン・`together` 状態・`anniversary` 状態）
+
+#### 原因① — `lineHeight: 0.88` が flex baseline 計算を乱す
+
+`motion.span`（inline 要素）に `lineHeight: 0.88` を設定すると、flex の baseline alignment に使われる行ボックスのサイズが縮んで位置計算がズレる。数字のグリフ自体はそのままなのにコンテナが小さくなり、視覚的に間延び・崩れて見える。
+
+**修正**: `lineHeight: 0.88` → `lineHeight: 1`
+
+#### 原因② — `font-feature-settings` 未指定で oldstyle numerals が使われる
+
+Instrument Serif はデフォルトでオールドスタイル数字（古典的な数字。3, 4, 5, 7, 9 などがベースラインより下に垂れ下がる）を使用する。大きいサイズでは数字ごとに高さがバラバラになり不自然に見える。
+
+**修正**: `fontVariantNumeric: 'lining-nums tabular-nums'` と `fontFeatureSettings: '"lnum" 1, "tnum" 1'` を追加してライニング数字（ベースライン揃い）に変更。
+
+#### 原因③ — 比率と間隔が不適切
+
+- 数字 `108px` に対して "days" が `28px`（比率 3.9:1）で離れすぎ
+- `gap-2`（8px）では数字サイズに対して狭すぎる
+
+**修正**:
+- 数字: `clamp(88px, 24vw, 120px)`（画面サイズに応じて可変）
+- "days" ラベル: `28px` → `22px`（比率 ~5:1 に改善）
+- `gap-2` → `gap: 10px`
+
+#### 追加改善 — 単数形対応
+
+`1 days` → `1 day` に変更（`upcoming` 状態・`together` 状態どちらも対応）
+
+### E2E テスト結果
+
+- ベースライン: ✓ 37/37 全通過
+- 全改修後: ✓ **37/37 全通過**

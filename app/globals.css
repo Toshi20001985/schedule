@@ -47,22 +47,49 @@
   --font-mono:    'JetBrains Mono', monospace;
 
   /* ── Radius tokens ── */
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 20px;
+  --radius-xs:  6px;   /* タグ、Pill、小バッジ */
+  --radius-sm:  6px;   /* 既存互換 */
+  --radius-md:  10px;  /* ボタン、入力欄 */
+  --radius-lg:  14px;  /* 小カード（既存互換）*/
+  --radius-xl:  20px;  /* 大カード（既存互換）*/
+  --radius-2xl: 32px;  /* モーダル、ボトムシート上端 */
 
-  /* ── Shadow tokens ── */
+  /* ── Shadow tokens (既存) ── */
   --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
   --shadow-md: 0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
   --shadow-lg: 0 8px 24px rgba(0,0,0,0.10), 0 4px 8px rgba(0,0,0,0.06);
   --shadow-xl: 0 16px 48px rgba(0,0,0,0.12), 0 8px 16px rgba(0,0,0,0.08);
+
+  /* ── Shadow tokens (soft — 多層・より上品) ── */
+  --shadow-soft-xs: 0 1px 2px 0 rgba(26,26,26,0.04);
+  --shadow-soft-sm: 0 2px 6px -1px rgba(26,26,26,0.05), 0 1px 3px -1px rgba(26,26,26,0.03);
+  --shadow-soft-md: 0 4px 12px -2px rgba(26,26,26,0.06), 0 2px 6px -2px rgba(26,26,26,0.04);
+  --shadow-soft-lg: 0 8px 24px -4px rgba(26,26,26,0.08);
+  --shadow-soft-xl: 0 16px 40px -8px rgba(26,26,26,0.10);
+  --shadow-glow-accent: 0 0 32px rgba(167,139,250,0.25);  /* ヒーロー強調用 */
 
   /* ── Semantic foreground aliases ── */
   --color-foreground:            #1A1A1A;
   --color-foreground-secondary:  #4A4A4A;
   --color-foreground-tertiary:   #737373;
   --color-foreground-quaternary: #A3A3A3;
+  --color-foreground-inverse:    #FAFAF7;
+
+  /* ── Background variants ── */
+  --color-background:           #FAFAF7;   /* = --color-bg */
+  --color-background-secondary: #F5F4F0;
+  --color-background-elevated:  #FFFFFF;   /* = --color-card */
+  --color-background-inverse:   #1A1A1A;
+
+  /* ── Border variants ── */
+  --color-border-soft:   #EFEFEF;
+  --color-border-strong: #D4D4D4;
+
+  /* ── Accent: blue / pink ── */
+  --color-accent-blue:      #7BB4FF;
+  --color-accent-blue-soft: #E8F0FF;
+  --color-accent-pink:      #FF9FB8;
+  --color-accent-pink-soft: #FFE8EE;
 
   /* ── Typography scale ── */
   --text-display-2xl: 6.5rem;    /* 104px */
@@ -81,11 +108,15 @@
   --text-caption:     0.6875rem; /* 11px */
 
   /* ── Animation tokens ── */
-  --duration-fast: 120ms;
-  --duration-base: 220ms;
-  --duration-slow: 380ms;
-  --ease-spring:   cubic-bezier(0.34, 1.56, 0.64, 1);
-  --ease-smooth:   cubic-bezier(0.25, 0.1, 0.25, 1);
+  --duration-fast:   120ms;
+  --duration-normal: 200ms;  /* 新追加 */
+  --duration-base:   220ms;  /* 既存互換 */
+  --duration-slow:   320ms;
+  --duration-slower: 500ms;  /* 新追加 */
+  --ease-smooth:  cubic-bezier(0.4, 0, 0.2, 1);        /* 標準（既存 --ease-smooth を更新）*/
+  --ease-snappy:  cubic-bezier(0.34, 1.56, 0.64, 1);   /* バウンス（= 旧 --ease-spring）*/
+  --ease-spring:  cubic-bezier(0.34, 1.56, 0.64, 1);   /* 既存互換 */
+  --ease-gentle:  cubic-bezier(0.25, 0.1, 0.25, 1);    /* ゆるやか */
 }
 
 :root {
