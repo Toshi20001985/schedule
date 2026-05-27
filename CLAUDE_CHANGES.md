@@ -2228,3 +2228,56 @@ Instrument Serif はデフォルトでオールドスタイル数字（古典的
 
 - ベースライン: ✓ 37/37 全通過
 - 全改修後: ✓ **37/37 全通過**
+
+---
+
+## セッション 28：バグ修正（リスト削除後タブ切り替えで復活）
+
+### Bug — タブ切り替え後に削除した項目が復活する
+
+#### 症状
+リストページで項目（場所・メディア・やりたいこと）を削除後、別タブに移動して戻ると削除した項目が復活している。
+
+#### 根本原因
+Next.js App Router はページ間ナビゲーション時に `ListPageInner` コンポーネントをアンマウント→リマウントする。リマウント時に `useEffect(() => { load() }, [load])` が再実行され、デモモードの `load()` がハードコードされたモックデータを無条件に `setPlaces`/`setMedia`/`setTodos` に流し込む。その結果、削除操作が上書きされて項目が復活していた。
+
+#### 修正
+
+**`app/(main)/list/page.tsx`**
+
+1. **モジュールレベルキャッシュを追加**（コンポーネントのリマウント間でデータを保持）
+```tsx
+let _demoPlaces: Place[] | null = null
+let _demoMedia: MediaItem[] | null = null
+let _demoTodos: Todo[] | null = null
+```
+
+2. **`load()` をキャッシュ利用に変更**（初回のみハードコードデータを使用）
+```tsx
+if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+  if (_demoPlaces === null) {
+    _demoPlaces = [...hardcoded...]
+    _demoMedia = [...hardcoded...]
+    _demoTodos = [...hardcoded...]
+  }
+  setPlaces(_demoPlaces)
+  setMedia(_demoMedia!)
+  setTodos(_demoTodos!)
+  return
+}
+```
+
+3. **`useEffect` で状態変化をキャッシュに同期**（削除・更新・追加を反映）
+```tsx
+useEffect(() => {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL && _demoPlaces !== null) {
+    _demoPlaces = places
+  }
+}, [places])
+// media, todos も同様
+```
+
+#### E2E テスト結果
+
+- 修正前: ✓ 37/37 全通過（ロジックはデモモードのみ影響）
+- 修正後: ✓ **37/37 全通過**

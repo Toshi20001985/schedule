@@ -120,6 +120,11 @@ function toMedia(r: Record<string, unknown>): MediaItem {
   }
 }
 
+// Module-level demo cache — persists across component remounts so deletions survive tab navigation
+let _demoPlaces: Place[] | null = null
+let _demoMedia: MediaItem[] | null = null
+let _demoTodos: Todo[] | null = null
+
 function ListPageInner() {
   const searchParams = useSearchParams()
   const [tab, setTab] = useState<'places' | 'media' | 'todos'>(
@@ -228,23 +233,28 @@ function ListPageInner() {
 
   const load = useCallback(async () => {
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-      setPlaces([
-        { id: '1', name: '新宿御苑',      category: '公園',   location: '東京',   memo: '春に桜を見よう！', is_visited: false, owner: 'both' },
-        { id: '2', name: '横浜中華街',    category: 'グルメ', location: '神奈川', is_visited: false, owner: 'me' },
-        { id: '3', name: '嵐山',          category: '観光',   location: '京都',   memo: '旅行で', is_visited: true, owner: 'both' },
-        { id: '4', name: 'teamLab Planets', category: 'アート', location: '東京', is_visited: false, owner: 'partner' },
-      ])
-      setMedia([
-        { id: '1', title: '君の名は。',              media_type: 'movie', memo: 'また一緒に観たい', is_done: true,  owner: 'both' },
-        { id: '2', title: 'スラムダンク',            media_type: 'anime', is_done: false, owner: 'partner' },
-        { id: '3', title: 'Taylor Swift - Eras Tour', media_type: 'music', is_done: false, owner: 'me' },
-        { id: '4', title: '呪術廻戦',                media_type: 'tv',    is_done: false, owner: 'both' },
-      ])
-      setTodos([
-        { id: '1', title: '富士山に登る',     category: 'アウトドア', is_done: false, owner: 'both' },
-        { id: '2', title: '花火大会に行く',   category: 'イベント',   is_done: false, owner: 'both' },
-        { id: '3', title: '手料理をふるまう', category: 'グルメ',     memo: '得意料理を作りたい', is_done: true, owner: 'me' },
-      ])
+      if (_demoPlaces === null) {
+        _demoPlaces = [
+          { id: '1', name: '新宿御苑',      category: '公園',   location: '東京',   memo: '春に桜を見よう！', is_visited: false, owner: 'both' },
+          { id: '2', name: '横浜中華街',    category: 'グルメ', location: '神奈川', is_visited: false, owner: 'me' },
+          { id: '3', name: '嵐山',          category: '観光',   location: '京都',   memo: '旅行で', is_visited: true, owner: 'both' },
+          { id: '4', name: 'teamLab Planets', category: 'アート', location: '東京', is_visited: false, owner: 'partner' },
+        ]
+        _demoMedia = [
+          { id: '1', title: '君の名は。',              media_type: 'movie', memo: 'また一緒に観たい', is_done: true,  owner: 'both' },
+          { id: '2', title: 'スラムダンク',            media_type: 'anime', is_done: false, owner: 'partner' },
+          { id: '3', title: 'Taylor Swift - Eras Tour', media_type: 'music', is_done: false, owner: 'me' },
+          { id: '4', title: '呪術廻戦',                media_type: 'tv',    is_done: false, owner: 'both' },
+        ]
+        _demoTodos = [
+          { id: '1', title: '富士山に登る',     category: 'アウトドア', is_done: false, owner: 'both' },
+          { id: '2', title: '花火大会に行く',   category: 'イベント',   is_done: false, owner: 'both' },
+          { id: '3', title: '手料理をふるまう', category: 'グルメ',     memo: '得意料理を作りたい', is_done: true, owner: 'me' },
+        ]
+      }
+      setPlaces(_demoPlaces)
+      setMedia(_demoMedia!)
+      setTodos(_demoTodos!)
       return
     }
 
@@ -373,6 +383,23 @@ function ListPageInner() {
   useEffect(() => {
     setCollapsed(new Set())
   }, [tab])
+
+  // デモモード: 状態変化をモジュールキャッシュに同期（リマウント時に削除が復活しないよう）
+  useEffect(() => {
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL && _demoPlaces !== null) {
+      _demoPlaces = places
+    }
+  }, [places])
+  useEffect(() => {
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL && _demoMedia !== null) {
+      _demoMedia = media
+    }
+  }, [media])
+  useEffect(() => {
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL && _demoTodos !== null) {
+      _demoTodos = todos
+    }
+  }, [todos])
 
   // Realtime 購読 — places
   useRealtimeSync({
