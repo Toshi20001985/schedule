@@ -9,6 +9,19 @@ import { PullToRefresh } from '@/components/PullToRefresh'
 import { PageTransition } from '@/components/PageTransition'
 import { useAutoRefresh } from '@/hooks/useAutoRefresh'
 
+// カテゴリバー用アニメーション variants
+const categoryContainer = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: { staggerChildren: 0.08, delayChildren: 0.3 },
+  },
+}
+const categoryItem = {
+  hidden: { opacity: 0, x: -8 },
+  show: { opacity: 1, x: 0, transition: { ease: [0.16, 1, 0.3, 1] as [number, number, number, number], duration: 0.5 } },
+}
+
 interface Place {
   id: string
   name: string
@@ -142,7 +155,9 @@ function InsightsPageInner() {
       <div className="space-y-4">
 
         {/* ── 行きたい場所 達成率カード ── */}
-        <Card padding="lg" shadow="sm">
+        <Card padding="lg" shadow="sm" className="relative overflow-hidden">
+          {/* 紫のグラデーション（右上から） */}
+          <div aria-hidden className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(circle at top right, rgba(109,91,208,0.05) 0%, transparent 55%)' }} />
           {/* カードヘッダー */}
           <div className="flex items-start justify-between mb-5">
             <div>
@@ -150,14 +165,17 @@ function InsightsPageInner() {
                 Places Completion
               </p>
               {loading ? (
-                <div className="skeleton h-9 w-20 rounded" />
+                <div className="skeleton h-12 w-24 rounded" />
               ) : (
-                <p style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: '40px', fontWeight: 400, color: 'var(--color-text)', lineHeight: 1, letterSpacing: '-0.02em' }}>
-                  {Math.round(rate)}%
-                </p>
+                <div className="flex items-baseline gap-1">
+                  <span style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: '52px', fontWeight: 400, color: 'var(--color-text)', lineHeight: 1, letterSpacing: '-0.02em', fontFeatureSettings: '"lnum" 1, "tnum" 1' }}>
+                    {Math.round(rate)}
+                  </span>
+                  <span style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: '28px', fontWeight: 400, color: 'var(--color-muted)' }}>%</span>
+                </div>
               )}
               {!loading && (
-                <p style={{ color: 'var(--color-subtle)', fontSize: '12px', marginTop: '5px' }}>
+                <p style={{ color: 'var(--color-subtle)', fontSize: '12px', marginTop: '6px' }}>
                   {visitedCount} / {totalPlaces} か所 訪問済み
                 </p>
               )}
@@ -178,7 +196,7 @@ function InsightsPageInner() {
               <motion.div
                 initial={{ width: 0 }}
                 animate={{ width: `${rate}%` }}
-                transition={{ duration: 1, ease: [0.4, 0, 0.2, 1], delay: 0.1 }}
+                transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}
                 style={{
                   position: 'absolute',
                   inset: 0,
@@ -191,10 +209,14 @@ function InsightsPageInner() {
 
           {/* データ0件の空状態 */}
           {!loading && totalPlaces === 0 && (
-            <div className="flex flex-col items-center py-6 gap-2">
-              <MapPin size={24} strokeWidth={1.5} style={{ color: '#D4D4D4' }} />
-              <p style={{ color: '#A3A3A3', fontSize: '13px' }}>まだ場所が登録されていません</p>
-              <Link href="/list" style={{ color: '#6D5BD0', fontSize: '12px', marginTop: '2px' }}>
+            <div className="flex flex-col items-center py-8 text-center gap-3">
+              <div className="w-14 h-14 rounded-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg, var(--color-trip-soft), var(--color-visit-soft))' }}>
+                <MapPin size={22} strokeWidth={1.5} style={{ color: 'var(--color-foreground-secondary)' }} />
+              </div>
+              <p style={{ color: 'var(--color-foreground-secondary)', fontSize: '14px', lineHeight: 1.6 }}>
+                ふたりの行きたい場所を<br />貯めていこう
+              </p>
+              <Link href="/list" style={{ color: 'var(--color-visit-accent)', fontSize: '13px', fontWeight: 500 }}>
                 場所を追加する →
               </Link>
             </div>
@@ -206,38 +228,47 @@ function InsightsPageInner() {
               <p style={{ color: 'var(--color-subtle)', fontSize: '10px', letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 500 }}>
                 カテゴリ別
               </p>
-              {categoryStats.map(({ cat, total, visited }) => {
-                const catRate = total > 0 ? (visited / total) * 100 : 0
-                return (
-                  <div key={cat} className="flex items-center gap-3">
-                    <span className="flex-shrink-0" style={{ color: 'var(--color-text)', fontSize: '13px', width: '80px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {cat}
-                    </span>
-                    <div className="flex-1 relative rounded-full overflow-hidden" style={{ height: '4px', backgroundColor: '#F0F0EE' }}>
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${catRate}%` }}
-                        transition={{ duration: 0.8, ease: [0.4, 0, 0.2, 1], delay: 0.3 }}
-                        style={{
-                          position: 'absolute',
-                          inset: 0,
-                          backgroundColor: '#6D5BD0',
-                          borderRadius: '100px',
-                        }}
-                      />
-                    </div>
-                    <span className="flex-shrink-0" style={{ color: 'var(--color-subtle)', fontSize: '11px', width: '36px', textAlign: 'right' }}>
-                      {visited}/{total}
-                    </span>
-                  </div>
-                )
-              })}
+              <motion.div
+                className="space-y-3"
+                variants={categoryContainer}
+                initial="hidden"
+                animate="show"
+              >
+                {categoryStats.map(({ cat, total, visited }) => {
+                  const catRate = total > 0 ? (visited / total) * 100 : 0
+                  return (
+                    <motion.div key={cat} variants={categoryItem} className="flex items-center gap-3">
+                      <span className="flex-shrink-0" style={{ color: 'var(--color-text)', fontSize: '13px', width: '80px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {cat}
+                      </span>
+                      <div className="flex-1 relative rounded-full overflow-hidden" style={{ height: '4px', backgroundColor: '#F0F0EE' }}>
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${catRate}%` }}
+                          transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1], delay: 0.4 }}
+                          style={{
+                            position: 'absolute',
+                            inset: 0,
+                            backgroundColor: 'var(--color-visit-accent)',
+                            borderRadius: '100px',
+                          }}
+                        />
+                      </div>
+                      <span className="flex-shrink-0" style={{ color: 'var(--color-subtle)', fontSize: '11px', width: '36px', textAlign: 'right' }}>
+                        {visited}/{total}
+                      </span>
+                    </motion.div>
+                  )
+                })}
+              </motion.div>
             </div>
           )}
         </Card>
 
         {/* ── 観た映画カード ── */}
-        <Card padding="lg" shadow="sm">
+        <Card padding="lg" shadow="sm" className="relative overflow-hidden">
+          {/* ピンクのグラデーション（右上から） */}
+          <div aria-hidden className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(circle at top right, rgba(255,159,184,0.07) 0%, transparent 55%)' }} />
           {/* カードヘッダー */}
           <div className="flex items-start justify-between mb-5">
             <div>
@@ -245,14 +276,14 @@ function InsightsPageInner() {
                 Movies Together
               </p>
               {loading ? (
-                <div className="skeleton h-7 w-28 rounded" />
+                <div className="skeleton h-12 w-24 rounded" />
               ) : (
-                <p style={{ color: 'var(--color-text)', fontSize: '22px', fontWeight: 600, lineHeight: 1.2 }}>
-                  {watchedMovies.length}
-                  <span style={{ fontSize: '14px', fontWeight: 400, color: 'var(--color-subtle)', marginLeft: '6px' }}>
-                    本観た
+                <div className="flex items-baseline gap-1">
+                  <span style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: '52px', fontWeight: 400, color: 'var(--color-text)', lineHeight: 1, letterSpacing: '-0.02em', fontFeatureSettings: '"lnum" 1, "tnum" 1' }}>
+                    {watchedMovies.length}
                   </span>
-                </p>
+                  <span style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: '22px', fontWeight: 400, color: 'var(--color-muted)' }}>本観た</span>
+                </div>
               )}
               {!loading && allMovies.length > watchedMovies.length && (
                 <p style={{ color: 'var(--color-subtle)', fontSize: '12px', marginTop: '4px' }}>
@@ -280,10 +311,14 @@ function InsightsPageInner() {
 
           {/* データ0件 */}
           {!loading && allMovies.length === 0 && (
-            <div className="flex flex-col items-center py-6 gap-2">
-              <Film size={24} strokeWidth={1.5} style={{ color: '#D4D4D4' }} />
-              <p style={{ color: '#A3A3A3', fontSize: '13px' }}>まだ映画が登録されていません</p>
-              <Link href="/list?tab=media" style={{ color: '#6D5BD0', fontSize: '12px', marginTop: '2px' }}>
+            <div className="flex flex-col items-center py-8 text-center gap-3">
+              <div className="w-14 h-14 rounded-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #F3F0FF, #FFE4ED)' }}>
+                <Film size={22} strokeWidth={1.5} style={{ color: 'var(--color-foreground-secondary)' }} />
+              </div>
+              <p style={{ color: 'var(--color-foreground-secondary)', fontSize: '14px', lineHeight: 1.6 }}>
+                これから一緒に観る映画を<br />貯めていこう
+              </p>
+              <Link href="/list?tab=media" style={{ color: '#6D5BD0', fontSize: '13px', fontWeight: 500 }}>
                 映画を追加する →
               </Link>
             </div>
@@ -291,9 +326,13 @@ function InsightsPageInner() {
 
           {/* 未観賞のみの場合 */}
           {!loading && allMovies.length > 0 && watchedMovies.length === 0 && (
-            <div className="flex flex-col items-center py-6 gap-2">
-              <Check size={24} strokeWidth={1.5} style={{ color: '#D4D4D4' }} />
-              <p style={{ color: '#A3A3A3', fontSize: '13px' }}>まだ一緒に観た映画はありません</p>
+            <div className="flex flex-col items-center py-8 text-center gap-3">
+              <div className="w-14 h-14 rounded-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #FFE4ED, #F3F0FF)' }}>
+                <Check size={22} strokeWidth={1.5} style={{ color: 'var(--color-foreground-secondary)' }} />
+              </div>
+              <p style={{ color: 'var(--color-foreground-secondary)', fontSize: '14px', lineHeight: 1.6 }}>
+                一緒に観た映画が増えたら<br />ここに並んでいくよ
+              </p>
             </div>
           )}
 

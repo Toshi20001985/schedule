@@ -1667,6 +1667,127 @@ background: 'linear-gradient(to right, var(--color-accent-pink-soft), var(--colo
 
 ---
 
+## セッション 25：インサイト画面の生命感（Phase 5）
+
+### 目的
+
+インサイト画面に「数字の重み・アニメーションの流れ・励ましの温度感」を与える。
+純粋なビジュアル改善のみ（ロジック変更なし）。
+
+### 変更ファイル
+
+- `app/(main)/insights/page.tsx`
+
+---
+
+### 改修① — 数字の表現強化（Instrument Serif）
+
+**対象**: Places Completion カードの達成率 `%` 数字、Movies Together カードの `本観た` 数字
+
+**Before**: `fontWeight: 600, fontSize: '22px'` のプレーンな数字
+
+**After**: Instrument Serif + lining numerals（ホームヒーローと同じ言語）
+
+```tsx
+// Places: 達成率
+<span style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: '52px', fontWeight: 400, lineHeight: 1, letterSpacing: '-0.02em', fontFeatureSettings: '"lnum" 1, "tnum" 1' }}>
+  {Math.round(rate)}
+</span>
+<span style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: '28px', fontWeight: 400, color: 'var(--color-muted)' }}>%</span>
+
+// Movies: 本観た数
+<span style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: '52px', fontWeight: 400, lineHeight: 1, letterSpacing: '-0.02em', fontFeatureSettings: '"lnum" 1, "tnum" 1' }}>
+  {watchedMovies.length}
+</span>
+<span style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: '22px', fontWeight: 400, color: 'var(--color-muted)' }}>本観た</span>
+```
+
+---
+
+### 改修② — プログレスバーのイージング改善
+
+**対象**: Places Completion カードのプログレスバー `<motion.div>`
+
+**Before**: `duration: 0.8`（デフォルトイージング）
+
+**After**: ease-out-expo でスナップ感
+
+```tsx
+transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}
+```
+
+---
+
+### 改修③ — カテゴリバーのスタガーアニメーション
+
+**対象**: Places カードのカテゴリ別内訳
+
+module-level variants を追加し、`staggerChildren` で各行が順次フェードイン:
+
+```tsx
+const categoryContainer = {
+  hidden: { opacity: 0 },
+  show: { opacity: 1, transition: { staggerChildren: 0.08, delayChildren: 0.3 } },
+}
+const categoryItem = {
+  hidden: { opacity: 0, x: -8 },
+  show: { opacity: 1, x: 0, transition: { ease: [0.16, 1, 0.3, 1] as [number, number, number, number], duration: 0.5 } },
+}
+```
+
+各カテゴリバーを `<motion.div variants={categoryItem}>` でラップ。
+個別バーのアニメーションも `delay: 0.4` でずらして奥行き感を演出。
+
+---
+
+### 改修④ — 空状態の励ましメッセージ（3パターン）
+
+**対象**: Places カード（0 件時）、Movies カード（0 件時）、Movies カード（登録済みだが未視聴時）
+
+**Before**: グレーアイコン + 無機質な日本語テキスト
+
+**After**: グラデーション円アイコン + 温かみのあるメッセージ + リンク
+
+| パターン | アイコン背景 | メッセージ |
+|---|---|---|
+| Places 0件 | `trip-soft → visit-soft` グラデーション | ふたりの行きたい場所を貯めていこう |
+| Movies 0件 | `#F3F0FF → #FFE4ED` グラデーション | これから一緒に観る映画を貯めていこう |
+| Movies 登録済み・未視聴 | `#FFE4ED → #F3F0FF` グラデーション | 一緒に観た映画が増えたらここに並んでいくよ |
+
+---
+
+### 改修⑤ — カード背景グラデーション
+
+**対象**: Places カード、Movies カード（両方に `className="relative overflow-hidden"` 追加）
+
+**Places カード**: 右上から薄いパープルのラジアルグラデーション
+```tsx
+background: 'radial-gradient(circle at top right, rgba(109,91,208,0.05) 0%, transparent 55%)'
+```
+
+**Movies カード**: 右上から薄いピンクのラジアルグラデーション
+```tsx
+background: 'radial-gradient(circle at top right, rgba(255,159,184,0.07) 0%, transparent 55%)'
+```
+
+`aria-hidden` + `pointer-events-none` で既存コンテンツへの干渉なし。
+
+---
+
+### TypeScript 修正
+
+`Variants` 型の `ease` プロパティに `number[]` は不可 → `as [number, number, number, number]` でキャスト。
+
+---
+
+### E2E テスト結果
+
+- 改修前: ✓ 37/37 全通過
+- 改修後: ✓ **37/37 全通過**
+- TypeScript: エラーなし
+
+---
+
 ## セッション 22：ホーム画面の質感アップ（Phase 2）
 
 ### 目的
