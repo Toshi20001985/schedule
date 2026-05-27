@@ -163,6 +163,7 @@ function ListPageInner() {
   const [newOwner, setNewOwner] = useState<Owner>('both')
   const [highlightedId, setHighlightedId] = useState<string | null>(null)
   const [geocoding,     setGeocoding]     = useState(false)
+  const [submitState, setSubmitState] = useState<'idle' | 'saving' | 'success'>('idle')
   const [confirmingPlace, setConfirmingPlace] = useState<{
     id: string; name: string; lat: number; lon: number; displayName: string
   } | null>(null)
@@ -564,53 +565,68 @@ function ListPageInner() {
 
   async function handleAddTodo() {
     if (!newTodoTitle) return
+    setSubmitState('saving')
     await addTodoItem(
       { title: newTodoTitle, category: newTodoCategory || '', memo: newMemo || null, is_done: false, owner: newOwner },
       { id: Date.now().toString(), title: newTodoTitle, category: newTodoCategory || '', memo: newMemo || undefined, is_done: false, owner: newOwner },
     )
     haptic('success')
-    resetForm(); setShowSheet(false)
+    setSubmitState('success')
+    await new Promise(r => setTimeout(r, 700))
+    resetForm(); setShowSheet(false); setSubmitState('idle')
   }
 
   async function handleAddMedia() {
     if (!newMediaTitle) return
+    setSubmitState('saving')
     await addMediaItem(
       { title: newMediaTitle, media_type: newMediaType, memo: newMemo || null, is_done: false, owner: newOwner },
       { id: Date.now().toString(), title: newMediaTitle, media_type: newMediaType, memo: newMemo || undefined, is_done: false, owner: newOwner },
     )
     haptic('success')
-    resetForm(); setShowSheet(false)
+    setSubmitState('success')
+    await new Promise(r => setTimeout(r, 700))
+    resetForm(); setShowSheet(false); setSubmitState('idle')
   }
 
   // ── 更新ハンドラ ─────────────────────────────────────────────────
   async function handleUpdatePlace() {
     if (!editingPlace || !newName) return
+    setSubmitState('saving')
     await updatePlaceItem(editingPlace.id, {
       name: newName, category: newCategory || 'その他',
       location: newLocation, memo: newMemo || null, owner: newOwner,
     })
     haptic('success')
-    resetForm(); setShowSheet(false)
+    setSubmitState('success')
+    await new Promise(r => setTimeout(r, 700))
+    resetForm(); setShowSheet(false); setSubmitState('idle')
   }
 
   async function handleUpdateTodo() {
     if (!editingTodo || !newTodoTitle) return
+    setSubmitState('saving')
     await updateTodoItem(editingTodo.id, {
       title: newTodoTitle, category: newTodoCategory,
       memo: newMemo || null, owner: newOwner,
     })
     haptic('success')
-    resetForm(); setShowSheet(false)
+    setSubmitState('success')
+    await new Promise(r => setTimeout(r, 700))
+    resetForm(); setShowSheet(false); setSubmitState('idle')
   }
 
   async function handleUpdateMedia() {
     if (!editingMedia || !newMediaTitle) return
+    setSubmitState('saving')
     await updateMediaItem(editingMedia.id, {
       title: newMediaTitle, media_type: newMediaType,
       memo: newMemo || null, owner: newOwner,
     })
     haptic('success')
-    resetForm(); setShowSheet(false)
+    setSubmitState('success')
+    await new Promise(r => setTimeout(r, 700))
+    resetForm(); setShowSheet(false); setSubmitState('idle')
   }
 
   return (
@@ -1072,7 +1088,7 @@ function ListPageInner() {
       {/* Add / Edit Sheet */}
       <BottomSheet
         open={showSheet}
-        onClose={() => { setShowSheet(false); resetForm() }}
+        onClose={() => { setShowSheet(false); resetForm(); setSubmitState('idle') }}
         title={
           tab === 'places' ? (editingPlace ? '場所を編集'         : '場所を追加') :
           tab === 'media'  ? (editingMedia ? 'アイテムを編集'     : 'アイテムを追加') :
@@ -1106,8 +1122,8 @@ function ListPageInner() {
               <textarea value={newMemo} onChange={e => setNewMemo(e.target.value)} style={{ ...inputStyle, resize: 'none' }} rows={2} placeholder="メモ..." />
             </div>
             {editingTodo
-              ? <Button fullWidth onClick={handleUpdateTodo} disabled={!newTodoTitle}>更新する</Button>
-              : <Button fullWidth onClick={handleAddTodo}    disabled={!newTodoTitle}>追加する</Button>
+              ? <Button fullWidth onClick={handleUpdateTodo} disabled={!newTodoTitle} loading={submitState === 'saving'} success={submitState === 'success'}>更新する</Button>
+              : <Button fullWidth onClick={handleAddTodo}    disabled={!newTodoTitle} loading={submitState === 'saving'} success={submitState === 'success'}>追加する</Button>
             }
           </div>
         ) : tab === 'places' ? (
@@ -1166,10 +1182,8 @@ function ListPageInner() {
               </div>
             )}
             {editingPlace
-              ? <Button fullWidth onClick={handleUpdatePlace} disabled={!newName}>更新する</Button>
-              : <Button fullWidth onClick={handleAddPlace}    disabled={!newName || geocoding}>
-                  {geocoding ? '追加中...' : '追加する'}
-                </Button>
+              ? <Button fullWidth onClick={handleUpdatePlace} disabled={!newName} loading={submitState === 'saving'} success={submitState === 'success'}>更新する</Button>
+              : <Button fullWidth onClick={handleAddPlace}    disabled={!newName || geocoding} loading={geocoding}>追加する</Button>
             }
           </div>
         ) : (
@@ -1210,8 +1224,8 @@ function ListPageInner() {
               <textarea value={newMemo} onChange={e => setNewMemo(e.target.value)} style={{ ...inputStyle, resize: 'none' }} rows={2} />
             </div>
             {editingMedia
-              ? <Button fullWidth onClick={handleUpdateMedia} disabled={!newMediaTitle}>更新する</Button>
-              : <Button fullWidth onClick={handleAddMedia}    disabled={!newMediaTitle}>追加する</Button>
+              ? <Button fullWidth onClick={handleUpdateMedia} disabled={!newMediaTitle} loading={submitState === 'saving'} success={submitState === 'success'}>更新する</Button>
+              : <Button fullWidth onClick={handleAddMedia}    disabled={!newMediaTitle} loading={submitState === 'saving'} success={submitState === 'success'}>追加する</Button>
             }
           </div>
         )}

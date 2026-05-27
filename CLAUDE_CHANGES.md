@@ -1667,6 +1667,118 @@ background: 'linear-gradient(to right, var(--color-accent-pink-soft), var(--colo
 
 ---
 
+## セッション 26：予定追加・詳細シートのモーション質感（Phase 6）
+
+### 目的
+
+ボトムシートのモーション・インタラクション品質を Apple 純正並みに磨く。
+純粋なビジュアル改善のみ（機能ロジック変更なし）。
+
+### 変更ファイル
+
+- `components/BottomSheet.tsx`
+- `app/(main)/calendar/page.tsx`
+- `app/(main)/list/page.tsx`
+- `app/globals.css`
+
+---
+
+### Step 1・2 スプリングアニメーション・ドラッグで閉じる
+
+**既存実装で対応済み**: `BottomSheet.tsx` は `vaul` (Drawer) を使用しており、スプリングアニメーションとドラッグで閉じる機能はライブラリがネイティブで提供済み。追加実装不要。
+
+---
+
+### 改修① — オーバーレイのガラス効果（Step 3）
+
+**対象**: `components/BottomSheet.tsx`
+
+**Before**: `backgroundColor: 'rgba(0,0,0,0.3)'`（ブラー無し）
+
+**After**: 背景ブラー + `useReducedMotion` 対応
+
+```tsx
+style={{
+  backgroundColor: 'rgba(0,0,0,0.35)',
+  backdropFilter: reduced ? undefined : 'blur(4px)',
+  WebkitBackdropFilter: reduced ? undefined : 'blur(4px)',
+}}
+```
+
+---
+
+### 改修② — シート内コンテンツのフェードイン（Step 4）
+
+**対象**: `components/BottomSheet.tsx`
+
+コンテンツ領域を `motion.div` でラップし、シートが開いた後に内部要素が柔らかくフェードイン:
+
+```tsx
+<motion.div
+  initial={reduced ? false : { opacity: 0, y: 10 }}
+  animate={{ opacity: 1, y: 0 }}
+  transition={{ duration: 0.28, ease: [0.4, 0, 0.2, 1], delay: 0.12 }}
+>
+  {children}
+</motion.div>
+```
+
+vaul が Portal 内でマウント・アンマウントを管理するため、開くたびに `initial` から再アニメーションされる。
+
+---
+
+### 改修③ — 保存ボタンの状態遷移（Step 5）
+
+**対象**: `app/(main)/calendar/page.tsx`、`app/(main)/list/page.tsx`
+
+`Button` コンポーネントは既に `loading` / `success` props 対応済みだったが、ページ側で状態管理されていなかった。
+
+**追加した状態**:
+```tsx
+const [submitState, setSubmitState] = useState<'idle' | 'saving' | 'success'>('idle')
+```
+
+**遷移フロー**:
+1. ボタン押下 → `'saving'`（スピナー表示、ボタン無効化）
+2. 保存完了 → `'success'`（チェックマーク + 緑色）
+3. 700ms 後 → シートを閉じ、`'idle'` にリセット
+
+**対象ハンドラ**:
+| ファイル | ハンドラ |
+|---|---|
+| calendar | `handleAddEvent`, `handleUpdateEvent` |
+| list | `handleAddTodo`, `handleAddMedia`, `handleUpdateTodo`, `handleUpdateMedia` |
+
+**補足**: `handleAddPlace` は既存の `geocoding` state を `loading={geocoding}` として直接利用するよう改修（テキスト切り替えからスピナーに変更）。
+
+---
+
+### 改修④ — 入力フィールドのフォーカス演出（Step 6）
+
+**対象**: `app/globals.css`
+
+既存の `box-shadow` フォーカスリングに border-color と background-color の変化を追加:
+
+```css
+input:focus, textarea:focus, select:focus {
+  box-shadow: 0 0 0 3px rgba(109, 91, 208, 0.10);
+  border-color: rgba(109, 91, 208, 0.45) !important;
+  background-color: var(--color-background-elevated, #fff) !important;
+}
+```
+
+`!important` でインライン style の border を上書き（各フォームの `inputStyle` オブジェクトが `border: '0.5px solid var(--color-border)'` を設定しているため）。
+
+---
+
+### E2E テスト結果
+
+- 改修前: ✓ 37/37 全通過
+- 改修後: ✓ **37/37 全通過**
+- TypeScript: エラーなし
+
+---
+
 ## セッション 25：インサイト画面の生命感（Phase 5）
 
 ### 目的

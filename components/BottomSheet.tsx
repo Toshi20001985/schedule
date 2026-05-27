@@ -2,6 +2,7 @@
 
 import { Drawer } from 'vaul'
 import { X } from 'lucide-react'
+import { motion, useReducedMotion } from 'framer-motion'
 
 interface BottomSheetProps {
   open: boolean
@@ -18,12 +19,18 @@ export default function BottomSheet({
   children,
   snapPoints,
 }: BottomSheetProps) {
+  const reduced = useReducedMotion()
+
   return (
     <Drawer.Root open={open} onOpenChange={v => !v && onClose()} snapPoints={snapPoints}>
       <Drawer.Portal>
         <Drawer.Overlay
           className="fixed inset-0 z-40"
-          style={{ backgroundColor: 'rgba(0,0,0,0.3)' }}
+          style={{
+            backgroundColor: 'rgba(0,0,0,0.35)',
+            backdropFilter: reduced ? undefined : 'blur(4px)',
+            WebkitBackdropFilter: reduced ? undefined : 'blur(4px)',
+          }}
         />
         <Drawer.Content
           className="fixed bottom-0 left-0 right-0 z-50 flex flex-col outline-none"
@@ -69,7 +76,13 @@ export default function BottomSheet({
             className="flex-1 overflow-y-auto px-5 py-4"
             style={{ paddingBottom: `calc(env(safe-area-inset-bottom) + 16px)`, overscrollBehavior: 'contain' }}
           >
-            {children}
+            <motion.div
+              initial={reduced ? false : { opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.28, ease: [0.4, 0, 0.2, 1], delay: 0.12 }}
+            >
+              {children}
+            </motion.div>
           </div>
         </Drawer.Content>
       </Drawer.Portal>

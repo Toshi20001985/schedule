@@ -667,6 +667,7 @@ function CalendarPageInner() {
   const [newTraveler,   setNewTraveler]   = useState<Traveler>('me')
   const [newFlightPayer, setNewFlightPayer] = useState<FlightPayer>('me')
   const [newEndDate,    setNewEndDate]    = useState<Date | null>(null)
+  const [submitState, setSubmitState] = useState<'idle' | 'saving' | 'success'>('idle')
 
   // Supabase からイベント取得
   const load = useCallback(async () => {
@@ -889,6 +890,7 @@ function CalendarPageInner() {
 
   async function handleAddEvent() {
     if (!selectedDate || !newTitle) return
+    setSubmitState('saving')
     const dateStr    = format(selectedDate, 'yyyy-MM-dd')
     const endDateStr = newEndDate && newEndDate >= selectedDate
       ? format(newEndDate, 'yyyy-MM-dd')
@@ -959,7 +961,10 @@ function CalendarPageInner() {
     }
 
     haptic('success')
+    setSubmitState('success')
+    await new Promise(r => setTimeout(r, 700))
     resetForm()
+    setSubmitState('idle')
     setShowAddSheet(false)
     setShowEventSheet(true)
   }
@@ -1025,7 +1030,10 @@ function CalendarPageInner() {
     } : e))
 
     haptic('success')
+    setSubmitState('success')
+    await new Promise(r => setTimeout(r, 700))
     resetForm()
+    setSubmitState('idle')
     setShowAddSheet(false)
     setShowEventSheet(true)
   }
@@ -1341,7 +1349,7 @@ function CalendarPageInner() {
       </BottomSheet>
 
       {/* Add / Edit event sheet */}
-      <BottomSheet open={showAddSheet} onClose={() => { setShowAddSheet(false); resetForm() }} title={editingEvent ? 'イベントを編集' : 'イベントを追加'}>
+      <BottomSheet open={showAddSheet} onClose={() => { setShowAddSheet(false); resetForm(); setSubmitState('idle') }} title={editingEvent ? 'イベントを編集' : 'イベントを追加'}>
         <div className="space-y-4">
           {/* タイトル */}
           <div>
@@ -1477,8 +1485,8 @@ function CalendarPageInner() {
           </div>
 
           {editingEvent
-            ? <Button fullWidth onClick={handleUpdateEvent} disabled={!newTitle}>更新する</Button>
-            : <Button fullWidth onClick={handleAddEvent}    disabled={!newTitle}>追加する</Button>
+            ? <Button fullWidth onClick={handleUpdateEvent} disabled={!newTitle} loading={submitState === 'saving'} success={submitState === 'success'}>更新する</Button>
+            : <Button fullWidth onClick={handleAddEvent}    disabled={!newTitle} loading={submitState === 'saving'} success={submitState === 'success'}>追加する</Button>
           }
         </div>
       </BottomSheet>

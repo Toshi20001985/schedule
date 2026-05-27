@@ -220,4 +220,6 @@ input, textarea, select {
 }
 input:focus, textarea:focus, select:focus {
   box-shadow: 0 0 0 3px rgba(109, 91, 208, 0.10);
+  border-color: rgba(109, 91, 208, 0.45) !important;
+  background-color: var(--color-background-elevated, #fff) !important;
 }
