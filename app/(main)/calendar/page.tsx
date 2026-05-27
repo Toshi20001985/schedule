@@ -1045,9 +1045,9 @@ function CalendarPageInner() {
     <div className="px-4 pt-6 max-w-lg mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
-        <button onClick={() => changeMonth(-1)} className="p-2 transition-opacity active:opacity-50" style={{ color: '#737373' }}>
+        <motion.button onClick={() => changeMonth(-1)} whileTap={{ scale: 0.88 }} transition={{ duration: 0.1 }} className="p-2 active:opacity-50" style={{ color: '#737373' }}>
           <ChevronLeft size={20} strokeWidth={1.5} />
-        </button>
+        </motion.button>
         <div className="flex items-center gap-2">
           <h1 className="text-base font-semibold" style={{ color: '#1A1A1A' }}>
             {format(currentMonth, 'yyyy年 M月', { locale: ja })}
@@ -1060,9 +1060,9 @@ function CalendarPageInner() {
             今日
           </button>
         </div>
-        <button onClick={() => changeMonth(1)} className="p-2 transition-opacity active:opacity-50" style={{ color: '#737373' }}>
+        <motion.button onClick={() => changeMonth(1)} whileTap={{ scale: 0.88 }} transition={{ duration: 0.1 }} className="p-2 active:opacity-50" style={{ color: '#737373' }}>
           <ChevronRight size={20} strokeWidth={1.5} />
-        </button>
+        </motion.button>
       </div>
 
       {/* Legend */}
@@ -1495,15 +1495,17 @@ function CalendarPageInner() {
     </PageTransition>
 
     {/* FAB — PageTransition外に配置して opacity アニメーションの影響を受けないようにする */}
-    <button
+    <motion.button
       data-testid="fab-add"
       onClick={() => { haptic('medium'); setShowAddSheet(true) }}
-      className="fixed right-4 z-30 flex items-center gap-2 px-5 py-3 active:opacity-70 transition-opacity"
+      whileTap={{ scale: 0.94 }}
+      transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+      className="fixed right-4 z-30 flex items-center gap-2 px-5 py-3 active:opacity-70"
       style={{ bottom: `calc(env(safe-area-inset-bottom) + 76px)`, backgroundColor: '#1A1A1A', color: '#FFFFFF', borderRadius: '10px' }}
     >
       <Plus size={18} strokeWidth={2} />
       <span className="text-sm font-medium">追加</span>
-    </button>
+    </motion.button>
     </>
   )
 }

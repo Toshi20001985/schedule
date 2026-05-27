@@ -1667,6 +1667,95 @@ background: 'linear-gradient(to right, var(--color-accent-pink-soft), var(--colo
 
 ---
 
+## セッション 27：マイクロインタラクションと空状態（Phase 7）
+
+### 目的
+
+UI 磨き込みフェーズの総仕上げ。細部のインタラクション強化と、データが少ない時の体験を磨く。
+純粋なビジュアル改善のみ（機能ロジック変更なし）。
+
+### 変更ファイル
+
+- `components/NavigationProgress.tsx`（新規作成）
+- `app/layout.tsx`
+- `app/(main)/calendar/page.tsx`
+- `app/(main)/list/page.tsx`
+
+---
+
+### Step 1・2・3・4 の現状確認と対応
+
+| Step | 内容 | 状態 |
+|---|---|---|
+| Step 2 ハプティック | 全アクション（タブ切替・チェック・削除・保存・月移動・検索）に haptic() 実装済み | ✓ スキップ（完了済み） |
+| Step 3 スワイプ抵抗 | SwipeableListItem が既存ネイティブ touch イベント実装済み。framer-motion への書き換えは動作リスクが高い | ✓ スキップ（既存十分） |
+| Step 4 数字アニメ | AnimatedNumber コンポーネントが既存・ホーム統計カードで使用済み | ✓ スキップ（完了済み） |
+| ホーム空状態 | heroState.kind === 'no_meeting' で "Let's plan our next meet" + CTA 表示済み | ✓ スキップ（完了済み） |
+| カレンダー日付空状態 | CalendarDays アイコン + "この日の予定はありません" + Button 表示済み | ✓ スキップ（完了済み） |
+
+---
+
+### 改修① — FAB + 月ナビボタンの whileTap（Step 1）
+
+**対象**: `app/(main)/calendar/page.tsx`、`app/(main)/list/page.tsx`
+
+- `Button` コンポーネントは既に `whileTap={{ scale: 0.96 }}` 対応済み
+- FAB（追加ボタン）と月ナビ（ChevronLeft/Right）を `<button>` → `<motion.button>` に変更
+
+```tsx
+// FAB
+<motion.button whileTap={{ scale: 0.94 }} transition={{ type: 'spring', stiffness: 400, damping: 25 }}>
+
+// 月ナビ
+<motion.button whileTap={{ scale: 0.88 }} transition={{ duration: 0.1 }}>
+```
+
+---
+
+### 改修② — リスト3タブの空状態強化（Step 5）
+
+**対象**: `app/(main)/list/page.tsx`
+
+グレーアイコン + 無機質テキストから、インサイト画面と統一したグラデーション円 + 温かいメッセージへ。
+
+| タブ | アイコン背景 | メッセージ |
+|---|---|---|
+| 場所 (places) | `trip-soft → visit-soft` グラデーション | ふたりで行きたい場所をリストアップしよう |
+| メディア (media) | `online-soft → #FFF7F0` グラデーション | 一緒に観たい・聴きたいものを貯めていこう |
+| やること (todos) | `#FFF8EC → #FFF3D6` グラデーション | ふたりでやりたいことを書き出してみよう |
+
+各パターンはグループ表示・通常表示の両ブランチ（計5箇所）すべて更新済み。
+
+---
+
+### 改修③ — ナビゲーションプログレスバー（Step 7）
+
+**新規**: `components/NavigationProgress.tsx`
+
+```tsx
+// pathname 変化のたびに 550ms の進捗バーを表示
+useEffect(() => {
+  setVisible(true)
+  const timer = setTimeout(() => setVisible(false), 550)
+  return () => clearTimeout(timer)
+}, [pathname, reduced])
+```
+
+- `scaleX: 0 → 1`（origin: left）でページ進捗感を演出
+- `useReducedMotion()` 対応：モーション削減設定時は非表示
+- グラデーション: `accent-blue → accent-pink → accent-blue`
+- `app/layout.tsx` に `<NavigationProgress />` を追加（`<ToastProvider>` の外・body 直下）
+
+---
+
+### E2E テスト結果
+
+- 改修前: ✓ 37/37 全通過
+- 改修後: ✓ **37/37 全通過**
+- TypeScript: エラーなし
+
+---
+
 ## セッション 26：予定追加・詳細シートのモーション質感（Phase 6）
 
 ### 目的

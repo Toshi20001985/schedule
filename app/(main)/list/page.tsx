@@ -697,9 +697,13 @@ function ListPageInner() {
             <>
               <p className="text-xs px-1" style={{ color: '#A3A3A3' }}>未訪問 {activePlaces.length}件</p>
               {activePlaces.length === 0 && (
-                <div className="flex flex-col items-center py-16 gap-3">
-                  <MapPin size={28} strokeWidth={1.5} style={{ color: '#D4D4D4' }} />
-                  <p className="font-serif italic" style={{ color: '#A3A3A3', fontSize: '15px' }}>行きたい場所を追加しよう</p>
+                <div className="flex flex-col items-center py-12 text-center gap-3">
+                  <div className="w-14 h-14 rounded-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg, var(--color-trip-soft), var(--color-visit-soft))' }}>
+                    <MapPin size={22} strokeWidth={1.5} style={{ color: 'var(--color-foreground-secondary)' }} />
+                  </div>
+                  <p style={{ color: 'var(--color-foreground-secondary)', fontSize: '14px', lineHeight: 1.6 }}>
+                    ふたりで行きたい場所を<br />リストアップしよう
+                  </p>
                 </div>
               )}
               {activePlaces.map(place => (
@@ -749,9 +753,13 @@ function ListPageInner() {
               )}
             </>
           ) : places.length === 0 ? (
-            <div className="flex flex-col items-center py-16 gap-3">
-              <MapPin size={28} strokeWidth={1.5} style={{ color: '#D4D4D4' }} />
-              <p className="font-serif italic" style={{ color: '#A3A3A3', fontSize: '15px' }}>行きたい場所を追加しよう</p>
+            <div className="flex flex-col items-center py-12 text-center gap-3">
+              <div className="w-14 h-14 rounded-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg, var(--color-trip-soft), var(--color-visit-soft))' }}>
+                <MapPin size={22} strokeWidth={1.5} style={{ color: 'var(--color-foreground-secondary)' }} />
+              </div>
+              <p style={{ color: 'var(--color-foreground-secondary)', fontSize: '14px', lineHeight: 1.6 }}>
+                ふたりで行きたい場所を<br />リストアップしよう
+              </p>
             </div>
           ) : (
             <div className="space-y-5">
@@ -822,9 +830,13 @@ function ListPageInner() {
             <>
               <p className="text-xs px-1" style={{ color: '#A3A3A3' }}>未完了 {media.filter(m => !m.is_done).length}件</p>
               {media.filter(m => !m.is_done).length === 0 && (
-                <div className="flex flex-col items-center py-16 gap-3">
-                  <Play size={28} strokeWidth={1.5} style={{ color: '#D4D4D4' }} />
-                  <p className="font-serif italic" style={{ color: '#A3A3A3', fontSize: '15px' }}>観たい・聴きたいを追加しよう</p>
+                <div className="flex flex-col items-center py-12 text-center gap-3">
+                  <div className="w-14 h-14 rounded-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg, var(--color-online-soft), #FFF7F0)' }}>
+                    <Play size={22} strokeWidth={1.5} style={{ color: 'var(--color-foreground-secondary)' }} />
+                  </div>
+                  <p style={{ color: 'var(--color-foreground-secondary)', fontSize: '14px', lineHeight: 1.6 }}>
+                    一緒に観たい・聴きたいものを<br />貯めていこう
+                  </p>
                 </div>
               )}
               {media.filter(m => !m.is_done).map(item => {
@@ -883,9 +895,13 @@ function ListPageInner() {
               )}
             </>
           ) : media.length === 0 ? (
-            <div className="flex flex-col items-center py-16 gap-3">
-              <Play size={28} strokeWidth={1.5} style={{ color: '#D4D4D4' }} />
-              <p className="font-serif italic" style={{ color: '#A3A3A3', fontSize: '15px' }}>観たい・聴きたいを追加しよう</p>
+            <div className="flex flex-col items-center py-12 text-center gap-3">
+              <div className="w-14 h-14 rounded-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg, var(--color-online-soft), #FFF7F0)' }}>
+                <Play size={22} strokeWidth={1.5} style={{ color: 'var(--color-foreground-secondary)' }} />
+              </div>
+              <p style={{ color: 'var(--color-foreground-secondary)', fontSize: '14px', lineHeight: 1.6 }}>
+                一緒に観たい・聴きたいものを<br />貯めていこう
+              </p>
             </div>
           ) : (
             <div className="space-y-5">
@@ -961,9 +977,13 @@ function ListPageInner() {
             <>
               <p className="text-xs px-1" style={{ color: '#A3A3A3' }}>未完了 {todos.filter(t => !t.is_done).length}件</p>
               {todos.filter(t => !t.is_done).length === 0 && (
-                <div className="flex flex-col items-center py-16 gap-3">
-                  <Star size={28} strokeWidth={1.5} style={{ color: '#D4D4D4' }} />
-                  <p className="font-serif italic" style={{ color: '#A3A3A3', fontSize: '15px' }}>やりたいことを追加しよう</p>
+                <div className="flex flex-col items-center py-12 text-center gap-3">
+                  <div className="w-14 h-14 rounded-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #FFF8EC, #FFF3D6)' }}>
+                    <Star size={22} strokeWidth={1.5} style={{ color: 'var(--color-foreground-secondary)' }} />
+                  </div>
+                  <p style={{ color: 'var(--color-foreground-secondary)', fontSize: '14px', lineHeight: 1.6 }}>
+                    ふたりでやりたいことを<br />書き出してみよう
+                  </p>
                 </div>
               )}
               {todos.filter(t => !t.is_done).map(todo => (
@@ -1016,9 +1036,13 @@ function ListPageInner() {
               )}
             </>
           ) : todos.length === 0 ? (
-            <div className="flex flex-col items-center py-16 gap-3">
-              <Star size={28} strokeWidth={1.5} style={{ color: '#D4D4D4' }} />
-              <p className="font-serif italic" style={{ color: '#A3A3A3', fontSize: '15px' }}>やりたいことを追加しよう</p>
+            <div className="flex flex-col items-center py-12 text-center gap-3">
+              <div className="w-14 h-14 rounded-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #FFF8EC, #FFF3D6)' }}>
+                <Star size={22} strokeWidth={1.5} style={{ color: 'var(--color-foreground-secondary)' }} />
+              </div>
+              <p style={{ color: 'var(--color-foreground-secondary)', fontSize: '14px', lineHeight: 1.6 }}>
+                ふたりでやりたいことを<br />書き出してみよう
+              </p>
             </div>
           ) : (
             <div className="space-y-5">
@@ -1235,15 +1259,17 @@ function ListPageInner() {
     </PageTransition>
 
     {/* FAB — PageTransition外に配置して opacity アニメーションの影響を受けないようにする */}
-    <button
+    <motion.button
       data-testid="fab-add"
       onClick={() => { haptic('medium'); setShowSheet(true) }}
-      className="fixed right-4 z-30 flex items-center gap-2 px-5 py-3 active:opacity-70 transition-opacity"
+      whileTap={{ scale: 0.94 }}
+      transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+      className="fixed right-4 z-30 flex items-center gap-2 px-5 py-3 active:opacity-70"
       style={{ bottom: `calc(env(safe-area-inset-bottom) + 76px)`, backgroundColor: '#1A1A1A', color: '#FFFFFF', borderRadius: '10px' }}
     >
       <Plus size={18} strokeWidth={2} />
       <span className="text-sm font-medium">追加</span>
-    </button>
+    </motion.button>
 
     {/* 位置確認モーダル — 場所追加直後に表示 */}
     <BottomSheet

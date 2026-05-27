@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import { ToastProvider } from '@/components/ToastProvider'
 import { OfflineBanner } from '@/components/OfflineBanner'
+import { NavigationProgress } from '@/components/NavigationProgress'
 import { Analytics } from '@vercel/analytics/react'
 import { SpeedInsights } from '@vercel/speed-insights/next'
 
@@ -47,6 +48,7 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
       <body className="h-full antialiased">
+        <NavigationProgress />
         <ToastProvider>
           <OfflineBanner />
           {children}
