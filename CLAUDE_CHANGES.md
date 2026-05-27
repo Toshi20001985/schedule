@@ -1551,6 +1551,122 @@ Phase 1 で追加したトークンを初めてカレンダーに適用。
 
 ---
 
+## セッション 24：リスト画面のカード磨き（Phase 4）
+
+### 目的
+
+リスト画面のカードデザインを磨き上げる。
+「赤い縦線」の根本原因修正、「ふたり」マーカーの再設計（Case B採用）、
+チェックボックスアニメーション、ピル形状の統一。
+
+### 変更ファイル
+
+- `components/ui/Tag.tsx`
+- `components/SwipeableListItem.tsx`
+- `app/(main)/list/page.tsx`
+
+---
+
+### 改修① — 赤い縦線の根本原因修正（SwipeableListItem）
+
+**対象**: `components/SwipeableListItem.tsx`
+
+**根本原因**:
+- `SwipeableListItem` 外側 div の clip radius = `12px`
+- `Card` コンポーネントの `--radius-lg` = `14px`
+- 内側カードの角が外側クリップより大きく、コーナー部分に隙間 → 赤い削除ボタン (`#B5465A`) が透けて見える
+
+**修正**:
+```tsx
+// Before
+style={{ borderRadius: '12px', overflow: 'hidden' }}
+// After
+style={{ borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}
+```
+
+clip radius を Card と同じ `14px` に揃えることで隙間を解消。
+
+---
+
+### 改修② — 「ふたり」マーカーの再設計（Case B 採用）
+
+**対象**: `components/ui/Tag.tsx`
+
+**選択した案**: **Case B（ふたりピル強化）**
+
+理由:
+- 既存のピル位置を活かせる
+- アバター2つで「ふたり」を視覚的に強調
+- カード自体はクリーンで上品
+
+**Before**: `bg-surface text-muted` のシンプルな灰色ピル
+
+**After**: `owner === 'both'` の場合のみ グラデーション + アバタードット2つ
+
+```tsx
+// グラデーション pill（ピンク→ブルー）
+background: 'linear-gradient(to right, var(--color-accent-pink-soft), var(--color-accent-blue-soft))'
+
+// アバタードット（重ね）
+<span style={{ backgroundColor: 'var(--color-accent-pink)', marginLeft: '-3px' }} />
+<span style={{ backgroundColor: 'var(--color-accent-blue)' }} />
+```
+
+`me` / `partner` の Tag は変更なし。
+
+---
+
+### 改修③ — Todo チェックボックスのアニメーション
+
+**対象**: `app/(main)/list/page.tsx`
+
+**import 追加**: `import { motion } from 'framer-motion'`
+
+**Before**: プレーンな `<button>` + `borderColor: '#E5E5E5'`
+
+**After**: `<motion.button>` + スプリング whileTap
+
+```tsx
+<motion.button
+  onClick={() => toggleTodoDone(todo.id)}
+  whileTap={{ scale: 0.80 }}
+  transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+  className="w-5 h-5 rounded-md flex-shrink-0 mt-0.5 flex items-center justify-center"
+  style={{ border: '2px solid var(--color-border-strong)', backgroundColor: 'transparent' }}
+/>
+```
+
+タップ時にスプリングで 80% 縮小 → 跳ね返る触感。
+`groupBy === 'none'` と grouped view 両方に適用。
+
+---
+
+### 改修④ — ピル形状の統一
+
+**対象**: `app/(main)/list/page.tsx`
+
+**変更**: `borderRadius: '6px'` → `borderRadius: '100px'`（完全な pill 形状）
+
+対象ピル:
+| タブ | ピル | Before | After |
+|---|---|---|---|
+| places | カテゴリ | `6px` | `100px` |
+| places | 場所 | テキストのみ | `bg-surface + 100px pill` |
+| media | メディア種別 | `6px` | `100px` |
+| todos | カテゴリ | `6px` | `100px` |
+
+場所ピルには `backgroundColor: 'var(--color-surface)'` + pill 化でアイコン付きピルに統一。
+
+---
+
+### E2E テスト結果
+
+- 改修前: ✓ 37/37 全通過
+- 改修後: ✓ **37/37 全通過**
+- TypeScript: エラーなし
+
+---
+
 ## セッション 22：ホーム画面の質感アップ（Phase 2）
 
 ### 目的

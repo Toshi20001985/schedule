@@ -191,7 +191,7 @@ export function SwipeableListItem({ children, onEdit, onDelete }: SwipeableListI
     <div
       ref={outerRef}
       className="relative"
-      style={{ borderRadius: '12px', overflow: 'hidden' }}
+      style={{ borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}
     >
       {/* 背景: 編集・削除ボタン */}
       {btnCount > 0 && (

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, Suspense } from 'react'
+import { motion } from 'framer-motion'
 import dynamic from 'next/dynamic'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
@@ -695,9 +696,9 @@ function ListPageInner() {
                         <span className="text-sm font-medium" style={{ color: '#1A1A1A' }}>{place.name}</span>
                         <Tag label={ownerLabel(place.owner)} owner={place.owner} />
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs px-2 py-0.5" style={{ backgroundColor: '#F5F5F3', color: '#737373', borderRadius: '6px' }}>{place.category}</span>
-                        {place.location && <span className="text-xs flex items-center gap-0.5" style={{ color: '#A3A3A3' }}><MapPin size={10} strokeWidth={1.5} /> {place.location}</span>}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs px-2 py-0.5" style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-muted)', borderRadius: '100px' }}>{place.category}</span>
+                        {place.location && <span className="text-xs inline-flex items-center gap-0.5 px-2 py-0.5" style={{ color: 'var(--color-foreground-quaternary)', backgroundColor: 'var(--color-surface)', borderRadius: '100px' }}><MapPin size={9} strokeWidth={1.5} /> {place.location}</span>}
                       </div>
                       {place.memo && <p className="text-xs mt-1.5" style={{ color: '#737373' }}>{place.memo}</p>}
                     </div>
@@ -774,9 +775,9 @@ function ListPageInner() {
                                   <span className="text-sm font-medium" style={{ color: '#1A1A1A' }}>{place.name}</span>
                                   <Tag label={ownerLabel(place.owner)} owner={place.owner} />
                                 </div>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs px-2 py-0.5" style={{ backgroundColor: '#F5F5F3', color: '#737373', borderRadius: '6px' }}>{place.category}</span>
-                                  {place.location && <span className="text-xs flex items-center gap-0.5" style={{ color: '#A3A3A3' }}><MapPin size={10} strokeWidth={1.5} /> {place.location}</span>}
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="text-xs px-2 py-0.5" style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-muted)', borderRadius: '100px' }}>{place.category}</span>
+                                  {place.location && <span className="text-xs inline-flex items-center gap-0.5 px-2 py-0.5" style={{ color: 'var(--color-foreground-quaternary)', backgroundColor: 'var(--color-surface)', borderRadius: '100px' }}><MapPin size={9} strokeWidth={1.5} /> {place.location}</span>}
                                 </div>
                                 {place.memo && <p className="text-xs mt-1.5" style={{ color: '#737373' }}>{place.memo}</p>}
                               </div>
@@ -825,7 +826,7 @@ function ListPageInner() {
                           <span className="text-sm font-medium" style={{ color: '#1A1A1A' }}>{item.title}</span>
                           <Tag label={ownerLabel(item.owner)} owner={item.owner} />
                         </div>
-                        <span className="text-xs px-2 py-0.5" style={{ backgroundColor: config.bg, color: config.color, borderRadius: '6px' }}>{config.label}</span>
+                        <span className="text-xs px-2 py-0.5" style={{ backgroundColor: config.bg, color: config.color, borderRadius: '100px' }}>{config.label}</span>
                         {item.memo && <p className="text-xs mt-1" style={{ color: '#737373' }}>{item.memo}</p>}
                       </div>
                       <div className="flex flex-col items-center gap-1 flex-shrink-0">
@@ -912,7 +913,7 @@ function ListPageInner() {
                                     <span className="text-sm font-medium" style={{ color: '#1A1A1A' }}>{item.title}</span>
                                     <Tag label={ownerLabel(item.owner)} owner={item.owner} />
                                   </div>
-                                  <span className="text-xs px-2 py-0.5" style={{ backgroundColor: config.bg, color: config.color, borderRadius: '6px' }}>{config.label}</span>
+                                  <span className="text-xs px-2 py-0.5" style={{ backgroundColor: config.bg, color: config.color, borderRadius: '100px' }}>{config.label}</span>
                                   {item.memo && <p className="text-xs mt-1" style={{ color: '#737373' }}>{item.memo}</p>}
                                 </div>
                                 <div className="flex flex-col items-center gap-1 flex-shrink-0">
@@ -953,13 +954,19 @@ function ListPageInner() {
                 <SwipeableListItem key={todo.id} onEdit={() => openEditTodo(todo)} onDelete={() => deleteTodo(todo.id)}>
                 <Card padding="md" style={{ boxShadow: todo.id === highlightedId ? '0 0 0 2px #B07D2C' : undefined }}>
                   <div className="flex items-start gap-3">
-                    <button onClick={() => toggleTodoDone(todo.id)} className="w-5 h-5 rounded border flex-shrink-0 mt-0.5 flex items-center justify-center" style={{ borderColor: '#E5E5E5', borderWidth: '0.5px' }} />
+                    <motion.button
+                      onClick={() => toggleTodoDone(todo.id)}
+                      whileTap={{ scale: 0.80 }}
+                      transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+                      className="w-5 h-5 rounded-md flex-shrink-0 mt-0.5 flex items-center justify-center"
+                      style={{ border: '2px solid var(--color-border-strong)', backgroundColor: 'transparent' }}
+                    />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap mb-1">
                         <span className="text-sm font-medium" style={{ color: '#1A1A1A' }}>{todo.title}</span>
                         <Tag label={ownerLabel(todo.owner)} owner={todo.owner} />
                       </div>
-                      {todo.category && <span className="text-xs px-2 py-0.5" style={{ backgroundColor: '#FFF8EC', color: '#B07D2C', borderRadius: '6px' }}>{todo.category}</span>}
+                      {todo.category && <span className="text-xs px-2 py-0.5" style={{ backgroundColor: '#FFF8EC', color: '#B07D2C', borderRadius: '100px' }}>{todo.category}</span>}
                       {todo.memo && <p className="text-xs mt-1.5" style={{ color: '#737373' }}>{todo.memo}</p>}
                     </div>
                     <div className="flex gap-1 flex-shrink-0">
@@ -1029,13 +1036,19 @@ function ListPageInner() {
                             </div>
                           ) : (
                             <div className="flex items-start gap-3">
-                              <button onClick={() => toggleTodoDone(todo.id)} className="w-5 h-5 rounded border flex-shrink-0 mt-0.5 flex items-center justify-center" style={{ borderColor: '#E5E5E5', borderWidth: '0.5px' }} />
+                              <motion.button
+                                onClick={() => toggleTodoDone(todo.id)}
+                                whileTap={{ scale: 0.80 }}
+                                transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+                                className="w-5 h-5 rounded-md flex-shrink-0 mt-0.5 flex items-center justify-center"
+                                style={{ border: '2px solid var(--color-border-strong)', backgroundColor: 'transparent' }}
+                              />
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 flex-wrap mb-1">
                                   <span className="text-sm font-medium" style={{ color: '#1A1A1A' }}>{todo.title}</span>
                                   <Tag label={ownerLabel(todo.owner)} owner={todo.owner} />
                                 </div>
-                                {todo.category && <span className="text-xs px-2 py-0.5" style={{ backgroundColor: '#FFF8EC', color: '#B07D2C', borderRadius: '6px' }}>{todo.category}</span>}
+                                {todo.category && <span className="text-xs px-2 py-0.5" style={{ backgroundColor: '#FFF8EC', color: '#B07D2C', borderRadius: '100px' }}>{todo.category}</span>}
                                 {todo.memo && <p className="text-xs mt-1.5" style={{ color: '#737373' }}>{todo.memo}</p>}
                               </div>
                               <div className="flex gap-1 flex-shrink-0">
