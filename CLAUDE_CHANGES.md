@@ -1445,6 +1445,112 @@ logger.error('Supabase insert 失敗', { error })
 
 ---
 
+## セッション 23：カレンダー画面の磨き込み（Phase 3）
+
+### 目的
+
+カレンダー画面の細部を磨き、既存の完成度の高い実装をさらにプロ品質に引き上げる。
+
+### 変更ファイル
+
+**`app/(main)/calendar/page.tsx`** のみ（ロジック変更なし・視覚のみ）
+
+---
+
+### 改修① — 範囲帯のグラデーションフェード
+
+**対象**: カレンダーグリッドの visit/trip 複数日イベント帯背景
+
+**Before**: 単色 `backgroundColor: dot, opacity: 0.13`
+
+**After**: セルの端点で自然に消えるグラデーション
+
+| ポジション | グラデーション |
+|---|---|
+| `start`（開始日） | `transparent → color22`（右向きフェードイン）|
+| `mid`（中間日） | `color18`（フラット）|
+| `end`（終了日） | `color22 → transparent`（右向きフェードアウト）|
+
+不透明度を hex サフィックス（`22` = 13%、`18` = 9%）で直接指定し、
+セルの中心で自然に消える繋がりを表現。
+
+---
+
+### 改修② — 今日セル選択時のグロウリング
+
+**Before**: 今日セルは常に `background: #1A1A1A` の黒丸（選択状態によらず同一）
+
+**After**: 選択時（`isToday && isSelected`）に外側リング + シャドウを追加
+
+```
+boxShadow: '0 0 0 3px rgba(26,26,26,0.10), 0 3px 10px rgba(26,26,26,0.18)'
+```
+
+非選択時は `boxShadow: 'none'`。`transition: box-shadow 0.2s ease` でなめらかに。
+
+---
+
+### 改修③ — 単日イベントドットの上品化
+
+**Before**: `width: 6, height: 6` 固定不透明度
+
+**After**: `width: 4, height: 4` + 後ろほどフェード
+
+```
+opacity: 1 - j * 0.2  → 1件目: 1.0、2件目: 0.8、3件目: 0.6
+```
+
+小さくすることでセル内の数字と競合せず、複数イベント時の視覚的階層が明確に。
+
+---
+
+### 改修④ — フライトアイコンのカラートークン化
+
+**Before**: `color: '#A3A3A3'`（ハードコード）
+
+**After**: `color: 'var(--color-foreground-tertiary)', opacity: 0.65`
+
+Phase 1 で追加したトークンを初めてカレンダーに適用。
+
+---
+
+### 改修⑤ — 月サマリーのカード化
+
+**Before**: `flex-wrap` の平文テキスト行（`px-1` のみ）
+
+**After**: `background: var(--color-background-secondary)` + `borderRadius: 10px` の薄いカード
+
+```tsx
+<div
+  className="flex items-center justify-between flex-wrap gap-2 mb-4 px-3 py-2.5"
+  style={{ backgroundColor: 'var(--color-background-secondary)', borderRadius: '10px' }}
+>
+```
+
+「この月」「次」の区切りをカード境界で明示し、テキストもトークンカラー（`foreground-tertiary/foreground`）に統一。
+
+---
+
+### 見送った改修（既存実装で完結）
+
+- **月切替トランジション**: `calGridVariants` + `AnimatePresence` が既に実装済み（Session 8/15）
+- **Step 2 の `cn()` ユーティリティ**: 既存コードが className 文字列連結を使用しており整合性を維持
+
+---
+
+### E2E テスト結果
+
+- 改修前: ✓ 37/37 全通過
+- 改修後（1回目）: 36/37（`場所を追加するとリストに表示される` が Nominatim タイムアウトで間欠的失敗）
+- 改修後（2回目）: ✓ **37/37 全通過**
+- TypeScript: エラーなし
+
+> **補足**: `場所を追加するとリストに表示される` の失敗は本 Phase の変更と無関係。  
+> Nominatim API のレスポンスが遅れた場合に起きる既知の間欠障害（Session 19 で対応済み、テスト側は `Promise.race` でハンドリング済み）。  
+> 単独実行・再実行で安定して通過。
+
+---
+
 ## セッション 22：ホーム画面の質感アップ（Phase 2）
 
 ### 目的

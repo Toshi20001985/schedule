@@ -1089,24 +1089,26 @@ function CalendarPageInner() {
         const daysLeft  = nextStart ? differenceInDays(nextStart, today0) : null
 
         return (
-          <div className="flex items-center gap-x-3 gap-y-1 flex-wrap mb-3 px-1">
+          <div
+            className="flex items-center justify-between flex-wrap gap-2 mb-4 px-3 py-2.5"
+            style={{ backgroundColor: 'var(--color-background-secondary)', borderRadius: '10px' }}
+          >
             {visitTripCount > 0 && (
-              <span className="text-xs" style={{ color: '#737373' }}>
-                この月: <strong style={{ color: '#1A1A1A' }}>{visitTripCount}件の会う日</strong>
+              <span className="text-xs" style={{ color: 'var(--color-foreground-tertiary)' }}>
+                この月 <strong style={{ color: 'var(--color-foreground)' }}>{visitTripCount}件の会う日</strong>
               </span>
             )}
             {nextVisitTrip && nextStart && (
-              <span className="text-xs" style={{ color: '#737373' }}>
-                {'次: '}
-                <strong style={{ color: '#1A1A1A' }}>
+              <span className="text-xs" style={{ color: 'var(--color-foreground-tertiary)' }}>
+                次 <strong style={{ color: 'var(--color-foreground)' }}>
                   {format(nextStart, 'M/d(E)', { locale: ja })}
                   {nextEnd && ` 〜 ${format(nextEnd, 'M/d(E)', { locale: ja })}`}
                 </strong>
                 {daysLeft !== null && daysLeft > 0 && (
-                  <span style={{ color: '#A3A3A3' }}>{` · あと${daysLeft}日`}</span>
+                  <span style={{ color: 'var(--color-foreground-quaternary)' }}>{` · あと${daysLeft}日`}</span>
                 )}
                 {daysLeft === 0 && (
-                  <span style={{ color: '#6D5BD0' }}>{' · 今日'}</span>
+                  <span style={{ color: 'var(--color-visit-accent)' }}>{' · 今日'}</span>
                 )}
               </span>
             )}
@@ -1169,11 +1171,15 @@ function CalendarPageInner() {
                       top: 0, bottom: 0,
                       left:  rangePos === 'start' ? '50%' : 0,
                       right: rangePos === 'end'   ? '50%' : 0,
-                      backgroundColor: eventTypeConfig[primaryRange.type].dot,
-                      opacity: 0.13,
+                      background:
+                        rangePos === 'start'
+                          ? `linear-gradient(90deg, transparent 0%, ${eventTypeConfig[primaryRange.type].dot}22 100%)`
+                          : rangePos === 'end'
+                          ? `linear-gradient(90deg, ${eventTypeConfig[primaryRange.type].dot}22 0%, transparent 100%)`
+                          : `${eventTypeConfig[primaryRange.type].dot}18`,
                       borderRadius:
-                        rangePos === 'start' ? '8px 0 0 8px' :
-                        rangePos === 'end'   ? '0 8px 8px 0' : 0,
+                        rangePos === 'start' ? '6px 0 0 6px' :
+                        rangePos === 'end'   ? '0 6px 6px 0' : 0,
                       pointerEvents: 'none',
                     }}
                   />
@@ -1184,6 +1190,10 @@ function CalendarPageInner() {
                     backgroundColor: isToday ? '#1A1A1A' : 'transparent',
                     color: isToday ? '#FFFFFF' : '#1A1A1A',
                     fontWeight: isToday ? 600 : 400,
+                    boxShadow: isToday && isSelected
+                      ? '0 0 0 3px rgba(26,26,26,0.10), 0 3px 10px rgba(26,26,26,0.18)'
+                      : 'none',
+                    transition: 'box-shadow 0.2s ease',
                   }}
                 >
                   {format(day, 'd')}
@@ -1191,7 +1201,7 @@ function CalendarPageInner() {
                 {/* フライトアイコン（右上） */}
                 {hasFlights && (
                   <span style={{ position: 'absolute', top: 2, right: 4, lineHeight: 1 }}>
-                    <Plane size={8} strokeWidth={1.5} style={{ color: '#A3A3A3' }} />
+                    <Plane size={8} strokeWidth={1.5} style={{ color: 'var(--color-foreground-tertiary)', opacity: 0.65 }} />
                   </span>
                 )}
                 {/* 記念日スター（左上） */}
@@ -1230,8 +1240,9 @@ function CalendarPageInner() {
                         <span
                           key={j}
                           style={{
-                            width: 6, height: 6, borderRadius: '50%',
+                            width: 4, height: 4, borderRadius: '50%',
                             backgroundColor: eventTypeConfig[e.type].dot,
+                            opacity: 1 - j * 0.2,
                             flexShrink: 0,
                           }}
                         />
