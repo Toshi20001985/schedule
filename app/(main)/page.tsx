@@ -512,8 +512,8 @@ export default function HomePage() {
         <div
           style={{
             background: [
-              'radial-gradient(ellipse at top right, rgba(167,139,250,0.15) 0%, transparent 50%)',
-              'radial-gradient(ellipse at bottom left, rgba(255,159,184,0.08) 0%, transparent 50%)',
+              'radial-gradient(ellipse at top right, rgba(167,139,250,0.22) 0%, transparent 50%)',
+              'radial-gradient(ellipse at bottom left, rgba(255,159,184,0.10) 0%, transparent 50%)',
               'linear-gradient(135deg, #1A1A1A 0%, #0F0F0F 100%)',
             ].join(', '),
             borderRadius: 'var(--radius-xl)',
@@ -537,9 +537,22 @@ export default function HomePage() {
           <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', opacity: 0.65 }}>
             <OrbitBackground placesVisited={placesCount} daysTogether={daysTogether} />
           </div>
-          {/* Promise Moon — 左上に月の満ち欠け */}
+          {/* Promise Moon — 右下に月の満ち欠け */}
           {moonDaysLeft !== null && (
             <div style={{ position: 'absolute', bottom: '20px', right: '20px', pointerEvents: 'none', zIndex: 1 }}>
+              {/* 満月時のみ：柔らかな月光グロー */}
+              {moonDaysLeft >= 0 && moonDaysLeft <= 6 && (
+                <div aria-hidden style={{
+                  position: 'absolute',
+                  bottom: '-12px',
+                  right: '-12px',
+                  width: '80px',
+                  height: '80px',
+                  borderRadius: '50%',
+                  background: 'radial-gradient(circle, rgba(255,240,180,0.18) 0%, rgba(255,220,100,0.08) 40%, transparent 70%)',
+                  pointerEvents: 'none',
+                }} />
+              )}
               <PromiseMoon daysLeft={moonDaysLeft} size={28} />
             </div>
           )}

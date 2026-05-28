@@ -20,10 +20,11 @@ export default function BottomNav() {
     <nav
       className="fixed bottom-0 left-0 right-0 z-50"
       style={{
-        background: 'rgba(250, 245, 238, 0.82)',
-        backdropFilter: 'blur(20px) saturate(180%)',
-        WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+        background: 'rgba(250, 245, 238, 0.85)',
+        backdropFilter: 'blur(40px) saturate(200%)',
+        WebkitBackdropFilter: 'blur(40px) saturate(200%)',
         borderTop: '0.5px solid rgba(0,0,0,0.07)',
+        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.5)',
         paddingBottom: 'env(safe-area-inset-bottom)',
       }}
     >

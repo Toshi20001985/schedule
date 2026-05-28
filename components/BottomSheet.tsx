@@ -28,8 +28,8 @@ export default function BottomSheet({
           className="fixed inset-0 z-40"
           style={{
             backgroundColor: 'rgba(0,0,0,0.35)',
-            backdropFilter: reduced ? undefined : 'blur(4px)',
-            WebkitBackdropFilter: reduced ? undefined : 'blur(4px)',
+            backdropFilter: reduced ? undefined : 'blur(10px)',
+            WebkitBackdropFilter: reduced ? undefined : 'blur(10px)',
           }}
         />
         <Drawer.Content
@@ -40,6 +40,7 @@ export default function BottomSheet({
             WebkitBackdropFilter: 'blur(24px) saturate(180%)',
             borderRadius: '16px 16px 0 0',
             borderTop: '0.5px solid rgba(255,255,255,0.7)',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.6)',
             maxHeight: '92dvh',
           }}
           aria-describedby={undefined}

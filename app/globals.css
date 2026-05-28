@@ -177,6 +177,20 @@ body {
 .glass-border {
   border: 0.5px solid rgba(255, 255, 255, 0.16);
 }
+.glass-premium-light {
+  background: rgba(250, 248, 244, 0.88);
+  backdrop-filter: blur(40px) saturate(200%);
+  -webkit-backdrop-filter: blur(40px) saturate(200%);
+  border: 0.5px solid rgba(229, 229, 229, 0.5);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+.glass-premium-dark {
+  background: rgba(20, 20, 20, 0.80);
+  backdrop-filter: blur(40px) saturate(200%);
+  -webkit-backdrop-filter: blur(40px) saturate(200%);
+  border: 0.5px solid rgba(255, 255, 255, 0.10);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 2px 8px rgba(0, 0, 0, 0.24);
+}
 
 /* ── Mono text ── */
 .font-mono {
