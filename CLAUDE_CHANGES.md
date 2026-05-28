@@ -4,6 +4,52 @@
 
 ---
 
+## セッション 31：Phase F1 — Motion Design（スプリングアニメーション導入）
+
+### 目的
+機械的な linear/ease トランジションを Apple ライクなスプリングに置き換え、
+動きに「質量」を持たせる。
+
+### 変更ファイル
+- `lib/motion.ts`（新規）— スプリングプリセット定義
+- `app/(main)/page.tsx` — スタガーアニメーションをスプリングに更新
+- `components/PullToRefresh.tsx` — アイコン演出を改善
+
+### 設計判断
+
+**スコープを絞った理由**
+- `SwipeableListItem`: native touch + CSS transform による精密な実装（`position:fixed` 問題対策込み）を framer-motion drag に置き換えると壊れるリスクが高い → 見送り
+- `AnimatedNumber`: ヒーロー数字のタイポグラフィ（セッション20）破壊リスク → 見送り
+- `BottomSheet`: vaul ライブラリが独自アニメーションを管理 → 見送り
+
+**lib/motion.ts**
+5 種のスプリングプリセット（default / gentle / snappy / bouncy / slow）と
+eases・durations 定数を定義。プリセットを import するだけで一貫した動きを実現。
+
+**page.tsx**
+- staggerChildren: 0.07 → 0.06（わずかに間隔を詰めてキビキビ感）
+- delayChildren: 0.1 → 0.08
+- staggerItem の transition: `duration: 0.3, ease: [...]` → `springs.default`
+  → ページ表示時の各カードが弾むように登場する
+
+**PullToRefresh.tsx**
+- 完了チェックマーク: `ease: 'backOut'` → `springs.bouncy`（弾む完了演出）
+- スピナー: `opacity` のみ → `opacity + scale` + `springs.snappy`
+- 引っ張り中アイコン: `style transform` → `motion.div` + `animate.rotate`
+  - 引っ張り量 × 3deg でリアルな回転感
+  - 閾値到達で `scale: 1.15`（「離していいよ」のサイン）
+  - 「引っ張って更新」テキストも opacity で閾値変化に連動
+  - 引っ張り中は `duration: 0`（即時追従）、離した瞬間スプリングで戻る
+
+### prefers-reduced-motion
+既存の `useReducedMotion()` による制御を維持（page.tsx の `reduced` フラグ）。
+
+### テスト
+- TypeScript: エラー 0
+- E2E: 37 passed（calendar.spec.ts の1件フレーキーは既存問題・単独実行で通過確認済み）
+
+---
+
 ## セッション 30：Promise Moon（再会までの月の満ち欠け）
 
 ### 目的

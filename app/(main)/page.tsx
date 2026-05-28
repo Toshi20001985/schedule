@@ -7,6 +7,7 @@ import { MapPin, Play, Plane, CalendarDays, List, Search, Star } from 'lucide-re
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { motion, useReducedMotion } from 'framer-motion'
+import { springs } from '@/lib/motion'
 import Card from '@/components/ui/Card'
 import { PullToRefresh } from '@/components/PullToRefresh'
 import { useRealtimeSync } from '@/hooks/useRealtimeSync'
@@ -58,11 +59,11 @@ interface HomePlace {
 
 const staggerContainer = {
   hidden: {},
-  show: { transition: { staggerChildren: 0.07, delayChildren: 0.1 } },
+  show: { transition: { staggerChildren: 0.06, delayChildren: 0.08 } },
 }
 const staggerItem = {
-  hidden: { opacity: 0, y: 10 },
-  show:   { opacity: 1, y: 0, transition: { duration: 0.3, ease: [0.4, 0, 0.2, 1] as [number, number, number, number] } },
+  hidden: { opacity: 0, y: 12 },
+  show:   { opacity: 1, y: 0, transition: springs.default },
 }
 
 const EN_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];

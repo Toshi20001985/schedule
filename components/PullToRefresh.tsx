@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, ReactNode } from 'react'
 import { RefreshCw, CheckCircle } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
+import { springs } from '@/lib/motion'
 import { haptic } from '@/lib/haptics'
 
 interface Props {
@@ -182,7 +183,7 @@ export function PullToRefresh({ onRefresh, children }: Props) {
               initial={{ opacity: 0, scale: 0.5 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.5 }}
-              transition={{ duration: 0.22, ease: 'backOut' }}
+              transition={springs.bouncy}
               style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
             >
               <CheckCircle size={16} strokeWidth={1.5} style={{ color: '#4A7C59' }} />
@@ -191,31 +192,40 @@ export function PullToRefresh({ onRefresh, children }: Props) {
             // ── リフレッシュ中スピナー ──
             <motion.div
               key="refreshing"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.15 }}
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              transition={springs.snappy}
             >
               <RefreshCw size={16} strokeWidth={1.5} className="animate-spin" />
             </motion.div>
           ) : pullDistance > 0 ? (
-            // ── 引っ張り中 ──
+            // ── 引っ張り中：引っ張り量に応じてアイコンが回転 ──
             <motion.div
               key="pulling"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.1 }}
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: Math.min(1, pullDistance / 30), y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={springs.snappy}
               style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
             >
-              <RefreshCw
-                size={16}
-                strokeWidth={1.5}
-                style={{ transform: `rotate(${pullDistance * 2.5}deg)` }}
-              />
-              <span className="text-xs">
+              <motion.div
+                animate={{
+                  rotate: pullDistance * 3,
+                  scale: thresholdReached ? 1.15 : 1,
+                }}
+                // 引っ張り中は即時追従、離したときだけスプリングで戻る
+                transition={{ duration: 0 }}
+              >
+                <RefreshCw size={16} strokeWidth={1.5} />
+              </motion.div>
+              <motion.span
+                className="text-xs"
+                animate={{ opacity: thresholdReached ? 1 : 0.6 }}
+                transition={springs.snappy}
+              >
                 {thresholdReached ? '離して更新' : '引っ張って更新'}
-              </span>
+              </motion.span>
             </motion.div>
           ) : null}
         </AnimatePresence>
