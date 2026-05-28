@@ -19,6 +19,7 @@ import IconCircle from '@/components/ui/IconCircle'
 import Tag from '@/components/ui/Tag'
 import { PageTransition } from '@/components/PageTransition'
 import { AnimatedNumber } from '@/components/AnimatedNumber'
+import { OrbitBackground } from '@/components/OrbitBackground'
 
 interface UserProfile {
   id: string
@@ -61,6 +62,28 @@ const staggerContainer = {
 const staggerItem = {
   hidden: { opacity: 0, y: 10 },
   show:   { opacity: 1, y: 0, transition: { duration: 0.3, ease: [0.4, 0, 0.2, 1] as [number, number, number, number] } },
+}
+
+const EN_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const EN_DAYS   = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+function formatDateEn(date: Date): string {
+  return `${EN_MONTHS[date.getMonth()]} ${date.getDate()}, ${EN_DAYS[date.getDay()]}`;
+}
+
+function formatDateFullEn(date: Date): string {
+  return `${EN_MONTHS[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+}
+
+function eventTypeLabelEn(type: string): string {
+  const labels: Record<string, string> = {
+    visit: 'MEETING',
+    trip: 'TRIP',
+    online: 'ONLINE',
+    anniversary: 'ANNIVERSARY',
+    personal: 'PERSONAL',
+  };
+  return labels[type] ?? type.toUpperCase();
 }
 
 export default function HomePage() {
@@ -403,6 +426,10 @@ export default function HomePage() {
   const myName      = me?.display_name      || 'わたし'
   const partnerName = partner?.display_name || 'パートナー'
 
+  const daysTogether = couple?.anniversary
+    ? Math.max(0, Math.floor((Date.now() - new Date(couple.anniversary.replace(/-/g, '/')).getTime()) / 86400000))
+    : 0;
+
   // ヒーロー状態を計算
   const heroState = calculateHeroState(
     upcomingEvents,
@@ -416,10 +443,6 @@ export default function HomePage() {
     heroState.kind === 'together' || heroState.kind === 'last_day'
       ? heroState.event
       : upcomingEvents.find(e => e.type === 'visit' || e.type === 'trip') ?? null
-  const heroLabel = heroLabelEvent
-    ? (eventTypeConfig[heroLabelEvent.type as keyof typeof eventTypeConfig]?.label ?? '会う日')
-    : '会う日'
-
   function placeOwnerLabel(owner: 'me' | 'partner' | 'both') {
     if (owner === 'me')      return myName
     if (owner === 'partner') return partnerName
@@ -499,6 +522,10 @@ export default function HomePage() {
             mixBlendMode: 'overlay' as const,
             backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
           }} />
+          {/* 軌道アニメーション */}
+          <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', opacity: 0.65 }}>
+            <OrbitBackground placesVisited={placesCount} daysTogether={daysTogether} />
+          </div>
           {/* Top row: greeting + avatars */}
           <div className="flex items-start justify-between">
             <div>
@@ -506,7 +533,7 @@ export default function HomePage() {
                 {greeting}
               </p>
               <p style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--color-hero-text)', fontSize: '16px', fontWeight: 400, marginTop: '5px', letterSpacing: '0.01em' }}>
-                {format(new Date(), 'M月d日(E)', { locale: ja })}
+                {formatDateEn(new Date())}
               </p>
             </div>
             <div className="flex -space-x-2">
@@ -667,7 +694,7 @@ export default function HomePage() {
                   </span>
                   {heroState.event.end_date && (
                     <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--color-hero-muted)', fontSize: '13px' }}>
-                      〜 {format(new Date(heroState.event.end_date.replace(/-/g, '/')), 'M月d日(E)', { locale: ja })}
+                      until {formatDateEn(new Date(heroState.event.end_date.replace(/-/g, '/')))}
                     </span>
                   )}
                 </div>
@@ -679,14 +706,14 @@ export default function HomePage() {
               )}
               {heroState.kind === 'anniversary' && couple?.anniversary && (
                 <p style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--color-hero-subtle)', fontSize: '15px' }}>
-                  {format(new Date(couple.anniversary.replace(/-/g, '/')), 'yyyy年M月d日', { locale: ja })} から
+                  since {formatDateFullEn(new Date(couple.anniversary.replace(/-/g, '/')))}
                 </p>
               )}
               {(heroState.kind === 'upcoming' || heroState.kind === 'departure_day') && nextMeeting && (
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
                     <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--color-hero-subtle)', fontSize: '15px' }}>
-                      {format(nextMeeting, 'M月d日(E)', { locale: ja })}
+                      {formatDateEn(nextMeeting)}
                     </span>
                     <span style={{
                       backgroundColor: 'rgba(255,255,255,0.1)',
@@ -697,7 +724,7 @@ export default function HomePage() {
                       borderRadius: '100px',
                       border: '0.5px solid rgba(255,255,255,0.15)',
                     }}>
-                      {heroLabel}
+                      {eventTypeLabelEn(heroLabelEvent?.type ?? 'visit')}
                     </span>
                   </div>
                   {nextFlightLine && (

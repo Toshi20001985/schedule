@@ -4,6 +4,53 @@
 
 ---
 
+## セッション 29：ホームヒーロー軌道アニメーション + 英語統一
+
+### 目的
+ふたりの軌跡を生きた背景として可視化。ヒーローカードの文言を英語に統一。
+
+### 変更ファイル
+- `components/OrbitBackground.tsx`（新規）
+- `app/(main)/page.tsx`
+
+### 設計判断
+
+**OrbitBackground.tsx**
+- 同心円軌道（最大4つ）を SVG SMIL アニメーション（`animateTransform`）で実装
+- 軌道数は `placesCount` に応じて自動決定（0-4: 1軌道 / 5-14: 2 / 15-29: 3 / 30+: 4）
+- 回転速度: 内側から 60s / 90s / 120s / 160s（極めてゆっくり、電池消費最小）
+- 回転方向: 順 / 逆 / 順 / 逆（交互）
+- 衛星色: ブルー #7BB4FF / ピンク #FF9FB8 の交互
+- 中央パルス: 4秒周期で opacity 0.5 ↔ 1
+- `useReducedMotion()` で iOS「視差効果を減らす」設定に対応（静止表示）
+- `aria-hidden="true"` で装飾要素として明示
+- `daysTogether` を prop として受け取るが、現在は軌道計算に未使用（将来の拡張用）
+
+**page.tsx への組み込み**
+- ノイズテクスチャの直後・コンテンツの前に `position: absolute` で挿入（DOM順でコンテンツが上に来る）
+- opacity: 0.65 に抑えてヒーロー数字を邪魔しない
+- 既存のグラデーション・ノイズ（セッション22）は無変更
+- 既存の AnimatedNumber・フォント設定（セッション20）は無変更
+
+**英語統一（ヒーローカード内のみ）**
+- ヘルパー関数を追加: `formatDateEn()`, `formatDateFullEn()`, `eventTypeLabelEn()`
+- top row 日付: `M月d日(E)` → `May 27, Wed` 形式
+- upcoming/departure_day の meeting date: 同上
+- together state の end date: `〜 M月d日` → `until May 27, Wed`
+- anniversary 表示: `yyyy年M月d日 から` → `since Apr 1, 2023`
+- イベントタイプピル: `会う日` → `MEETING` 等
+- カレンダー・リスト等の他画面は日本語のまま（`ja` locale は upcoming events card で継続使用）
+
+### パフォーマンス
+- 60〜160秒の極めて遅い回転のため GPU 負荷は最小
+- 新規 DB クエリなし（`placesCount` は既存取得済み、`daysTogether` は anniversary から派生）
+
+### テスト
+- TypeScript: エラー 0
+- E2E: 37 passed（変更前と同数）
+
+---
+
 ## プロジェクト概要
 
 - **アプリ名**: Layover（遠距離カップル向け共有 PWA）
