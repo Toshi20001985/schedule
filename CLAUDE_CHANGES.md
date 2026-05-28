@@ -4,6 +4,43 @@
 
 ---
 
+## セッション 33：Phase F3 — Materiality（マテリアル感の完成）
+
+### 目的
+ガラス素材・光・影のリアリティを高め、Apple-quality の質感に近づける。
+
+### 変更ファイル
+- `app/globals.css` — `glass-premium-light` / `glass-premium-dark` CSS ユーティリティ追加
+- `components/BottomNav.tsx` — blur 強化、上端ハイライト追加
+- `components/BottomSheet.tsx` — オーバーレイ blur 強化、コンテンツ上端ハイライト追加
+- `app/(main)/page.tsx` — ヒーロー背景グラデーション強化、満月グロー追加
+
+### 設計判断
+
+**globals.css — glass-premium-light / glass-premium-dark**
+- blur: 20px → **40px**、saturate: 180% → **200%** でより透明感・奥行きのあるガラスに
+- `inset 0 1px 0` による上端の光の反射ライン（フロストガラス感）
+- 既存の `.glass-light` / `.glass-dark` は互換維持（上書きしていない）
+
+**BottomNav.tsx**
+- backdrop-filter: blur(20px) → **blur(40px)**、saturate(200%)
+- background: rgba(250,245,238,0.82) → **0.85**（少し濃く）
+- `boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.5)'` — 上端に光の線
+
+**BottomSheet.tsx**
+- オーバーレイ: blur(4px) → **blur(10px)**（背景のぼかし強化）
+- コンテンツ上端: `boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.6)'` 追加
+
+**page.tsx — ヒーローカード**
+- 右上グラデーション: rgba(167,139,250,**0.15**) → rgba(167,139,250,**0.22**)
+- 左下グラデーション: rgba(255,159,184,**0.08**) → rgba(255,159,184,**0.10**)
+- 満月時（daysLeft 0–6）のみ：右下に月光グロー `radial-gradient` を重ねる
+
+### テスト
+37 passed（変更なし）
+
+---
+
 ## セッション 32：Phase F2 — State Polish（状態遷移の完成度）
 
 ### 目的
