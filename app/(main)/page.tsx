@@ -603,12 +603,13 @@ export default function HomePage() {
                 <p style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--color-hero-text)', fontSize: '26px', fontWeight: 400, lineHeight: 1.45 }}>
                   Let&apos;s plan<br />our next meet
                 </p>
-                <div
-                  className="mt-6 px-5 py-2 text-xs font-medium"
-                  style={{ backgroundColor: 'rgba(255,255,255,0.07)', color: 'var(--color-hero-subtle)', borderRadius: '100px', border: '0.5px solid rgba(255,255,255,0.12)', letterSpacing: '0.04em' }}
+                <button
+                  onClick={e => { e.stopPropagation(); router.push('/calendar') }}
+                  className="mt-6 px-5 py-2 text-xs font-medium transition-opacity active:opacity-60"
+                  style={{ backgroundColor: 'rgba(255,255,255,0.10)', color: 'var(--color-hero-text)', borderRadius: '100px', border: '0.5px solid rgba(255,255,255,0.18)', letterSpacing: '0.08em' }}
                 >
-                  カレンダーで追加する →
-                </div>
+                  PLAN A MEETING →
+                </button>
               </>
             ) : heroState.kind === 'anniversary' ? (
               /* 記念日 */

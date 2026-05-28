@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { springs } from '@/lib/motion'
 
 // ────────────────────────────────────────────────────────────
 // 型定義
@@ -60,31 +61,35 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     setToasts(prev => [...prev, { id, message, variant }])
     setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== id))
-    }, 3000)
+    }, 4000)
   }, [])
 
   return (
     <ToastContext.Provider value={{ showToast }}>
       {children}
 
-      {/* トースト表示領域 — 画面上部・セーフエリア対応 */}
+      {/* トースト表示領域 — BottomNav の上、セーフエリア対応 */}
       <div
-        className="fixed left-0 right-0 z-50 flex flex-col items-center gap-2 pointer-events-none"
-        style={{ top: 'calc(env(safe-area-inset-top) + 12px)' }}
+        className="fixed left-0 right-0 z-[60] flex flex-col-reverse items-center gap-2 pointer-events-none px-4"
+        style={{ bottom: 'calc(env(safe-area-inset-bottom) + 72px + 12px)' }}
       >
         <AnimatePresence>
           {toasts.map(toast => (
             <motion.div
               key={toast.id}
-              initial={{ y: -16, opacity: 0, scale: 0.96 }}
-              animate={{ y: 0,   opacity: 1, scale: 1    }}
-              exit={{    y: -8,  opacity: 0, scale: 0.96 }}
-              transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
-              className="px-4 py-2.5 rounded-xl text-sm font-medium shadow-lg"
+              initial={{ y: 20, opacity: 0, scale: 0.94 }}
+              animate={{ y: 0,  opacity: 1, scale: 1    }}
+              exit={{    y: 10, opacity: 0, scale: 0.96 }}
+              transition={springs.snappy}
+              className="px-4 py-3 rounded-2xl text-sm font-medium"
               style={{
                 backgroundColor: variantStyle[toast.variant].bg,
                 color:           variantStyle[toast.variant].color,
                 maxWidth:        'calc(100vw - 32px)',
+                width:           '100%',
+                backdropFilter:  'blur(16px) saturate(160%)',
+                WebkitBackdropFilter: 'blur(16px) saturate(160%)',
+                boxShadow:       '0 8px 32px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.10)',
                 whiteSpace:      'nowrap',
                 overflow:        'hidden',
                 textOverflow:    'ellipsis',

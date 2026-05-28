@@ -4,6 +4,57 @@
 
 ---
 
+## セッション 32：Phase F2 — State Polish（状態遷移の完成度）
+
+### 目的
+ローディング・空状態・エラー状態を「データがない時間も美しい体験」に磨く。
+
+### 変更ファイル
+- `components/ToastProvider.tsx` — 位置・アニメーション・デザイン改善
+- `app/(main)/list/page.tsx` — 3タブの空状態に CTA ボタン追加
+- `app/(main)/page.tsx` — ホーム空状態（no_meeting）の CTA を整備
+
+### 設計判断
+
+**スコープを絞った理由**
+- HomeSkeleton コンポーネント化: ホームの loading 管理が複雑でリファクタリング量が大きい → 見送り
+- AnimatePresence による全状態クロスフェード: 各ページの構造変更が必要 → 見送り
+- state-polish.spec.ts: ネットワーク遅延モックはフレーキーになりやすい → 見送り
+
+**ToastProvider.tsx**
+- 位置: 上部（top: safe-area + 12px）→ **下部（bottom: safe-area + 72px + 12px）**
+  BottomNav の真上に表示。モバイルでより自然な位置。
+- アニメーション: linear → `springs.snappy`（y: 20 から弾んで登場）
+- ガラス効果: `backdropFilter: blur(16px) saturate(160%)` 追加
+- 影: `box-shadow` を濃くして奥行き感を付与
+- 幅: `maxWidth` のみ → `width: 100%` でパネル幅いっぱいに表示
+- 自動消滅: 3s → **4s**（読む時間を確保）
+- z-index: 50 → 60（BottomSheet z-50 の上に確実に出る）
+
+**list/page.tsx — 空状態 3タブ**
+- アイコンサイズ: 22 → 26px（存在感アップ）
+- コンテナ: py-12 → py-14（余白拡大）
+- タイトル: `var(--font-display)` italic 18px でブランドコピーを設定
+  - 場所:「ふたりの世界地図を作ろう」
+  - メディア: 「ふたりの鑑賞リスト」
+  - Todo: 「Bucket List」
+- CTA ボタン: `setShowSheet(true)` を呼ぶ追加ボタンを各タブに設置
+  - 場所: 「最初の場所を追加」
+  - メディア: 「最初のアイテムを追加」
+  - Todo: 「最初のリストを追加」（※「やりたいこと」はタブボタンとセレクター衝突するため避けた）
+
+**page.tsx — no_meeting 空状態**
+- CTA: div（非タップ） → button（タップ可能）
+- テキスト: 「カレンダーで追加する →」→ 「PLAN A MEETING →」（英語統一）
+- クリック時: `router.push('/calendar')` で直接カレンダーへ
+- `e.stopPropagation()` でヒーローカードの onClick（カレンダー遷移）との二重発火を防止
+
+### テスト
+- TypeScript: エラー 0
+- E2E: 37 passed（修正前に「やりたいことを追加」テキストがタブボタンと部分一致してテスト失敗 → テキスト変更で解消）
+
+---
+
 ## セッション 31：Phase F1 — Motion Design（スプリングアニメーション導入）
 
 ### 目的

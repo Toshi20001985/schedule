@@ -724,13 +724,25 @@ function ListPageInner() {
             <>
               <p className="text-xs px-1" style={{ color: '#A3A3A3' }}>未訪問 {activePlaces.length}件</p>
               {activePlaces.length === 0 && (
-                <div className="flex flex-col items-center py-12 text-center gap-3">
-                  <div className="w-14 h-14 rounded-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg, var(--color-trip-soft), var(--color-visit-soft))' }}>
-                    <MapPin size={22} strokeWidth={1.5} style={{ color: 'var(--color-foreground-secondary)' }} />
+                <div className="flex flex-col items-center py-14 text-center gap-3">
+                  <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg, var(--color-trip-soft), var(--color-visit-soft))' }}>
+                    <MapPin size={26} strokeWidth={1.5} style={{ color: 'var(--color-foreground-secondary)' }} />
                   </div>
-                  <p style={{ color: 'var(--color-foreground-secondary)', fontSize: '14px', lineHeight: 1.6 }}>
-                    ふたりで行きたい場所を<br />リストアップしよう
-                  </p>
+                  <div className="space-y-1.5">
+                    <p style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', color: 'var(--color-foreground)', fontSize: '18px', fontWeight: 400 }}>
+                      ふたりの世界地図を作ろう
+                    </p>
+                    <p style={{ color: 'var(--color-foreground-tertiary)', fontSize: '13px', lineHeight: 1.6 }}>
+                      行きたい場所を追加して、<br />ふたりだけのリストを育てよう
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => { haptic('medium'); setShowSheet(true) }}
+                    className="mt-2 px-5 py-2 rounded-full text-sm font-medium transition-opacity active:opacity-60"
+                    style={{ backgroundColor: 'var(--color-foreground)', color: 'var(--color-background)' }}
+                  >
+                    最初の場所を追加
+                  </button>
                 </div>
               )}
               {activePlaces.map(place => (
@@ -857,13 +869,25 @@ function ListPageInner() {
             <>
               <p className="text-xs px-1" style={{ color: '#A3A3A3' }}>未完了 {media.filter(m => !m.is_done).length}件</p>
               {media.filter(m => !m.is_done).length === 0 && (
-                <div className="flex flex-col items-center py-12 text-center gap-3">
-                  <div className="w-14 h-14 rounded-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg, var(--color-online-soft), #FFF7F0)' }}>
-                    <Play size={22} strokeWidth={1.5} style={{ color: 'var(--color-foreground-secondary)' }} />
+                <div className="flex flex-col items-center py-14 text-center gap-3">
+                  <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg, var(--color-online-soft), #FFF7F0)' }}>
+                    <Play size={26} strokeWidth={1.5} style={{ color: 'var(--color-foreground-secondary)' }} />
                   </div>
-                  <p style={{ color: 'var(--color-foreground-secondary)', fontSize: '14px', lineHeight: 1.6 }}>
-                    一緒に観たい・聴きたいものを<br />貯めていこう
-                  </p>
+                  <div className="space-y-1.5">
+                    <p style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', color: 'var(--color-foreground)', fontSize: '18px', fontWeight: 400 }}>
+                      ふたりの鑑賞リスト
+                    </p>
+                    <p style={{ color: 'var(--color-foreground-tertiary)', fontSize: '13px', lineHeight: 1.6 }}>
+                      一緒に観たい映画、聴きたい音楽を<br />貯めておこう
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => { haptic('medium'); setShowSheet(true) }}
+                    className="mt-2 px-5 py-2 rounded-full text-sm font-medium transition-opacity active:opacity-60"
+                    style={{ backgroundColor: 'var(--color-foreground)', color: 'var(--color-background)' }}
+                  >
+                    最初のアイテムを追加
+                  </button>
                 </div>
               )}
               {media.filter(m => !m.is_done).map(item => {
@@ -1004,13 +1028,25 @@ function ListPageInner() {
             <>
               <p className="text-xs px-1" style={{ color: '#A3A3A3' }}>未完了 {todos.filter(t => !t.is_done).length}件</p>
               {todos.filter(t => !t.is_done).length === 0 && (
-                <div className="flex flex-col items-center py-12 text-center gap-3">
-                  <div className="w-14 h-14 rounded-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #FFF8EC, #FFF3D6)' }}>
-                    <Star size={22} strokeWidth={1.5} style={{ color: 'var(--color-foreground-secondary)' }} />
+                <div className="flex flex-col items-center py-14 text-center gap-3">
+                  <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #FFF8EC, #FFF3D6)' }}>
+                    <Star size={26} strokeWidth={1.5} style={{ color: 'var(--color-foreground-secondary)' }} />
                   </div>
-                  <p style={{ color: 'var(--color-foreground-secondary)', fontSize: '14px', lineHeight: 1.6 }}>
-                    ふたりでやりたいことを<br />書き出してみよう
-                  </p>
+                  <div className="space-y-1.5">
+                    <p style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', color: 'var(--color-foreground)', fontSize: '18px', fontWeight: 400 }}>
+                      Bucket List
+                    </p>
+                    <p style={{ color: 'var(--color-foreground-tertiary)', fontSize: '13px', lineHeight: 1.6 }}>
+                      ふたりでやりたいことを書き出して、<br />会う日に全部叶えよう
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => { haptic('medium'); setShowSheet(true) }}
+                    className="mt-2 px-5 py-2 rounded-full text-sm font-medium transition-opacity active:opacity-60"
+                    style={{ backgroundColor: 'var(--color-foreground)', color: 'var(--color-background)' }}
+                  >
+                    最初のリストを追加
+                  </button>
                 </div>
               )}
               {todos.filter(t => !t.is_done).map(todo => (
