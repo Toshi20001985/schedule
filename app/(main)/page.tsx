@@ -538,7 +538,7 @@ export default function HomePage() {
           </div>
           {/* Promise Moon — 左上に月の満ち欠け */}
           {moonDaysLeft !== null && (
-            <div style={{ position: 'absolute', top: '20px', left: '20px', pointerEvents: 'none', zIndex: 1 }}>
+            <div style={{ position: 'absolute', bottom: '20px', right: '20px', pointerEvents: 'none', zIndex: 1 }}>
               <PromiseMoon daysLeft={moonDaysLeft} size={28} />
             </div>
           )}
