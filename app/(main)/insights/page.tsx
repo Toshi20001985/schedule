@@ -175,7 +175,7 @@ function InsightsPageInner() {
                 </div>
               )}
               {!loading && (
-                <p style={{ color: 'var(--color-subtle)', fontSize: '12px', marginTop: '6px' }}>
+                <p className="tabular" style={{ color: 'var(--color-subtle)', fontSize: '12px', marginTop: '6px' }}>
                   {visitedCount} / {totalPlaces} か所 訪問済み
                 </p>
               )}
@@ -254,7 +254,7 @@ function InsightsPageInner() {
                           }}
                         />
                       </div>
-                      <span className="flex-shrink-0" style={{ color: 'var(--color-subtle)', fontSize: '11px', width: '36px', textAlign: 'right' }}>
+                      <span className="tabular flex-shrink-0" style={{ color: 'var(--color-subtle)', fontSize: '11px', width: '36px', textAlign: 'right' }}>
                         {visited}/{total}
                       </span>
                     </motion.div>
@@ -286,7 +286,7 @@ function InsightsPageInner() {
                 </div>
               )}
               {!loading && allMovies.length > watchedMovies.length && (
-                <p style={{ color: 'var(--color-subtle)', fontSize: '12px', marginTop: '4px' }}>
+                <p className="tabular" style={{ color: 'var(--color-subtle)', fontSize: '12px', marginTop: '4px' }}>
                   あと {allMovies.length - watchedMovies.length} 本観たい
                 </p>
               )}

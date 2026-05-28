@@ -762,8 +762,8 @@ function ListPageInner() {
                       {place.memo && <p className="text-xs mt-1.5" style={{ color: '#737373' }}>{place.memo}</p>}
                     </div>
                     <div className="flex gap-1 flex-shrink-0">
-                      <button onClick={() => openEditPlace(place)} className="p-1.5 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Pencil size={14} strokeWidth={1.5} /></button>
-                      <button onClick={() => deletePlace(place.id)} className="p-1.5 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Trash2 size={15} strokeWidth={1.5} /></button>
+                      <button onClick={() => openEditPlace(place)} className="min-h-[44px] min-w-[44px] flex items-center justify-center transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Pencil size={14} strokeWidth={1.5} /></button>
+                      <button onClick={() => deletePlace(place.id)} className="min-h-[44px] min-w-[44px] flex items-center justify-center transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Trash2 size={15} strokeWidth={1.5} /></button>
                     </div>
                   </div>
                 </Card>
@@ -781,8 +781,8 @@ function ListPageInner() {
                         </button>
                         <span className="flex-1 text-sm line-through" style={{ color: '#737373' }}>{place.name}</span>
                         <div className="flex gap-1 flex-shrink-0">
-                          <button onClick={() => openEditPlace(place)} className="p-1.5 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Pencil size={14} strokeWidth={1.5} /></button>
-                          <button onClick={() => deletePlace(place.id)} className="p-1.5 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Trash2 size={15} strokeWidth={1.5} /></button>
+                          <button onClick={() => openEditPlace(place)} className="min-h-[44px] min-w-[44px] flex items-center justify-center transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Pencil size={14} strokeWidth={1.5} /></button>
+                          <button onClick={() => deletePlace(place.id)} className="min-h-[44px] min-w-[44px] flex items-center justify-center transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Trash2 size={15} strokeWidth={1.5} /></button>
                         </div>
                       </div>
                     </Card>
@@ -826,8 +826,8 @@ function ListPageInner() {
                               </button>
                               <span className="flex-1 text-sm line-through" style={{ color: '#737373' }}>{place.name}</span>
                               <div className="flex gap-1 flex-shrink-0">
-                                <button onClick={() => openEditPlace(place)} className="p-1.5 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Pencil size={14} strokeWidth={1.5} /></button>
-                                <button onClick={() => deletePlace(place.id)} className="p-1.5 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Trash2 size={15} strokeWidth={1.5} /></button>
+                                <button onClick={() => openEditPlace(place)} className="min-h-[44px] min-w-[44px] flex items-center justify-center transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Pencil size={14} strokeWidth={1.5} /></button>
+                                <button onClick={() => deletePlace(place.id)} className="min-h-[44px] min-w-[44px] flex items-center justify-center transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Trash2 size={15} strokeWidth={1.5} /></button>
                               </div>
                             </div>
                           ) : (
@@ -845,8 +845,8 @@ function ListPageInner() {
                                 {place.memo && <p className="text-xs mt-1.5" style={{ color: '#737373' }}>{place.memo}</p>}
                               </div>
                               <div className="flex gap-1 flex-shrink-0">
-                                <button onClick={() => openEditPlace(place)} className="p-1.5 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Pencil size={14} strokeWidth={1.5} /></button>
-                                <button onClick={() => deletePlace(place.id)} className="p-1.5 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Trash2 size={15} strokeWidth={1.5} /></button>
+                                <button onClick={() => openEditPlace(place)} className="min-h-[44px] min-w-[44px] flex items-center justify-center transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Pencil size={14} strokeWidth={1.5} /></button>
+                                <button onClick={() => deletePlace(place.id)} className="min-h-[44px] min-w-[44px] flex items-center justify-center transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Trash2 size={15} strokeWidth={1.5} /></button>
                               </div>
                             </div>
                           )}
@@ -1069,8 +1069,8 @@ function ListPageInner() {
                       {todo.memo && <p className="text-xs mt-1.5" style={{ color: '#737373' }}>{todo.memo}</p>}
                     </div>
                     <div className="flex gap-1 flex-shrink-0">
-                      <button onClick={() => openEditTodo(todo)} className="p-1.5 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Pencil size={14} strokeWidth={1.5} /></button>
-                      <button onClick={() => deleteTodo(todo.id)} className="p-1.5 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Trash2 size={15} strokeWidth={1.5} /></button>
+                      <button onClick={() => openEditTodo(todo)} className="min-h-[44px] min-w-[44px] flex items-center justify-center transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Pencil size={14} strokeWidth={1.5} /></button>
+                      <button onClick={() => deleteTodo(todo.id)} className="min-h-[44px] min-w-[44px] flex items-center justify-center transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Trash2 size={15} strokeWidth={1.5} /></button>
                     </div>
                   </div>
                 </Card>
@@ -1088,8 +1088,8 @@ function ListPageInner() {
                         </button>
                         <span className="flex-1 text-sm line-through" style={{ color: '#737373' }}>{todo.title}</span>
                         <div className="flex gap-1 flex-shrink-0">
-                          <button onClick={() => openEditTodo(todo)} className="p-1.5 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Pencil size={14} strokeWidth={1.5} /></button>
-                          <button onClick={() => deleteTodo(todo.id)} className="p-1.5 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Trash2 size={15} strokeWidth={1.5} /></button>
+                          <button onClick={() => openEditTodo(todo)} className="min-h-[44px] min-w-[44px] flex items-center justify-center transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Pencil size={14} strokeWidth={1.5} /></button>
+                          <button onClick={() => deleteTodo(todo.id)} className="min-h-[44px] min-w-[44px] flex items-center justify-center transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Trash2 size={15} strokeWidth={1.5} /></button>
                         </div>
                       </div>
                     </Card>
@@ -1133,8 +1133,8 @@ function ListPageInner() {
                               </button>
                               <span className="flex-1 text-sm line-through" style={{ color: '#737373' }}>{todo.title}</span>
                               <div className="flex gap-1 flex-shrink-0">
-                                <button onClick={() => openEditTodo(todo)} className="p-1.5 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Pencil size={14} strokeWidth={1.5} /></button>
-                                <button onClick={() => deleteTodo(todo.id)} className="p-1.5 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Trash2 size={15} strokeWidth={1.5} /></button>
+                                <button onClick={() => openEditTodo(todo)} className="min-h-[44px] min-w-[44px] flex items-center justify-center transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Pencil size={14} strokeWidth={1.5} /></button>
+                                <button onClick={() => deleteTodo(todo.id)} className="min-h-[44px] min-w-[44px] flex items-center justify-center transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Trash2 size={15} strokeWidth={1.5} /></button>
                               </div>
                             </div>
                           ) : (
@@ -1155,8 +1155,8 @@ function ListPageInner() {
                                 {todo.memo && <p className="text-xs mt-1.5" style={{ color: '#737373' }}>{todo.memo}</p>}
                               </div>
                               <div className="flex gap-1 flex-shrink-0">
-                                <button onClick={() => openEditTodo(todo)} className="p-1.5 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Pencil size={14} strokeWidth={1.5} /></button>
-                                <button onClick={() => deleteTodo(todo.id)} className="p-1.5 transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Trash2 size={15} strokeWidth={1.5} /></button>
+                                <button onClick={() => openEditTodo(todo)} className="min-h-[44px] min-w-[44px] flex items-center justify-center transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Pencil size={14} strokeWidth={1.5} /></button>
+                                <button onClick={() => deleteTodo(todo.id)} className="min-h-[44px] min-w-[44px] flex items-center justify-center transition-opacity active:opacity-50" style={{ color: '#A3A3A3' }}><Trash2 size={15} strokeWidth={1.5} /></button>
                               </div>
                             </div>
                           )}

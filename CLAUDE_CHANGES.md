@@ -4,6 +4,61 @@
 
 ---
 
+## セッション 34：Phase F4 — Precision（細部の完成度）
+
+### 目的
+1ピクセル単位の精度を上げ、「気づかないけど上質」な体験を作る。
+
+### 変更ファイル
+- `app/globals.css` — `.tabular` クラスと各種テキストユーティリティ追加
+- `components/BottomSheet.tsx` — × ボタンのタップターゲット拡大
+- `app/(main)/list/page.tsx` — 場所・Todo の編集/削除ボタンのタップターゲット拡大
+- `app/(main)/insights/page.tsx` — 小さな数字に `.tabular` クラス追加
+
+### 設計判断
+
+**Step 1（Icon ラッパー）→ 省略**
+- プロジェクト全体の 91% がすでに `strokeWidth={1.5}` で統一済み
+- BottomNav の `isActive ? 2 : 1.5` は意図的デザイン（アクティブ状態を太くする）
+- FAB の `strokeWidth={2}` も意図的（主要アクションの + ボタンは強調する）
+- ラッパーを作って全置換するリスクに対し効果が薄い → 省略
+
+**Step 2（タップターゲット 44px）**
+
+修正した箇所：
+- **BottomSheet × ボタン**: `p-1.5`（30px） → `min-h-[44px] min-w-[44px] flex items-center justify-center`
+- **list/page.tsx の編集・削除ボタン**: `p-1.5`（26px） → `min-h-[44px] min-w-[44px] flex items-center justify-center`（`replace_all` で全 10 箇所を一括）
+
+省略した箇所：
+- メディアタブの縦並びボタン（`flex-col` で 2 段積み → 44px×2=88px になりレイアウト破綻のリスク）
+
+**Step 3（ベースライングリッド）→ 省略**
+セッション 20-22 のタイポグラフィに触れるリスクが高く、任意 px 値の残存もほぼなし
+
+**Step 4（tabular-nums）**
+- `globals.css` に `.tabular` クラス追加
+  ```css
+  font-feature-settings: 'tnum' 1, 'lnum' 1;
+  font-variant-numeric: tabular-nums lining-nums;
+  ```
+- insights の大数字（52px）はすでに inline で `fontFeatureSettings` 設定済み
+- 小さな数字（訪問数、映画本数、カテゴリ統計）に `.tabular` クラスを追加
+
+**Step 5（オプティカルアライメント）→ 省略**
+視差 1px 調整はデグレリスクに対し体感差が小さい → 見送り
+
+**Step 6（テキストユーティリティ）**
+- `globals.css` に `.heading-display`・`.heading-large`・`.body-text`・`.label-small` 追加
+- 既存コードへの適用は行わない（デザイントークンの定義のみ、セッション 20-22 破壊防止）
+
+**Step 7（線の太さ）→ 省略**
+セッション 22 で 0.5px ボーダーは大半対応済み
+
+### テスト
+37 passed（変更なし）
+
+---
+
 ## セッション 33：Phase F3 — Materiality（マテリアル感の完成）
 
 ### 目的

@@ -61,7 +61,7 @@ export default function BottomSheet({
               </Drawer.Title>
               <button
                 onClick={onClose}
-                className="p-1.5 transition-opacity active:opacity-50"
+                className="min-h-[44px] min-w-[44px] flex items-center justify-center transition-opacity active:opacity-50"
                 style={{ color: '#A3A3A3' }}
               >
                 <X size={18} strokeWidth={1.5} />
