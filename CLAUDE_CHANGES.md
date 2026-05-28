@@ -4,6 +4,69 @@
 
 ---
 
+## セッション 30：Promise Moon（再会までの月の満ち欠け）
+
+### 目的
+再会までの日数を月の満ち欠けで詩的に表現。満月 = 再会の日。
+
+### 変更ファイル
+- `lib/moonPhase.ts`（新規）— フェーズ計算ロジック
+- `components/PromiseMoon.tsx`（新規）— 月の SVG コンポーネント
+- `app/(main)/page.tsx` — moonDaysLeft 計算 + PromiseMoon 組み込み
+
+### 設計判断
+
+**moonPhase.ts**
+- 8段階のフェーズ（new → full → waning_crescent）
+- daysLeft >= 0: 満ちていく（upcoming）
+- daysLeft < 0: 欠けていく（帰った後）
+- `getMoonPhaseLabel()` で aria-label 用英語表示名を提供
+
+**PromiseMoon.tsx**
+- SVG は常に `size × size`（28×28）で位置計算を単純に保つ
+- `overflow="visible"` で満月のハローを SVG 外に描画 → ヒーローカードの `overflow:hidden` で適切にクリップ
+- 満月のハローは 2 段階（opacity 0.08 → 0.16）、外側が呼吸アニメーション
+- `useReducedMotion()` でハローアニメーションを無効化（iOS 設定対応）
+- `clipPath` で月の明部を円形にクリップ
+- 新規 DB クエリなし
+
+**page.tsx への組み込み**
+- `moonDaysLeft` を heroState から派生（新規 state/クエリなし）
+  - upcoming → heroState.daysLeft（カウントダウン値を再利用）
+  - together / last_day / departure_day → 0（満月）
+  - no_meeting / anniversary → null（非表示）
+- position: absolute, top:20px, left:20px に配置（軌道レイヤーの上・コンテンツの下）
+- zIndex: 1 でコンテンツに隠れる装飾レイヤーとして機能
+- loading 中は非表示（moonDaysLeft === null）
+
+**フェーズ対応表**
+
+| daysLeft | フェーズ | 見え方 |
+|---|---|---|
+| 28+ | new | 暗い円のみ（ほぼ見えない） |
+| 21-27 | waxing_crescent | 右に細い三日月 |
+| 14-20 | first_quarter | 右半分明るい |
+| 7-13 | waxing_gibbous | ほぼ満月、左が少し欠け |
+| 0-6 | full | 満月 + 光るハロー |
+| -1 ~ -7 | waning_gibbous | 右が欠け始め |
+| -8 ~ -14 | last_quarter | 左半分明るい |
+| -15以下 | waning_crescent | 左に細い三日月 |
+
+### パフォーマンス
+- 静的 SVG（フェーズ計算は純粋関数、レンダリングごとに再計算）
+- ハローアニメーションは満月時のみ（60fps で軽量）
+
+### アクセシビリティ
+- `role="img"` + `aria-label="Waxing Crescent — 21 days until next layover"`
+- `prefers-reduced-motion` でハローアニメーション停止
+
+### テスト
+- TypeScript: エラー 0
+- ESLint: 警告・エラー 0
+- E2E: 37 passed
+
+---
+
 ## セッション 29：ホームヒーロー軌道アニメーション + 英語統一
 
 ### 目的

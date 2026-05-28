@@ -20,6 +20,7 @@ import Tag from '@/components/ui/Tag'
 import { PageTransition } from '@/components/PageTransition'
 import { AnimatedNumber } from '@/components/AnimatedNumber'
 import { OrbitBackground } from '@/components/OrbitBackground'
+import { PromiseMoon } from '@/components/PromiseMoon'
 
 interface UserProfile {
   id: string
@@ -438,6 +439,15 @@ export default function HomePage() {
     couple?.anniversary ? new Date(couple.anniversary.replace(/-/g, '/')) : null,
   )
 
+  // Promise Moon: 再会までの日数 → 月フェーズの計算に使う
+  const moonDaysLeft: number | null = loading
+    ? null
+    : heroState.kind === 'upcoming'
+      ? heroState.daysLeft
+      : (heroState.kind === 'together' || heroState.kind === 'last_day' || heroState.kind === 'departure_day')
+        ? 0
+        : null; // no_meeting / anniversary は表示しない
+
   // ヒーロー下部に表示するイベント種別ラベル（upcoming / departure_day 時）
   const heroLabelEvent =
     heroState.kind === 'together' || heroState.kind === 'last_day'
@@ -526,6 +536,12 @@ export default function HomePage() {
           <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', opacity: 0.65 }}>
             <OrbitBackground placesVisited={placesCount} daysTogether={daysTogether} />
           </div>
+          {/* Promise Moon — 左上に月の満ち欠け */}
+          {moonDaysLeft !== null && (
+            <div style={{ position: 'absolute', top: '20px', left: '20px', pointerEvents: 'none', zIndex: 1 }}>
+              <PromiseMoon daysLeft={moonDaysLeft} size={28} />
+            </div>
+          )}
           {/* Top row: greeting + avatars */}
           <div className="flex items-start justify-between">
             <div>
