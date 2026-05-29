@@ -4,6 +4,71 @@
 
 ---
 
+## セッション 35：Phase F5 — Tactility（触感の高度化）
+
+### 目的
+ハプティックを細分化し、サウンドフィードバックのインフラを整備。「気づかないけど上質な触感」を実現。
+
+### 変更ファイル
+- `lib/haptics.ts` — 新タイプ追加・パターン調整
+- `lib/sounds.ts` — 新規作成（サウンドインフラ）
+- `components/BottomNav.tsx` — タブ切替を `'selection'` に
+- `app/(main)/list/page.tsx` — タブ切替・GroupBy切替を `'selection'` に
+- `app/(main)/settings/page.tsx` — 触感セクション強化・サウンドトグル追加
+- `docs/HAPTIC_GUIDELINES.md` — 新規作成
+- `tests/settings-haptic.spec.ts` — 新規テスト4件
+
+### 設計判断
+
+**Step 1 — `lib/haptics.ts` 拡張**
+
+新タイプ追加（`HapticType` を export 型として公開）:
+- `selection`: 5ms — タブ切替など最軽量
+- `soft`: 8ms — トグルOFF・月フェーズ変化
+- `rigid`: 15ms — 長押し開始
+- `error`: [30, 50, 30, 50, 30] — エラー発生
+
+既存タイプのパターン微調整:
+- `success`: [10, 50, 10] → [10, 30, 10]（より締まった感触に）
+- `warning`: [20, 100, 20] → [20, 80, 20]（重すぎない警告に）
+
+localStorage キーは既存の `haptics_enabled` を維持（後方互換）。
+
+**Step 2 — `lib/sounds.ts` 新規作成**
+
+デフォルト OFF（`localStorage.getItem('sound_enabled') !== 'true'`）。
+音源ファイルが `public/sounds/` に存在しない場合はエラーを飲み込む設計。
+音源ファイルは別途 `public/sounds/` に配置が必要（tap.mp3, success.mp3, delete.mp3, pop.mp3）。
+
+**Step 3 — ハプティック呼び出し更新**
+
+タブ切替系を `'light'` → `'selection'` に変更:
+- `BottomNav.tsx`: ページタブ切替
+- `list/page.tsx`: リスト内タブ切替（場所/メディア/やること）
+- `list/page.tsx`: GroupBy セレクター切替
+
+その他の既存呼び出し（FAB: medium, 削除: warning, 完了: success）は変更なし。
+
+**Step 4 — 設定画面の「触感」セクション**
+
+既存の「App Settings」カード（バイブレーションのみ）を拡張:
+- セクション名を「触感」として見出しを追加
+- `data-testid="haptic-toggle"` / `aria-checked` 属性を付与（テスト対応）
+- サウンドトグル追加（`data-testid="sound-toggle"`）
+- バイブレーション ON 時に `haptic('success')` でサンプル振動
+- サウンド ON 時に `playSound('tap')` でサンプル音（音源ファイルがあれば）
+
+**Step 5 — `docs/HAPTIC_GUIDELINES.md`**
+
+シーン別マッピング表・サウンドタイプ一覧・新機能追加時のチェックリストを記載。
+将来の実装者が迷わないよう設計ドキュメントとして整備。
+
+### テスト
+- 新規: `tests/settings-haptic.spec.ts` 4件追加
+- 合計: 41 passed（37 → 41）
+
+---
+
 ## セッション 34：Phase F4 — Precision（細部の完成度）
 
 ### 目的

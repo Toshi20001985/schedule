@@ -672,7 +672,7 @@ function ListPageInner() {
         ].map(({ key, icon: Icon, label }) => (
           <button
             key={key}
-            onClick={() => { haptic('light'); setTab(key as 'places' | 'media' | 'todos') }}
+            onClick={() => { haptic('selection'); setTab(key as 'places' | 'media' | 'todos') }}
             className="flex-1 flex items-center justify-center gap-1 py-2 font-medium transition-all"
             style={{
               fontSize: '11px',
@@ -697,7 +697,7 @@ function ListPageInner() {
         ] as const).map(({ key, label }) => (
           <button
             key={key}
-            onClick={() => { haptic('light'); setGroupBy(key); setCollapsed(new Set()) }}
+            onClick={() => { haptic('selection'); setGroupBy(key); setCollapsed(new Set()) }}
             className="text-xs px-3 py-1.5 font-medium transition-all active:opacity-60"
             style={{
               backgroundColor: groupBy === key ? '#1A1A1A' : '#F5F5F3',

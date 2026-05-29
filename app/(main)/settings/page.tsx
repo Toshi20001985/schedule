@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Copy, Check, LogOut, Calendar, User, Link2, ChevronRight, Vibrate, MapPin, Download, Trash2 } from 'lucide-react'
+import { Copy, Check, LogOut, Calendar, User, Link2, ChevronRight, Vibrate, Volume2, MapPin, Download, Trash2 } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import IconCircle from '@/components/ui/IconCircle'
@@ -47,6 +47,7 @@ export default function SettingsPage() {
   const [backfillProgress,  setBackfillProgress]  = useState<{ done: number; total: number } | null>(null)
   const [backfillMessage,   setBackfillMessage]   = useState('')
   const [hapticsEnabled, setHapticsEnabled] = useState(true)
+  const [soundEnabled, setSoundEnabled] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const savedTimerRef  = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -61,12 +62,29 @@ export default function SettingsPage() {
 
   useEffect(() => {
     setHapticsEnabled(localStorage.getItem('haptics_enabled') !== 'false')
+    setSoundEnabled(localStorage.getItem('sound_enabled') === 'true')
   }, [])
 
   function toggleHaptics() {
     const next = !hapticsEnabled
     setHapticsEnabled(next)
     localStorage.setItem('haptics_enabled', next ? 'true' : 'false')
+    if (next) {
+      import('@/lib/haptics').then(({ haptic }) => haptic('success'))
+    }
+  }
+
+  function toggleSound() {
+    const next = !soundEnabled
+    setSoundEnabled(next)
+    localStorage.setItem('sound_enabled', next ? 'true' : 'false')
+    if (next) {
+      import('@/lib/sounds').then(({ playSound }) => {
+        // 一時的にONにしてサンプル音を鳴らす
+        localStorage.setItem('sound_enabled', 'true')
+        playSound('tap')
+      })
+    }
   }
 
   useEffect(() => {
@@ -551,14 +569,24 @@ export default function SettingsPage() {
         </div>
       </Card>
 
-      {/* App Settings */}
+      {/* 触感 */}
       <Card padding="none">
-        <button onClick={toggleHaptics} className="w-full flex items-center justify-between px-4 py-4">
+        <h2 className="text-xs font-medium uppercase tracking-widest px-4 pt-4 pb-2 flex items-center gap-2" style={{ color: '#A3A3A3' }}>
+          <Vibrate size={13} strokeWidth={1.5} /> 触感
+        </h2>
+        {/* バイブレーション */}
+        <button
+          data-testid="haptic-toggle"
+          aria-checked={hapticsEnabled}
+          onClick={toggleHaptics}
+          className="w-full flex items-center justify-between px-4 py-3.5"
+          style={{ borderTop: '0.5px solid #F0F0F0' }}
+        >
           <div className="flex items-center gap-3">
             <Vibrate size={16} strokeWidth={1.5} style={{ color: '#737373' }} />
             <div className="text-left">
-              <span className="text-sm font-medium" style={{ color: '#1A1A1A' }}>振動フィードバック</span>
-              <p className="text-xs mt-0.5" style={{ color: '#A3A3A3' }}>ボタンタップ時に振動します</p>
+              <span className="text-sm font-medium" style={{ color: '#1A1A1A' }}>バイブレーション</span>
+              <p className="text-xs mt-0.5" style={{ color: '#A3A3A3' }}>タップや操作時に振動</p>
             </div>
           </div>
           <div
@@ -568,6 +596,31 @@ export default function SettingsPage() {
             <div
               className="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform"
               style={{ transform: hapticsEnabled ? 'translateX(20px)' : 'translateX(2px)' }}
+            />
+          </div>
+        </button>
+        {/* サウンド */}
+        <button
+          data-testid="sound-toggle"
+          aria-checked={soundEnabled}
+          onClick={toggleSound}
+          className="w-full flex items-center justify-between px-4 py-3.5"
+          style={{ borderTop: '0.5px solid #F0F0F0' }}
+        >
+          <div className="flex items-center gap-3">
+            <Volume2 size={16} strokeWidth={1.5} style={{ color: '#737373' }} />
+            <div className="text-left">
+              <span className="text-sm font-medium" style={{ color: '#1A1A1A' }}>サウンド</span>
+              <p className="text-xs mt-0.5" style={{ color: '#A3A3A3' }}>タップや成功時に音（デフォルト OFF）</p>
+            </div>
+          </div>
+          <div
+            className="w-11 h-6 rounded-full transition-colors relative flex-shrink-0"
+            style={{ backgroundColor: soundEnabled ? '#1A1A1A' : '#E5E5E5' }}
+          >
+            <div
+              className="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform"
+              style={{ transform: soundEnabled ? 'translateX(20px)' : 'translateX(2px)' }}
             />
           </div>
         </button>
