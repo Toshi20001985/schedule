@@ -4,6 +4,46 @@
 
 ---
 
+## セッション 36：バグ修正 — 空港コード入力の文字重複バグ + リスト削除アイテム復活バグ
+
+### バグ2：空港コード入力で文字が重複する（CHT → CCHHTT）
+
+#### 症状
+フライト情報フォームで空港コードを入力すると、「C」と打っただけで「CC」と2文字になるバグ。
+
+#### 根本原因
+**iOS Safari の controlled input 再発火バグ**:
+1. ユーザーが小文字「c」をタップ → ブラウザが DOM に「c」を挿入
+2. React `onChange` が `toUpperCase()` で「C」に変換 → state 更新
+3. React が DOM の `input.value` を「C」にセット（「c」→「C」に変化）
+4. iOS のバーチャルキーボードが DOM 変更を検知し、入力イベントを再発火
+5. 「C」がさらに追加 →「CC」
+
+#### 修正内容 (`app/(main)/calendar/page.tsx`)
+`FlightDraftItem` の空港コード・便名入力に3つの属性を追加：
+
+```tsx
+// 修正前
+<input value={draft.departure_airport}
+  onChange={e => onChange(index, { departure_airport: e.target.value.toUpperCase() })} />
+
+// 修正後
+<input value={draft.departure_airport}
+  name="departure_airport"
+  autoCapitalize="characters"  // iOS キーボードが最初から大文字を送信 → 変換不要 → 再発火なし
+  autoCorrect="off"            // 自動修正の干渉を防止
+  autoComplete="off"           // オートコンプリートの干渉を防止
+  onChange={e => onChange(index, { departure_airport: e.target.value.toUpperCase().replace(/[^A-Z]/g, '') })} />
+```
+
+対象フィールド：`departure_airport`, `arrival_airport`, `flight_number`（英数字のみ: `[^A-Z0-9]`）
+
+#### テスト
+- 新規: `tests/flight-input.spec.ts` 5件追加
+- 合計: 48 passed（43 → 48）
+
+---
+
 ## セッション 36：バグ修正 — リスト削除アイテム復活バグ（回帰修正）
 
 ### 目的

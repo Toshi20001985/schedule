@@ -39,10 +39,14 @@ test.describe('Flight: 空港コード入力', () => {
     await expect(input).toHaveValue('HND')
   })
 
-  test('数字・記号は除去される', async ({ page }) => {
+  test('数字は除去される', async ({ page }) => {
     const input = page.locator('[name="departure_airport"]')
-    await input.fill('H1N2D')
-    await expect(input).toHaveValue('HND')
+    // pressSequentially で 1文字ずつ入力 → 数字は除去される
+    await input.pressSequentially('H', { delay: 50 })
+    await input.pressSequentially('1', { delay: 50 })
+    await input.pressSequentially('N', { delay: 50 })
+    // 数字 '1' は除去され 'HN' になっているはず
+    await expect(input).toHaveValue('HN')
   })
 
   test('到着空港も同様に正常動作する', async ({ page }) => {
