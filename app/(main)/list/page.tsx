@@ -385,19 +385,28 @@ function ListPageInner() {
   }, [tab])
 
   // デモモード: 状態変化をモジュールキャッシュに同期（リマウント時に削除が復活しないよう）
+  // 注意: places=[] は useState の初期値として発火するケースがある（React Strict Mode の
+  // 二重 effect 実行など）。その場合にキャッシュを空で上書きしないよう、
+  // 「places に実データがある」か「キャッシュがすでに空（ユーザーが全削除済み）」の場合のみ同期する。
   useEffect(() => {
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL && _demoPlaces !== null) {
-      _demoPlaces = places
+      if (places.length > 0 || _demoPlaces.length === 0) {
+        _demoPlaces = places
+      }
     }
   }, [places])
   useEffect(() => {
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL && _demoMedia !== null) {
-      _demoMedia = media
+      if (media.length > 0 || _demoMedia.length === 0) {
+        _demoMedia = media
+      }
     }
   }, [media])
   useEffect(() => {
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL && _demoTodos !== null) {
-      _demoTodos = todos
+      if (todos.length > 0 || _demoTodos.length === 0) {
+        _demoTodos = todos
+      }
     }
   }, [todos])
 

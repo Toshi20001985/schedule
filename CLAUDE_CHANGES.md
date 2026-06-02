@@ -4,6 +4,53 @@
 
 ---
 
+## セッション 36：バグ修正 — リスト削除アイテム復活バグ（回帰修正）
+
+### 目的
+セッション28で修正したリスト削除復活バグが、React Strict Modeの二重エフェクト実行により再発していたため根本修正。
+
+### 変更ファイル
+- `app/(main)/list/page.tsx` — sync useEffects にガード条件追加
+- `tests/list-deletion-persistence.spec.ts` — 新規回帰テスト2件追加
+
+### 根本原因
+
+React Strict Mode（Next.js開発環境でデフォルト有効）がuseEffectを2回実行する：
+
+1. コンポーネントマウント → `load()` で `_demoPlaces` にデータ読み込み → `setPlaces(data)`
+2. sync effect 発火（`places=[]` の初期値で） → `_demoPlaces = []` に上書き
+3. Strict Mode の2回目マウント → `load()` が空の `_demoPlaces` を読む → `setPlaces([])`
+4. 結果: アイテムを削除した後、タブ切替（コンポーネント再マウント）でデータが全消失
+
+### 修正内容
+
+`places/media/todos` の3つの sync useEffects に `places.length > 0 || _demoPlaces.length === 0` のガード追加：
+
+```tsx
+// 修正前
+useEffect(() => {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL && _demoPlaces !== null) {
+    _demoPlaces = places  // places=[] の初期値でキャッシュを破壊していた
+  }
+}, [places])
+
+// 修正後
+useEffect(() => {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL && _demoPlaces !== null) {
+    if (places.length > 0 || _demoPlaces.length === 0) {
+      _demoPlaces = places  // 実データを持つ場合のみ、またはキャッシュが空の場合のみ同期
+    }
+  }
+}, [places])
+```
+
+### テスト
+- 新規: `tests/list-deletion-persistence.spec.ts` 2件追加（削除後タブ切替で復活しないことを確認）
+- 削除: `tests/debug-demo-data.spec.ts`（デバッグ用一時ファイル）
+- 合計: 43 passed（41 → 43）
+
+---
+
 ## セッション 35：Phase F5 — Tactility（触感の高度化）
 
 ### 目的

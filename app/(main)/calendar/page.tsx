@@ -479,7 +479,9 @@ function FlightDraftItem({
         <div>
           <label style={flightLabelStyle}>便名</label>
           <input style={flightInputStyle} value={draft.flight_number} placeholder="NH123"
-            onChange={e => onChange(index, { flight_number: e.target.value.toUpperCase() })} />
+            name="flight_number"
+            autoCapitalize="characters" autoCorrect="off" autoComplete="off"
+            onChange={e => onChange(index, { flight_number: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '') })} />
         </div>
         <div>
           <label style={flightLabelStyle}>航空会社</label>
@@ -494,7 +496,9 @@ function FlightDraftItem({
           <label style={flightLabelStyle}>出発空港</label>
           <input style={flightInputStyle} value={draft.departure_airport}
             placeholder="HND" maxLength={4}
-            onChange={e => onChange(index, { departure_airport: e.target.value.toUpperCase() })} />
+            name="departure_airport"
+            autoCapitalize="characters" autoCorrect="off" autoComplete="off"
+            onChange={e => onChange(index, { departure_airport: e.target.value.toUpperCase().replace(/[^A-Z]/g, '') })} />
           <div className="flex gap-1 flex-wrap mt-1.5">
             {COMMON_AIRPORTS.slice(0, 4).map(c => (
               <button key={c} type="button"
@@ -510,7 +514,9 @@ function FlightDraftItem({
           <label style={flightLabelStyle}>到着空港</label>
           <input style={flightInputStyle} value={draft.arrival_airport}
             placeholder="ITM" maxLength={4}
-            onChange={e => onChange(index, { arrival_airport: e.target.value.toUpperCase() })} />
+            name="arrival_airport"
+            autoCapitalize="characters" autoCorrect="off" autoComplete="off"
+            onChange={e => onChange(index, { arrival_airport: e.target.value.toUpperCase().replace(/[^A-Z]/g, '') })} />
           <div className="flex gap-1 flex-wrap mt-1.5">
             {COMMON_AIRPORTS.slice(0, 4).map(c => (
               <button key={c} type="button"
