@@ -4,6 +4,72 @@
 
 ---
 
+## セッション 37：バグ修正（3回目）— リスト削除アイテム復活バグ 根本対応
+
+### これが3回目の修正試行であること
+
+- セッション 28：デモモードのモジュールレベルキャッシュ修正（本番に無効）
+- セッション 36：デモモードの Strict Mode 二重 effect 修正（本番に無効）
+- **セッション 37：本番モードの真の原因を特定して修正**
+
+### 過去の修正が失敗した理由
+
+過去2回の修正はどちらも `!process.env.NEXT_PUBLIC_SUPABASE_URL`（デモモード）のコードパスを修正していた。
+本番環境は Supabase に接続しているため、それらの修正はまったく効かなかった。
+
+### 真の根本原因
+
+**原因1（主）：`useCollection.deleteItem` のエラーハンドリング欠如**
+
+```typescript
+// 修正前 — エラーを完全に無視
+await db.from(table).delete().eq('id', id)
+```
+
+Supabase DELETE が失敗（RLS 違反、認証エラー、ネットワークエラーなど）しても、
+エラーは握り潰されUIからは消えるがDBには残る。次回 `load()` でアイテムが復活。
+
+**原因2（副）：タブ切替時のレースコンディション**
+
+Next.js 16 はページ間ナビで ListPage をアンマウント→リマウントし `load()` を再実行する。
+もし DELETE が完了する前に `load()` がDBをフェッチすると、削除前のデータが返る。
+さらに Realtime 購読は `coupleId` 確定後（`load()` 完了後）に開始するため、
+DELETE Realtime イベントを取りこぼすと復活したまま残る。
+
+### 修正内容
+
+**`hooks/useCollection.ts` — エラーハンドリング＋ロールバック追加**
+
+```typescript
+// 修正後
+const deleteItem = useCallback(async (id: string) => {
+    const snapshot: { item: T | undefined } = { item: undefined }
+    setItems(prev => {
+        snapshot.item = prev.find(item => item.id === id)
+        return prev.filter(item => item.id !== id)
+    })
+    if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
+        const { error } = await db.from(table).delete().eq('id', id)
+        if (error) {
+            if (snapshot.item !== undefined) setItems(prev => [snapshot.item!, ...prev])
+            showToast('削除に失敗しました', { variant: 'error' })
+        }
+    }
+}, [table, showToast])
+```
+
+**`app/(main)/list/page.tsx` — 削除中IDトラッキング追加**
+
+モジュールレベルに `_pendingDeleteIds = new Set<string>()` を追加。
+削除関数で `add/delete`、`load()` のフェッチ結果でフィルタリング。
+タブ切替後のリマウント時に、削除中アイテムが `load()` 結果に含まれても無視する。
+
+### テスト
+
+- 既存 48 件すべて通過（48 passed）
+
+---
+
 ## セッション 36：バグ修正 — 空港コード入力の文字重複バグ + リスト削除アイテム復活バグ
 
 ### バグ2：空港コード入力で文字が重複する（CHT → CCHHTT）

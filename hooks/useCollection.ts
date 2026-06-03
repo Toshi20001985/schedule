@@ -87,16 +87,29 @@ export function useCollection<T extends { id: string }>(
 
   /**
    * Supabase からの delete + ローカル state 楽観的削除。
+   * 削除失敗時はロールバックしてエラートーストを表示する。
    */
   const deleteItem = useCallback(async (id: string) => {
-    setItems(prev => prev.filter(item => item.id !== id))
+    // ロールバック用にアイテムを保存してから楽観的削除
+    const snapshot: { item: T | undefined } = { item: undefined }
+    setItems(prev => {
+      snapshot.item = prev.find(item => item.id === id)
+      return prev.filter(item => item.id !== id)
+    })
     if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
       const { createClient } = await import('@/lib/supabase/client')
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const db = createClient() as any
-      await db.from(table).delete().eq('id', id)
+      const { error } = await db.from(table).delete().eq('id', id)
+      if (error) {
+        // DB 削除失敗 → 楽観的削除をロールバック
+        if (snapshot.item !== undefined) {
+          setItems(prev => [snapshot.item!, ...prev])
+        }
+        showToast('削除に失敗しました', { variant: 'error' })
+      }
     }
-  }, [table])
+  }, [table, showToast])
 
   return { items, setItems, addItem, updateItem, deleteItem }
 }

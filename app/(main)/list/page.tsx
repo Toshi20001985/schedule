@@ -125,6 +125,10 @@ let _demoPlaces: Place[] | null = null
 let _demoMedia: MediaItem[] | null = null
 let _demoTodos: Todo[] | null = null
 
+// 削除中の ID を追跡 — タブ切替後のリマウント時に load() が古いデータを返しても
+// 削除中アイテムをフィルタして復活バグを防ぐ（本番モード向け）
+const _pendingDeleteIds = new Set<string>()
+
 function ListPageInner() {
   const searchParams = useSearchParams()
   const [tab, setTab] = useState<'places' | 'media' | 'todos'>(
@@ -320,44 +324,50 @@ function ListPageInner() {
     }
 
     if (placesData) {
-      setPlaces(placesData.map((p: {
-        id: string; name: string; category: string; location: string
-        memo?: string; is_visited: boolean; owner?: Owner
-        latitude?: number | null; longitude?: number | null
-      }) => ({
-        id: p.id, name: p.name,
-        category: p.category ?? 'その他',
-        location: p.location ?? '',
-        memo: p.memo ?? undefined,
-        is_visited: p.is_visited,
-        owner: (p.owner as Owner) ?? 'me',
-        latitude:  p.latitude  ?? undefined,
-        longitude: p.longitude ?? undefined,
-      })))
+      setPlaces(placesData
+        .filter((p: { id: string }) => !_pendingDeleteIds.has(p.id))
+        .map((p: {
+          id: string; name: string; category: string; location: string
+          memo?: string; is_visited: boolean; owner?: Owner
+          latitude?: number | null; longitude?: number | null
+        }) => ({
+          id: p.id, name: p.name,
+          category: p.category ?? 'その他',
+          location: p.location ?? '',
+          memo: p.memo ?? undefined,
+          is_visited: p.is_visited,
+          owner: (p.owner as Owner) ?? 'me',
+          latitude:  p.latitude  ?? undefined,
+          longitude: p.longitude ?? undefined,
+        })))
     }
     if (mediaData) {
-      setMedia(mediaData.map((m: {
-        id: string; title: string; media_type: MediaItem['media_type']
-        memo?: string; is_done: boolean; owner?: Owner
-      }) => ({
-        id: m.id, title: m.title,
-        media_type: m.media_type,
-        memo: m.memo ?? undefined,
-        is_done: m.is_done,
-        owner: (m.owner as Owner) ?? 'me',
-      })))
+      setMedia(mediaData
+        .filter((m: { id: string }) => !_pendingDeleteIds.has(m.id))
+        .map((m: {
+          id: string; title: string; media_type: MediaItem['media_type']
+          memo?: string; is_done: boolean; owner?: Owner
+        }) => ({
+          id: m.id, title: m.title,
+          media_type: m.media_type,
+          memo: m.memo ?? undefined,
+          is_done: m.is_done,
+          owner: (m.owner as Owner) ?? 'me',
+        })))
     }
     if (todosData) {
-      setTodos(todosData.map((t: {
-        id: string; title: string; category?: string
-        memo?: string; is_done: boolean; owner?: Owner
-      }) => ({
-        id: t.id, title: t.title,
-        category: t.category ?? '',
-        memo: t.memo ?? undefined,
-        is_done: t.is_done,
-        owner: (t.owner as Owner) ?? 'both',
-      })))
+      setTodos(todosData
+        .filter((t: { id: string }) => !_pendingDeleteIds.has(t.id))
+        .map((t: {
+          id: string; title: string; category?: string
+          memo?: string; is_done: boolean; owner?: Owner
+        }) => ({
+          id: t.id, title: t.title,
+          category: t.category ?? '',
+          memo: t.memo ?? undefined,
+          is_done: t.is_done,
+          owner: (t.owner as Owner) ?? 'both',
+        })))
     }
   }, [setPlaces, setMedia, setTodos])
 
@@ -504,17 +514,32 @@ function ListPageInner() {
   // ── 削除 ────────────────────────────────────────────────────────
   async function deletePlace(id: string) {
     haptic('warning')
-    await deletePlaceItem(id)
+    _pendingDeleteIds.add(id)
+    try {
+      await deletePlaceItem(id)
+    } finally {
+      _pendingDeleteIds.delete(id)
+    }
   }
 
   async function deleteTodo(id: string) {
     haptic('warning')
-    await deleteTodoItem(id)
+    _pendingDeleteIds.add(id)
+    try {
+      await deleteTodoItem(id)
+    } finally {
+      _pendingDeleteIds.delete(id)
+    }
   }
 
   async function deleteMedia(id: string) {
     haptic('warning')
-    await deleteMediaItem(id)
+    _pendingDeleteIds.add(id)
+    try {
+      await deleteMediaItem(id)
+    } finally {
+      _pendingDeleteIds.delete(id)
+    }
   }
 
   // ── フォームリセット・編集開始 ──────────────────────────────────
